@@ -1,0 +1,582 @@
+import { NextResponse } from 'next/server'
+import fs from 'fs/promises'
+import path from 'path'
+import { getPlatformRole, getCurrentUser } from '@/lib/auth'
+import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { hasR2, uploadBufferToR2, deleteFromR2, listR2Objects, getR2KeyFromUrl } from '@/lib/r2'
+
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
+const BRANDING_DIR = path.join(process.cwd(), 'public', 'branding')
+
+const globalDeletedAssets = new Set<string>()
+
+async function getDeletedAssets(): Promise<string[]> {
+  const deleted: string[] = []
+  
+  if (hasFirebase) {
+    const db = getFirestoreDb()
+    if (db) {
+      try {
+        const doc = await db.collection('settings').doc('deleted_assets').get()
+        if (doc.exists) {
+          const data = doc.data()
+          if (data && Array.isArray(data.urls)) {
+            return data.urls
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch deleted assets from Firestore:', err)
+      }
+    }
+  }
+
+  try {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const cookieVal = cookieStore.get('deleted_assets')?.value
+    if (cookieVal) {
+      return JSON.parse(cookieVal)
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  return deleted
+}
+
+async function addDeletedAsset(url: string) {
+  globalDeletedAssets.add(url)
+
+  if (hasFirebase) {
+    const db = getFirestoreDb()
+    if (db) {
+      try {
+        const docRef = db.collection('settings').doc('deleted_assets')
+        const doc = await docRef.get()
+        let urls = [url]
+        if (doc.exists) {
+          const data = doc.data()
+          if (data && Array.isArray(data.urls)) {
+            urls = Array.from(new Set([...data.urls, url]))
+          }
+        }
+        await docRef.set({ urls, updated_at: new Date() }, { merge: true })
+        return
+      } catch (err) {
+        console.error('Failed to save deleted asset to Firestore:', err)
+      }
+    }
+  }
+
+  try {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const cookieVal = cookieStore.get('deleted_assets')?.value
+    let urls = [url]
+    if (cookieVal) {
+      urls = Array.from(new Set([...JSON.parse(cookieVal), url]))
+    }
+    cookieStore.set('deleted_assets', JSON.stringify(urls), {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+    })
+  } catch (err) {
+    // ignore
+  }
+}
+
+async function removeDeletedAsset(url: string) {
+  globalDeletedAssets.delete(url)
+
+  if (hasFirebase) {
+    const db = getFirestoreDb()
+    if (db) {
+      try {
+        const docRef = db.collection('settings').doc('deleted_assets')
+        const doc = await docRef.get()
+        if (doc.exists) {
+          const data = doc.data()
+          if (data && Array.isArray(data.urls)) {
+            const urls = data.urls.filter((u: string) => u !== url)
+            await docRef.set({ urls, updated_at: new Date() }, { merge: true })
+          }
+        }
+        return
+      } catch (err) {
+        console.error('Failed to remove deleted asset from Firestore:', err)
+      }
+    }
+  }
+
+  try {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const cookieVal = cookieStore.get('deleted_assets')?.value
+    if (cookieVal) {
+      const urls = JSON.parse(cookieVal).filter((u: string) => u !== url)
+      cookieStore.set('deleted_assets', JSON.stringify(urls), {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 365,
+      })
+    }
+  } catch (err) {
+    // ignore
+  }
+}
+
+const globalGalleryUploads = new Set<string>()
+
+async function getGalleryUploads(): Promise<string[]> {
+  if (hasFirebase) {
+    const db = getFirestoreDb()
+    if (db) {
+      try {
+        const doc = await db.collection('settings').doc('gallery_uploads').get()
+        if (doc.exists) {
+          const data = doc.data()
+          if (data && Array.isArray(data.urls)) {
+            return data.urls
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch gallery uploads from Firestore:', err)
+      }
+    }
+  }
+
+  try {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const cookieVal = cookieStore.get('gallery_uploads')?.value
+    if (cookieVal) {
+      return JSON.parse(cookieVal)
+    }
+  } catch (err) {}
+
+  return Array.from(globalGalleryUploads)
+}
+
+async function addGalleryUpload(url: string) {
+  globalGalleryUploads.add(url)
+
+  if (hasFirebase) {
+    const db = getFirestoreDb()
+    if (db) {
+      try {
+        const docRef = db.collection('settings').doc('gallery_uploads')
+        const doc = await docRef.get()
+        let urls = [url]
+        if (doc.exists) {
+          const data = doc.data()
+          if (data && Array.isArray(data.urls)) {
+            urls = Array.from(new Set([url, ...data.urls]))
+          }
+        }
+        await docRef.set({ urls, updated_at: new Date() }, { merge: true })
+        return
+      } catch (err) {
+        console.error('Failed to save gallery upload to Firestore:', err)
+      }
+    }
+  }
+
+  try {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const cookieVal = cookieStore.get('gallery_uploads')?.value
+    let urls = [url]
+    if (cookieVal) {
+      urls = Array.from(new Set([url, ...JSON.parse(cookieVal)]))
+    }
+    cookieStore.set('gallery_uploads', JSON.stringify(urls), {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+    })
+  } catch (err) {}
+}
+
+async function removeGalleryUpload(url: string) {
+  globalGalleryUploads.delete(url)
+
+  if (hasFirebase) {
+    const db = getFirestoreDb()
+    if (db) {
+      try {
+        const docRef = db.collection('settings').doc('gallery_uploads')
+        const doc = await docRef.get()
+        if (doc.exists) {
+          const data = doc.data()
+          if (data && Array.isArray(data.urls)) {
+            const urls = data.urls.filter((u: string) => u !== url)
+            await docRef.set({ urls, updated_at: new Date() }, { merge: true })
+          }
+        }
+        return
+      } catch (err) {
+        console.error('Failed to remove gallery upload from Firestore:', err)
+      }
+    }
+  }
+
+  try {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const cookieVal = cookieStore.get('gallery_uploads')?.value
+    if (cookieVal) {
+      const urls = JSON.parse(cookieVal).filter((u: string) => u !== url)
+      cookieStore.set('gallery_uploads', JSON.stringify(urls), {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 365,
+      })
+    }
+  } catch (err) {}
+}
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const mode = searchParams.get('mode')
+
+    // Ensure uploads folder exists
+    await fs.mkdir(UPLOADS_DIR, { recursive: true })
+
+    const IMAGE_EXT = /\.(png|jpe?g|gif|svg|webp)$/i
+
+    // Fetch explicit gallery uploads
+    const galleryUploads = await getGalleryUploads()
+
+    // Read branding assets (banners / system assets)
+    let brandingImages: string[] = []
+    try {
+      const brandingFiles = await fs.readdir(BRANDING_DIR)
+      brandingImages = brandingFiles
+        .filter((f) => IMAGE_EXT.test(f))
+        .map((f) => `/branding/${f}`)
+    } catch {}
+
+    let images: string[] = []
+    if (mode === 'all') {
+      let uploadImages: string[] = []
+      if (hasR2) {
+        uploadImages = (await listR2Objects('uploads/')).filter((url) => IMAGE_EXT.test(url))
+      } else {
+        const uploadFiles = await fs.readdir(UPLOADS_DIR)
+        uploadImages = uploadFiles
+          .filter((f) => IMAGE_EXT.test(f))
+          .map((f) => `/uploads/${f}`)
+      }
+      images = Array.from(new Set([...galleryUploads, ...uploadImages, ...brandingImages]))
+    } else {
+      // ONLY explicit gallery uploads + branding system assets
+      images = Array.from(new Set([...galleryUploads, ...brandingImages]))
+    }
+
+    // Filter out any assets that have been soft-deleted
+    const deletedList = await getDeletedAssets()
+    const deletedSet = new Set([...deletedList, ...Array.from(globalDeletedAssets)])
+    const filteredImages = images.filter((img) => !deletedSet.has(img))
+
+    return NextResponse.json({ images: filteredImages })
+  } catch (err: any) {
+    console.error('Failed to list uploads:', err)
+    return NextResponse.json({ error: 'Failed to list uploads' }, { status: 500 })
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    // Security check: Any logged-in user can upload files (e.g. for team logos)
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized: You must be logged in to upload files' }, { status: 401 })
+    }
+
+    const formData = await req.formData()
+    const file = formData.get('file') as File | null
+    const type = formData.get('type') as string | null
+
+    const isGallery = formData.get('isGallery') === 'true' || type === 'gallery'
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    }
+
+    const arrayBuffer = await file.arrayBuffer()
+    const inputBuffer = Buffer.from(arrayBuffer)
+
+    // Sanitize filename
+    const ext = path.extname(file.name)
+    const nameWithoutExt = path.basename(file.name, ext)
+    const safeBase = nameWithoutExt
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '')
+
+    const isArchive = /\.(zip|rar|7z|tar|gz|tgz)$/i.test(file.name)
+    const isRasterImage = /\.(png|jpe?g|gif|webp)$/i.test(file.name)
+
+    // Compressed skin archives upload
+    if (type === 'skin' || isArchive) {
+      if (!isArchive) {
+        return NextResponse.json(
+          { error: 'Only compressed archive files (.zip, .rar, .7z, .tar.gz) are allowed.' },
+          { status: 400 }
+        )
+      }
+
+      // Max file size check for direct upload: 4.2MB (Vercel serverless body limit is 4.5MB)
+      if (file.size > 4.2 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: 'Skin file is larger than 4.2 MB (Vercel serverless upload limit). Please paste a Google Drive, Mega, or MediaFire download link instead.' },
+          { status: 400 }
+        )
+      }
+
+      const ext = path.extname(file.name)
+      const rawBase = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_\-\.\s]/g, '_')
+      const safeSkinName = `${rawBase}_${Date.now().toString(36)}${ext.toLowerCase()}`
+
+      // 0. Prefer Cloudflare R2 when configured
+      if (hasR2) {
+        try {
+          const finalUrl = await uploadBufferToR2(`skins/${safeSkinName}`, inputBuffer, file.type || 'application/zip')
+          return NextResponse.json({ url: finalUrl, name: file.name })
+        } catch (r2Err) {
+          console.warn('Uploading skin to R2 failed, falling back to disk/Firestore:', r2Err)
+        }
+      }
+
+      const SKINS_DIR = path.join(process.cwd(), 'public', 'uploads', 'skins')
+      const skinTargetPath = path.join(SKINS_DIR, safeSkinName)
+
+      // 1. Attempt writing to public disk (Local / Dedicated Server)
+      try {
+        await fs.mkdir(SKINS_DIR, { recursive: true })
+        await fs.writeFile(skinTargetPath, inputBuffer)
+        const finalUrl = `/api/uploads/skins/${safeSkinName}`
+        return NextResponse.json({ url: finalUrl, name: file.name })
+      } catch (fsErr) {
+        console.warn('Writing compressed skin to public disk failed (serverless environment). Trying /tmp storage:', fsErr)
+      }
+
+      // 2. Write to /tmp disk AND store in Firestore skin_files for serverless persistence
+      const TMP_SKINS_DIR = path.join('/tmp', 'skins')
+      const tmpTargetPath = path.join(TMP_SKINS_DIR, safeSkinName)
+      try {
+        await fs.mkdir(TMP_SKINS_DIR, { recursive: true })
+        await fs.writeFile(tmpTargetPath, inputBuffer)
+      } catch (tmpErr) {
+        console.warn('Writing compressed skin to /tmp failed:', tmpErr)
+      }
+
+      // 3. Store in Firestore skin_files collection for persistent cross-request serving
+      if (hasFirebase) {
+        const db = getFirestoreDb()
+        if (db) {
+          try {
+            const chunkSize = 500 * 1024 // 500KB per chunk
+            const chunks: string[] = []
+            for (let i = 0; i < inputBuffer.length; i += chunkSize) {
+              const chunkBuf = inputBuffer.subarray(i, i + chunkSize)
+              chunks.push(chunkBuf.toString('base64'))
+            }
+
+            const batch = db.batch()
+            const mainDocRef = db.collection('skin_files').doc(safeSkinName)
+            batch.set(mainDocRef, {
+              name: file.name,
+              mimeType: file.type || 'application/zip',
+              chunkCount: chunks.length,
+              sizeBytes: inputBuffer.length,
+              created_at: new Date().toISOString(),
+            })
+
+            for (let i = 0; i < chunks.length; i++) {
+              const chunkDocRef = db.collection('skin_files').doc(`${safeSkinName}_chunk_${i}`)
+              batch.set(chunkDocRef, { base64: chunks[i] })
+            }
+
+            await batch.commit()
+          } catch (dbErr) {
+            console.error('Failed to save skin chunks to Firestore:', dbErr)
+          }
+        }
+      }
+
+      const finalUrl = `/api/uploads/skins/${safeSkinName}`
+      return NextResponse.json({ url: finalUrl, name: file.name })
+
+      // 4. Ultimate fallback for very small files (<200KB)
+      if (inputBuffer.length < 200 * 1024) {
+        const mimeType = file?.type || 'application/zip'
+        const fileName = file?.name || 'skin.zip'
+        const base64 = inputBuffer.toString('base64')
+        const finalUrl = `data:${mimeType};name=${encodeURIComponent(fileName)};base64,${base64}`
+        return NextResponse.json({ url: finalUrl, name: fileName })
+      }
+
+      return NextResponse.json(
+        { error: 'Could not store skin file. Please paste a Google Drive, Mega, or MediaFire download link instead.' },
+        { status: 500 }
+      )
+    }
+
+    // Compress raster images with sharp → WebP, max 1920x1080 (1080p), quality 75
+    if (isRasterImage) {
+      try {
+        const sharp = (await import('sharp')).default
+        
+        // Sizing optimization: team logos must be highly compact
+        // (especially to fit in Vercel cookies/local fallbacks if Firestore isn't connected)
+        const resizeOpts = type === 'logo'
+          ? { width: 320, height: 320, fit: 'cover' as const }
+          : { width: 1920, height: 1080, fit: 'inside' as const, withoutEnlargement: true }
+
+        const quality = type === 'logo' ? 80 : 90
+
+        const compressed = await sharp(inputBuffer)
+          .resize(resizeOpts)
+          .webp({ quality })
+          .toBuffer()
+
+        const safeName = `${safeBase}.webp`
+
+        if (hasR2) {
+          try {
+            const finalUrl = await uploadBufferToR2(`uploads/${safeName}`, compressed, 'image/webp')
+            await removeDeletedAsset(finalUrl)
+            if (isGallery) {
+              await addGalleryUpload(finalUrl)
+            }
+            return NextResponse.json({ url: finalUrl })
+          } catch (r2Err) {
+            console.warn('Uploading image to R2 failed, falling back to disk/Base64:', r2Err)
+          }
+        }
+
+        const targetPath = path.join(UPLOADS_DIR, safeName)
+
+        try {
+          await fs.mkdir(UPLOADS_DIR, { recursive: true })
+          await fs.writeFile(targetPath, compressed)
+          const finalUrl = `/uploads/${safeName}`
+          await removeDeletedAsset(finalUrl)
+          if (isGallery) {
+            await addGalleryUpload(finalUrl)
+          }
+          return NextResponse.json({ url: finalUrl })
+        } catch (fsErr) {
+          console.warn('Writing file to disk failed (expected on Vercel/serverless environments). Falling back to Base64:', fsErr)
+          const base64 = compressed.toString('base64')
+          const finalUrl = `data:image/webp;base64,${base64}`
+          if (isGallery) {
+            await addGalleryUpload(finalUrl)
+          }
+          return NextResponse.json({ url: finalUrl })
+        }
+      } catch (sharpErr) {
+        console.warn('sharp compression failed, falling back to original:', sharpErr)
+      }
+    }
+
+    // SVG or compression fallback: save original or return base64 data URL if read-only
+    const safeName = `${safeBase}${ext.toLowerCase()}`
+
+    if (hasR2) {
+      try {
+        const finalUrl = await uploadBufferToR2(`uploads/${safeName}`, inputBuffer, file.type || 'application/octet-stream')
+        await removeDeletedAsset(finalUrl)
+        if (isGallery) {
+          await addGalleryUpload(finalUrl)
+        }
+        return NextResponse.json({ url: finalUrl })
+      } catch (r2Err) {
+        console.warn('Uploading file to R2 failed, falling back to disk/Base64:', r2Err)
+      }
+    }
+
+    const targetPath = path.join(UPLOADS_DIR, safeName)
+
+    try {
+      await fs.mkdir(UPLOADS_DIR, { recursive: true })
+      await fs.writeFile(targetPath, inputBuffer)
+      const finalUrl = `/uploads/${safeName}`
+      await removeDeletedAsset(finalUrl)
+      if (isGallery) {
+        await addGalleryUpload(finalUrl)
+      }
+      return NextResponse.json({ url: finalUrl })
+    } catch (fsErr) {
+      console.warn('Writing original file to disk failed, falling back to base64:', fsErr)
+      const mimeType = file.type || 'image/png'
+      const base64 = inputBuffer.toString('base64')
+      const finalUrl = `data:${mimeType};base64,${base64}`
+      if (isGallery) {
+        await addGalleryUpload(finalUrl)
+      }
+      return NextResponse.json({ url: finalUrl })
+    }
+  } catch (err: any) {
+    console.error('Upload failed:', err)
+    return NextResponse.json({ error: 'Failed to process uploaded file' }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    // Security check: Only platform admins can delete assets
+    const role = await getPlatformRole()
+    if (role !== 'super_admin' && role !== 'platform_admin') {
+      return NextResponse.json({ error: 'Unauthorized: Only platform admins can delete files' }, { status: 403 })
+    }
+
+    const { url } = await req.json()
+    if (!url || typeof url !== 'string') {
+      return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
+    }
+
+    // Cloudflare R2-hosted asset
+    const r2Key = getR2KeyFromUrl(url)
+    if (r2Key) {
+      try {
+        await deleteFromR2(r2Key)
+      } catch (r2Err) {
+        console.warn('Deleting asset from R2 failed, soft-deleting instead:', r2Err)
+      }
+      await removeGalleryUpload(url)
+      await addDeletedAsset(url)
+      return NextResponse.json({ success: true })
+    }
+
+    // Sanitize path to prevent directory traversal
+    const normalized = path.normalize(url).replace(/^(\.\.(\/|\\|$))+/, '')
+
+    let targetPath = ''
+    if (normalized.startsWith('/uploads/') || normalized.startsWith('uploads/')) {
+      const fileName = path.basename(normalized)
+      targetPath = path.join(UPLOADS_DIR, fileName)
+    } else if (normalized.startsWith('/branding/') || normalized.startsWith('branding/')) {
+      const fileName = path.basename(normalized)
+      targetPath = path.join(BRANDING_DIR, fileName)
+    } else {
+      return NextResponse.json({ error: 'Invalid file path' }, { status: 400 })
+    }
+
+    try {
+      await fs.unlink(targetPath)
+    } catch (unlinkErr: any) {
+      console.warn('fs.unlink failed, falling back to soft delete:', unlinkErr)
+      // Even if file deletion fails on read-only environments (Vercel, Git-tracked),
+      // we still proceed with soft-deleting it from the list!
+    }
+
+    // Register in the soft-delete system and remove from gallery_uploads
+    await removeGalleryUpload(url)
+    await addDeletedAsset(url)
+
+    return NextResponse.json({ success: true, softDeleted: true })
+  } catch (err: any) {
+    console.error('Delete failed:', err)
+    return NextResponse.json({ error: `Failed to delete file: ${err.message || err}` }, { status: 500 })
+  }
+}

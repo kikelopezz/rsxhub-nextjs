@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --rsx-bg: #06080d;
+  --rsx-bg-soft: #0b1018;
+  --rsx-panel: #0b111b;
+  --rsx-panel-2: #0f1724;
+  --rsx-border: rgba(255, 255, 255, 0.12);
+  --rsx-border-soft: rgba(255, 255, 255, 0.12);
+  --rsx-accent: #1274de;
+  --rsx-accent-strong: #1f8dff;
+}
+
+html,
+body {
+  margin: 0;
+  background: #070b12;
+  color: #e5e7eb;
+}
+
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+body {
+  overflow-y: visible;
+  min-height: 100vh;
+  letter-spacing: -0.015em;
+}
+
+.font-body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-display,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display), ui-sans-serif, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  text-decoration: none;
+}
+
+.bg-shell {
+  background:
+    radial-gradient(1100px 380px at 50% -14%, rgba(18, 116, 222, 0.16), transparent 62%),
+    radial-gradient(700px 320px at 100% 20%, rgba(0, 240, 255, 0.05), transparent 60%),
+    linear-gradient(180deg, var(--rsx-bg-soft) 0%, var(--rsx-bg) 62%, #04060b 100%);
+}
+
+.bg-shell-side {
+  background: linear-gradient(180deg, #0c121d 0%, #0a0f18 100%);
+}
+
+.bg-shell-top {
+  background: linear-gradient(180deg, rgba(18, 25, 37, 0.88), rgba(12, 17, 27, 0.88));
+}
+
+.border-shell-line {
+  border-color: var(--rsx-border-soft);
+}
+
+.text-shell-accent {
+  color: var(--rsx-accent-strong);
+}
+
+.bg-shell-accent {
+  background-color: var(--rsx-accent);
+}
+
+.shell-panel {
+  position: relative;
+  border: 1px solid var(--rsx-border);
+  background: linear-gradient(180deg, var(--rsx-panel-2), var(--rsx-panel));
+  border-radius: 0px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* HUD-style corner brackets (like a targeting reticle). Deliberately its own opt-in
+   class rather than living on .shell-panel — app/calendario/** also uses .shell-panel
+   and must never pick up visual changes from this redesign. */
+.hud-corners {
+  position: relative;
+}
+
+.hud-corners::before,
+.hud-corners::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.hud-corners::before {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid var(--rsx-accent-strong);
+  border-left: 2px solid var(--rsx-accent-strong);
+}
+
+.hud-corners::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid var(--rsx-accent-strong);
+  border-right: 2px solid var(--rsx-accent-strong);
+}
+
+.shell-nav-item {
+  display: block;
+  border: 1px solid transparent;
+  border-radius: 0px;
+  padding: 9px 10px;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.shell-nav-item:hover {
+  border-color: rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-transition {
+  animation: page-enter 180ms ease-out;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    animation: none;
+  }
+}
+
+@keyframes rsx-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(18, 116, 222, 0.6), 0 0 20px rgba(18, 116, 222, 0.3);
+    border-color: rgba(18, 116, 222, 0.9);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(18, 116, 222, 1), 0 0 38px rgba(0, 240, 255, 0.8);
+    border-color: rgba(0, 240, 255, 1);
+    transform: scale(1.08);
+  }
+}
+
+.animate-rsx-breath {
+  animation: rsx-pulse-glow 1.8s infinite ease-in-out;
+}
