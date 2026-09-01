@@ -74,9 +74,9 @@ export default async function HomePage() {
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {/* Card 1: Professional Leagues */}
-          <div className="glass glass-soft group relative overflow-hidden p-6 space-y-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(18,116,222,0.18)]">
-            <div className="glass-sheen opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="glass glass-tint flex h-11 w-11 items-center justify-center rounded-2xl text-[#bcdcff]">
+          <div className="hud-corners group relative overflow-hidden border border-white/10 bg-gradient-to-b from-[#0a1220] to-[#070b14] p-6 space-y-4 rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-1 hover:border-[#1274de]/60 hover:shadow-[0_18px_40px_rgba(18,116,222,0.18)]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#1274de] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="flex h-11 w-11 items-center justify-center border border-[#1274de]/30 bg-[#1274de]/10 text-[#1f82ee] transition-colors duration-300 group-hover:bg-[#1274de]/20">
               <Trophy className="h-5 w-5" />
             </div>
             <h3 className="text-xs font-black uppercase tracking-widest text-white">
@@ -88,9 +88,9 @@ export default async function HomePage() {
           </div>
 
           {/* Card 2: Live Broadcast */}
-          <div className="glass glass-soft group relative overflow-hidden p-6 space-y-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(18,116,222,0.18)]">
-            <div className="glass-sheen opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="glass glass-tint flex h-11 w-11 items-center justify-center rounded-2xl text-[#bcdcff]">
+          <div className="hud-corners group relative overflow-hidden border border-white/10 bg-gradient-to-b from-[#0a1220] to-[#070b14] p-6 space-y-4 rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-1 hover:border-[#1274de]/60 hover:shadow-[0_18px_40px_rgba(18,116,222,0.18)]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#1274de] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="flex h-11 w-11 items-center justify-center border border-[#1274de]/30 bg-[#1274de]/10 text-[#1f82ee] transition-colors duration-300 group-hover:bg-[#1274de]/20">
               <Radio className="h-5 w-5" />
             </div>
             <h3 className="text-xs font-black uppercase tracking-widest text-white">
@@ -102,9 +102,9 @@ export default async function HomePage() {
           </div>
 
           {/* Card 3: Teams & Drivers */}
-          <div className="glass glass-soft group relative overflow-hidden p-6 space-y-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(18,116,222,0.18)]">
-            <div className="glass-sheen opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="glass glass-tint flex h-11 w-11 items-center justify-center rounded-2xl text-[#bcdcff]">
+          <div className="hud-corners group relative overflow-hidden border border-white/10 bg-gradient-to-b from-[#0a1220] to-[#070b14] p-6 space-y-4 rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-1 hover:border-[#1274de]/60 hover:shadow-[0_18px_40px_rgba(18,116,222,0.18)]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#1274de] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="flex h-11 w-11 items-center justify-center border border-[#1274de]/30 bg-[#1274de]/10 text-[#1f82ee] transition-colors duration-300 group-hover:bg-[#1274de]/20">
               <Users className="h-5 w-5" />
             </div>
             <h3 className="text-xs font-black uppercase tracking-widest text-white">
@@ -116,9 +116,9 @@ export default async function HomePage() {
           </div>
 
           {/* Card 4: Race Control */}
-          <div className="glass glass-soft group relative overflow-hidden p-6 space-y-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(18,116,222,0.18)]">
-            <div className="glass-sheen opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="glass glass-tint flex h-11 w-11 items-center justify-center rounded-2xl text-[#bcdcff]">
+          <div className="hud-corners group relative overflow-hidden border border-white/10 bg-gradient-to-b from-[#0a1220] to-[#070b14] p-6 space-y-4 rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-1 hover:border-[#1274de]/60 hover:shadow-[0_18px_40px_rgba(18,116,222,0.18)]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#1274de] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="flex h-11 w-11 items-center justify-center border border-[#1274de]/30 bg-[#1274de]/10 text-[#1f82ee] transition-colors duration-300 group-hover:bg-[#1274de]/20">
               <Flag className="h-5 w-5" />
             </div>
             <h3 className="text-xs font-black uppercase tracking-widest text-white">
@@ -146,7 +146,7 @@ export default async function HomePage() {
         </div>
 
         {displayLeagues.length === 0 ? (
-          <div className="glass glass-soft p-8 text-center text-slate-400 text-sm">
+          <div className="border border-white/10 bg-[#070b14] p-8 text-center text-slate-400 text-sm">
             {dict.home.activeLeagues.empty}
           </div>
         ) : (
@@ -164,7 +164,7 @@ export default async function HomePage() {
 
       {/* 4. JOIN RSX CTA Section */}
       <section className="max-w-[1400px] mx-auto px-4 md:px-6">
-        <div className="glass glass-soft relative overflow-hidden p-10 md:p-16 space-y-6">
+        <div className="relative overflow-hidden border border-white/10 bg-gradient-to-r from-[#040814] via-[#070e1e] to-[#040814] p-10 md:p-16 space-y-6 rounded-lg shadow-2xl">
           <div
             className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-30 blur-3xl"
             style={{ background: 'radial-gradient(circle, rgba(18,116,222,0.55), transparent 70%)' }}
@@ -184,12 +184,12 @@ export default async function HomePage() {
           </div>
 
           <div className="relative flex flex-wrap items-center gap-4 pt-2">
-            <SteamLoginButton className="glass glass-pill glass-tint inline-flex text-white px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider transition-all hover:brightness-110 cursor-pointer">
+            <SteamLoginButton className="inline-flex bg-[#1274de] hover:bg-[#1f82ee] text-white px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer">
               {dict.home.cta.signInSteam}
             </SteamLoginButton>
             <Link
               href="/ligas"
-              className="glass glass-pill inline-flex text-white px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider transition-colors hover:bg-white/10"
+              className="inline-flex border border-white/20 bg-white/5 hover:bg-white/10 text-white px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider rounded-lg transition-colors"
             >
               {dict.home.cta.viewLeagues}
             </Link>

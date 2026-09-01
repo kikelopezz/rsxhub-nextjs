@@ -54,19 +54,11 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
 
         {/* Gradiente Oscuro continuo que se funde arriba, centro y base */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-[#030508]" style={{ zIndex: 2 }} />
-        <div className="hud-scanline" style={{ zIndex: 3 }} />
 
         {/* Contenido Superpuesto */}
         <div className="relative mx-auto flex flex-col justify-between h-full max-w-[1400px] px-6 md:px-12 pt-16 pb-12 md:pb-16" style={{ zIndex: 5 }}>
           {/* Sección de Textos y CTA */}
           <div className="my-auto max-w-2xl text-left space-y-6 md:space-y-8">
-            <div className="glass glass-pill glass-tint inline-flex items-center gap-2 px-3.5 py-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#1f8dff] animate-rsx-breath" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bcdcff]">
-                {dict.home.hero.stats.simulators}: {slides.length > 0 ? 'AC / LMU' : ''}
-              </span>
-            </div>
-
             <div className="w-fit">
               <Image src="/branding/rsx-logo.png" alt="RSX Logo" width={440} height={130} priority className="h-auto w-[260px] md:w-[360px]" />
             </div>
@@ -76,10 +68,10 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2">
-              <Link href="/ligas" className="glass glass-pill glass-tint inline-flex hover:brightness-110 px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider text-white transition-all shadow-[0_0_15px_rgba(18,116,222,0.4)]">
+              <Link href="/ligas" className="inline-flex bg-[#1274de] hover:bg-[#1f82ee] px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider text-white transition-colors rounded-lg shadow-[0_0_15px_rgba(18,116,222,0.4)]">
                 {dict.home.hero.viewLeagues}
               </Link>
-              <Link href="/about" className="glass glass-pill inline-flex hover:bg-white/10 px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider text-white transition-colors">
+              <Link href="/about" className="inline-flex border border-white/20 bg-black/40 hover:bg-white/10 px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider text-white transition-colors rounded-lg">
                 {dict.home.hero.aboutRsx}
               </Link>
             </div>
@@ -99,23 +91,28 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
               ))}
             </div>
 
-            {/* Columnas de Estadísticas (vidrio) */}
-            <div className="glass glass-soft grid grid-cols-2 md:grid-cols-5 overflow-hidden">
-              {[
-                { value: driversCount, label: dict.home.hero.stats.drivers },
-                { value: teamsCount, label: dict.home.hero.stats.teams },
-                { value: leaguesCount, label: dict.home.hero.stats.leagues },
-                { value: simulatorsCount, label: dict.home.hero.stats.simulators },
-                { value: racesCount, label: dict.home.hero.stats.races },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="space-y-1.5 border-white/10 px-4 py-4 text-center [&:not(:last-child)]:border-r [&:nth-child(n+3)]:border-t md:[&:nth-child(n+3)]:border-t-0"
-                >
-                  <div className="text-3xl font-extrabold tracking-tight text-white md:text-4xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{stat.value}</div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-350">{stat.label}</div>
-                </div>
-              ))}
+            {/* Columnas de Estadísticas */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
+              <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
+                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{driversCount}</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.drivers}</div>
+              </div>
+              <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
+                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{teamsCount}</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.teams}</div>
+              </div>
+              <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
+                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{leaguesCount}</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.leagues}</div>
+              </div>
+              <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
+                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{simulatorsCount}</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.simulators}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{racesCount}</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.races}</div>
+              </div>
             </div>
           </div>
         </div>
