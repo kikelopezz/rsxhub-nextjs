@@ -20,8 +20,6 @@ export async function createLeagueAction(formData: FormData) {
   const classTagsRaw = String(formData.get('classTags') || 'GT3').trim()
   const startsAt = String(formData.get('startsAt') || '').trim()
   const endsAt = String(formData.get('endsAt') || '').trim()
-  const maxDrivers = Number(formData.get('maxDrivers') || 30)
-  const maxDriversPerCar = formData.get('maxDriversPerCar') ? Number(formData.get('maxDriversPerCar')) : 4
   const registrationOpen = formData.has('registrationOpen') ? formData.get('registrationOpen') === 'true' : true
   const bannerUrl = String(formData.get('bannerUrl') || '').trim()
   const logoUrl = String(formData.get('logoUrl') || '').trim()
@@ -40,25 +38,14 @@ export async function createLeagueAction(formData: FormData) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)+/g, '')
 
-  const classLimits: Record<string, number> = {}
-  ;['GT3', 'HYPERCAR', 'LMP2'].forEach((cat) => {
-    const limitVal = formData.get(`max_cars_${cat}`)
-    if (limitVal) {
-      classLimits[cat] = Number(limitVal) || 30
-    }
-  })
-
   const payload = {
     title,
     slug,
     simulator,
     format,
     class_tags: classTagsRaw.split(',').map((tag) => tag.trim().toUpperCase()).filter(Boolean),
-    class_limits: classLimits,
     starts_at: new Date(startsAt).toISOString(),
     ends_at: new Date(endsAt).toISOString(),
-    max_drivers: maxDrivers,
-    max_drivers_per_car: maxDriversPerCar,
     registration_open: registrationOpen,
     banner_url: bannerUrl || null,
     logo_url: logoUrl || null,
@@ -111,10 +98,8 @@ export async function createLeagueAction(formData: FormData) {
         simulator,
         format,
         classTags: payload.class_tags,
-        classLimits,
         startsAt: payload.starts_at,
         endsAt: payload.ends_at,
-        maxDrivers,
         registrationOpen,
         bannerUrl: payload.banner_url,
         logoUrl: payload.logo_url,
@@ -171,8 +156,6 @@ export async function updateLeagueDetailsAction(formData: FormData) {
   const classTagsRaw = String(formData.get('classTags') || '').trim()
   const startsAt = String(formData.get('startsAt') || '').trim()
   const endsAt = String(formData.get('endsAt') || '').trim()
-  const maxDrivers = Number(formData.get('maxDrivers') || 30)
-  const maxDriversPerCar = formData.get('maxDriversPerCar') ? Number(formData.get('maxDriversPerCar')) : 4
   const registrationOpen = status === 'open'
   const bannerUrl = String(formData.get('bannerUrl') || '').trim()
   const logoUrl = String(formData.get('logoUrl') || '').trim()
@@ -190,19 +173,9 @@ export async function updateLeagueDetailsAction(formData: FormData) {
     ? classTagsRaw.split(',').map((tag) => tag.trim().toUpperCase()).filter(Boolean)
     : undefined
 
-  const classLimits: Record<string, number> = {}
-  ;['GT3', 'HYPERCAR', 'LMP2'].forEach((cat) => {
-    const limitVal = formData.get(`max_cars_${cat}`)
-    if (limitVal) {
-      classLimits[cat] = Number(limitVal) || 30
-    }
-  })
-
   const payload: any = {
     starts_at: new Date(startsAt).toISOString(),
     ends_at: new Date(endsAt).toISOString(),
-    max_drivers: maxDrivers,
-    max_drivers_per_car: maxDriversPerCar,
     registration_open: registrationOpen,
     banner_url: bannerUrl || null,
     logo_url: logoUrl || null,
@@ -211,7 +184,6 @@ export async function updateLeagueDetailsAction(formData: FormData) {
     discord_url: discordUrl || null,
     youtube_url: youtubeUrl || null,
     rulebook_url: rulebookUrl || null,
-    class_limits: classLimits,
   }
 
   if (title) payload.title = title
@@ -252,10 +224,8 @@ export async function updateLeagueDetailsAction(formData: FormData) {
             status: status || lg.status,
             registrationMode: registrationMode || lg.registrationMode,
             classTags: classTags || lg.classTags,
-            classLimits: { ...(lg.classLimits || {}), ...classLimits },
             startsAt: payload.starts_at,
             endsAt: payload.ends_at,
-            maxDrivers,
             registrationOpen,
             bannerUrl: payload.banner_url,
             logoUrl: payload.logo_url,

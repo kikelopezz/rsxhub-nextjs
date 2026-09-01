@@ -47,6 +47,9 @@ export const getLeagueEvents = cache(async (leagueId?: string): Promise<LeagueEv
             status: data.status || 'scheduled',
             eventType: data.event_type || data.eventType || undefined,
             countryCode: data.country_code || data.countryCode || null,
+            color: data.color || null,
+            maxDrivers: data.max_drivers != null ? Number(data.max_drivers) : (data.maxDrivers != null ? Number(data.maxDrivers) : null),
+            classLimits: data.class_limits || data.classLimits || null,
           }
         })
         return events.sort((a: any, b: any) => (a.startsAt || '').localeCompare(b.startsAt || ''))

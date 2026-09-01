@@ -481,7 +481,7 @@ export function FinishRoundModal({
                     </div>
 
                     <div className="border border-shell-line bg-black/40 overflow-hidden">
-                      <table className="w-full text-left border-collapse text-xs">
+                      <table className="w-full min-w-[560px] text-left border-collapse text-xs">
                         <thead>
                           <tr className="border-b border-shell-line bg-white/5 text-slate-400 uppercase font-mono text-[10px]">
                             <th className="p-2.5 text-center w-16">{tr.catPos}</th>

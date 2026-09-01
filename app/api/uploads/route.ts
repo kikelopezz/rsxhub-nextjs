@@ -313,7 +313,6 @@ export async function POST(req: Request) {
       .replace(/(^-|-$)+/g, '')
 
     const isArchive = /\.(zip|rar|7z|tar|gz|tgz)$/i.test(file.name)
-    const isRasterImage = /\.(png|jpe?g|gif|webp)$/i.test(file.name)
 
     // Compressed skin archives upload
     if (type === 'skin' || isArchive) {
@@ -421,65 +420,7 @@ export async function POST(req: Request) {
       )
     }
 
-    // Compress raster images with sharp → WebP, max 1920x1080 (1080p), quality 75
-    if (isRasterImage) {
-      try {
-        const sharp = (await import('sharp')).default
-        
-        // Sizing optimization: team logos must be highly compact
-        // (especially to fit in Vercel cookies/local fallbacks if Firestore isn't connected)
-        const resizeOpts = type === 'logo'
-          ? { width: 320, height: 320, fit: 'cover' as const }
-          : { width: 1920, height: 1080, fit: 'inside' as const, withoutEnlargement: true }
-
-        const quality = type === 'logo' ? 80 : 90
-
-        const compressed = await sharp(inputBuffer)
-          .resize(resizeOpts)
-          .webp({ quality })
-          .toBuffer()
-
-        const safeName = `${safeBase}.webp`
-
-        if (hasR2) {
-          try {
-            const finalUrl = await uploadBufferToR2(`uploads/${safeName}`, compressed, 'image/webp')
-            await removeDeletedAsset(finalUrl)
-            if (isGallery) {
-              await addGalleryUpload(finalUrl)
-            }
-            return NextResponse.json({ url: finalUrl })
-          } catch (r2Err) {
-            console.warn('Uploading image to R2 failed, falling back to disk/Base64:', r2Err)
-          }
-        }
-
-        const targetPath = path.join(UPLOADS_DIR, safeName)
-
-        try {
-          await fs.mkdir(UPLOADS_DIR, { recursive: true })
-          await fs.writeFile(targetPath, compressed)
-          const finalUrl = `/uploads/${safeName}`
-          await removeDeletedAsset(finalUrl)
-          if (isGallery) {
-            await addGalleryUpload(finalUrl)
-          }
-          return NextResponse.json({ url: finalUrl })
-        } catch (fsErr) {
-          console.warn('Writing file to disk failed (expected on Vercel/serverless environments). Falling back to Base64:', fsErr)
-          const base64 = compressed.toString('base64')
-          const finalUrl = `data:image/webp;base64,${base64}`
-          if (isGallery) {
-            await addGalleryUpload(finalUrl)
-          }
-          return NextResponse.json({ url: finalUrl })
-        }
-      } catch (sharpErr) {
-        console.warn('sharp compression failed, falling back to original:', sharpErr)
-      }
-    }
-
-    // SVG or compression fallback: save original or return base64 data URL if read-only
+    // Save the original file as-is (no compression/resizing/format conversion)
     const safeName = `${safeBase}${ext.toLowerCase()}`
 
     if (hasR2) {

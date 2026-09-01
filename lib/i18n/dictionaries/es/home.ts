@@ -12,6 +12,7 @@ const home = {
     goToSlide: 'Ir a la diapositiva',
     stats: {
       drivers: 'Pilotos',
+      teams: 'Equipos',
       leagues: 'Ligas',
       simulators: 'Simuladores',
       races: 'Carreras',

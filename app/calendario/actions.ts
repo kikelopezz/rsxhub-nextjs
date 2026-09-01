@@ -23,6 +23,17 @@ export async function saveCalendarEvent(formData: FormData) {
     const eventType = String(formData.get('eventType') || 'race').trim()
     const countryCode = String(formData.get('countryCode') || '').trim()
     const color = String(formData.get('color') || '#00f2fe').trim()
+    const maxDriversRaw = formData.get('maxDrivers')
+    const maxDrivers = maxDriversRaw ? Number(maxDriversRaw) : null
+
+    const classLimits: Record<string, number> = {}
+    for (const [key, val] of formData.entries()) {
+      if (key.startsWith('max_cars_') && val) {
+        const cat = key.slice('max_cars_'.length)
+        const num = Number(val)
+        if (Number.isFinite(num) && num > 0) classLimits[cat] = num
+      }
+    }
 
     if (!leagueId || !circuitName || !dateStr) {
       return { success: false, error: 'League, Circuit and Date are required.' }
@@ -78,6 +89,8 @@ export async function saveCalendarEvent(formData: FormData) {
       event_type: eventType,
       country_code: countryCode || null,
       color: color || null,
+      max_drivers: maxDrivers,
+      class_limits: classLimits,
       has_qualy: hasQualy,
       qualy_starts_at: qualyStartsAt,
       qualy_ends_at: qualyEndsAt,
@@ -139,6 +152,8 @@ export async function saveCalendarEvent(formData: FormData) {
               eventType,
               countryCode: countryCode || null,
               color: color || null,
+              maxDrivers,
+              classLimits,
               hasQualy,
               qualyStartsAt,
               qualyEndsAt,
@@ -160,6 +175,8 @@ export async function saveCalendarEvent(formData: FormData) {
           eventType,
           countryCode: countryCode || null,
           color: color || null,
+          maxDrivers,
+          classLimits,
           hasQualy,
           qualyStartsAt,
           qualyEndsAt,

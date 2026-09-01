@@ -44,6 +44,8 @@ export interface LeagueEvent {
   color?: string | null
   qualyCompleted?: boolean
   completedAt?: string | null
+  maxDrivers?: number | null
+  classLimits?: Record<string, number> | null
 }
 
 export interface League {
@@ -63,8 +65,6 @@ export interface League {
   featured: boolean
   registrationOpen?: boolean
   registrationMode?: LeagueRegistrationMode
-  maxDrivers?: number | null
-  maxDriversPerCar?: number | null
   accentColor?: string | null
   slogan?: string | null
   discordUrl?: string | null

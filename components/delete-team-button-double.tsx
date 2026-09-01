@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Trash2, AlertTriangle } from 'lucide-react'
+import { unstable_rethrow } from 'next/navigation'
 
 type Props = {
   teamId: string
@@ -32,6 +33,7 @@ export function DeleteTeamButtonDouble({ teamId, teamName, deleteAction }: Props
       try {
         await deleteAction(teamId)
       } catch (err) {
+        unstable_rethrow(err)
         alert('Error deleting team.')
         setStep('idle')
       }

@@ -72,6 +72,18 @@ export async function createEvent(formData: FormData) {
       redirect(`/admin/ligas/${leagueId}?eventError=circuit-required`)
     }
 
+    const maxDriversRaw = formData.get('maxDrivers')
+    const maxDrivers = maxDriversRaw ? Number(maxDriversRaw) : null
+
+    const classLimits: Record<string, number> = {}
+    for (const [key, val] of formData.entries()) {
+      if (key.startsWith('max_cars_') && val) {
+        const cat = key.slice('max_cars_'.length)
+        const num = Number(val)
+        if (Number.isFinite(num) && num > 0) classLimits[cat] = num
+      }
+    }
+
     await db.collection('league_events').add({
       league_id: leagueId,
       title,
@@ -79,6 +91,8 @@ export async function createEvent(formData: FormData) {
       circuit_name: circuitName,
       starts_at: startsAt,
       ends_at: endsAt,
+      max_drivers: maxDrivers,
+      class_limits: classLimits,
       status: String(formData.get('status') || 'scheduled'),
       created_at: new Date(),
     })
@@ -113,12 +127,26 @@ export async function updateEvent(formData: FormData) {
     redirect(`/admin/ligas/${leagueId}?eventError=update-missing-fields`)
   }
 
+  const maxDriversRaw = formData.get('maxDrivers')
+  const maxDrivers = maxDriversRaw ? Number(maxDriversRaw) : null
+
+  const classLimits: Record<string, number> = {}
+  for (const [key, val] of formData.entries()) {
+    if (key.startsWith('max_cars_') && val) {
+      const cat = key.slice('max_cars_'.length)
+      const num = Number(val)
+      if (Number.isFinite(num) && num > 0) classLimits[cat] = num
+    }
+  }
+
   try {
     await db.collection('league_events').doc(eventId).update({
       title,
       circuit_name: circuitName,
       starts_at: startsAt,
       ends_at: endsAt,
+      max_drivers: maxDrivers,
+      class_limits: classLimits,
       status,
       circuit_id: null,
     })

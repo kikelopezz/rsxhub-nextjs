@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getLeagues, getLeagueEvents, getAllRegisteredDrivers, getRegistrations } from '@/lib/platform-data'
+import { getTeamsDashboard } from '@/lib/team-data'
 import { LeagueCard } from '@/components/league-card'
 import { SteamLoginButton } from '@/components/steam-login-button'
 import { Trophy, Radio, Users, Flag, ArrowRight } from 'lucide-react'
@@ -13,11 +14,12 @@ import { getDictionary } from '@/lib/i18n/get-dictionary'
 export default async function HomePage() {
   const dict = getDictionary(await getLocale())
   // Fetch platform data in parallel (independent reads — no need to wait on each other)
-  const [leagues, events, drivers, allRegistrations] = await Promise.all([
+  const [leagues, events, drivers, allRegistrations, teamsDashboard] = await Promise.all([
     getLeagues(),
     getLeagueEvents(),
     getAllRegisteredDrivers(),
     getRegistrations(),
+    getTeamsDashboard(),
   ])
 
   const registeredByLeague: Record<string, number> = {}
@@ -42,6 +44,7 @@ export default async function HomePage() {
   const leaguesCount = leagues.length
   const simulatorsCount = 2
   const racesCount = events.length
+  const teamsCount = teamsDashboard.teams.length
 
   // Active leagues for preview
   const activeLeagues = leagues.filter((l) => l.status === 'open' || l.status === 'ongoing').slice(0, 3)
@@ -55,6 +58,7 @@ export default async function HomePage() {
         leaguesCount={leaguesCount}
         simulatorsCount={simulatorsCount}
         racesCount={racesCount}
+        teamsCount={teamsCount}
       />
 
       {/* 2. "Real competition, not arcade." Value Proposition Section */}

@@ -14,6 +14,7 @@ const home: typeof es = {
     goToSlide: 'Go to slide',
     stats: {
       drivers: 'Drivers',
+      teams: 'Teams',
       leagues: 'Leagues',
       simulators: 'Simulators',
       races: 'Races',

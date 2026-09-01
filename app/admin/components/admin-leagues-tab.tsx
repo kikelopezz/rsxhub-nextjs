@@ -5,7 +5,6 @@ import { DeleteLeagueButton } from '@/components/delete-league-button'
 import {
   quickUpdateLeagueStatusAction,
   quickToggleLeagueFeaturedAction,
-  quickUpdateLeagueMaxDriversAction,
   deleteLeagueAction,
 } from '../actions'
 import { getLocale } from '@/lib/i18n/get-locale'
@@ -30,14 +29,13 @@ export async function AdminLeaguesTab({ visibleLeagues, visibleRegistrations, vi
         </div>
 
         <div className="overflow-x-auto border border-shell-line bg-black/10">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[640px] text-left border-collapse">
             <thead>
               <tr className="border-b border-shell-line bg-black/40 text-xxs font-black uppercase tracking-wider text-slate-400">
                 <th className="p-3">{t.colLeague}</th>
                 <th className="p-3">{t.colSimulator}</th>
                 <th className="p-3">{t.colStatus}</th>
                 <th className="p-3">{t.colFeatured}</th>
-                <th className="p-3">{t.colMaxDrivers}</th>
                 <th className="p-3 text-center">{t.colRounds}</th>
                 <th className="p-3 text-center">{t.colRegistered}</th>
                 <th className="p-3 text-right">{t.colActions}</th>
@@ -46,7 +44,7 @@ export async function AdminLeaguesTab({ visibleLeagues, visibleRegistrations, vi
             <tbody className="divide-y divide-white/5 text-xs text-slate-300">
               {visibleLeagues.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500 italic">{t.noLeagues}</td>
+                  <td colSpan={7} className="p-8 text-center text-slate-500 italic">{t.noLeagues}</td>
                 </tr>
               ) : (
                 visibleLeagues.map((league) => {
@@ -98,21 +96,6 @@ export async function AdminLeaguesTab({ visibleLeagues, visibleRegistrations, vi
                               : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'
                           }`}>
                             {league.featured ? t.featured : t.standard}
-                          </button>
-                        </form>
-                      </td>
-                      <td className="p-3">
-                        <form action={quickUpdateLeagueMaxDriversAction} className="flex items-center gap-1.5">
-                          <input type="hidden" name="leagueId" value={league.id} />
-                          <input
-                            type="number"
-                            name="maxDrivers"
-                            defaultValue={league.maxDrivers || ''}
-                            placeholder="∞"
-                            className="w-14 rounded-lg border border-shell-line bg-black/45 px-2 py-1 text-center text-xs text-white outline-none focus:border-white/30"
-                          />
-                          <button type="submit" className="border border-white/20 bg-white/5 hover:bg-[#1274de] hover:border-[#1274de] px-1.5 py-1 text-[9px] uppercase font-black text-white transition-colors cursor-pointer">
-                            {t.set}
                           </button>
                         </form>
                       </td>

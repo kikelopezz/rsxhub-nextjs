@@ -2,7 +2,7 @@
 
 import { Trash, AlertTriangle, Users, Upload, FileArchive } from 'lucide-react'
 import { VehicleSelectorModal } from '@/components/vehicle-selector-modal'
-import { getSkinFileName } from './types'
+import { getSkinFileName, MAX_DRIVERS_PER_CAR } from './types'
 import type { CarEntry, TeamMemberOption, LeagueOption } from './types'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
@@ -62,7 +62,7 @@ export function CarCard({
   const hasCarError = Boolean(carErrors && carErrors.length > 0)
   const currentLeagueKey = activeTab !== 'all' ? activeTab : car.leagueId || 'general'
   const currentLeagueObj = leaguesOptions.find((l) => l.id === currentLeagueKey || l.slug === currentLeagueKey)
-  const maxSlots = currentLeagueObj?.maxDriversPerCar ?? 4
+  const maxSlots = MAX_DRIVERS_PER_CAR
   const carDrivers = getCarDriversForLeague(car, currentLeagueKey)
 
   return (

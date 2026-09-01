@@ -203,7 +203,7 @@ export function ViewResultsModal({
                     <p className="text-xs text-slate-500 italic py-2">{t.noPositionsCategory}</p>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
+                      <table className="w-full min-w-[560px] text-left text-xs border-collapse">
                         <thead>
                           <tr className="border-b border-white/10 bg-white/[0.03] text-slate-400 font-mono text-[10px] uppercase tracking-wider">
                             <th className="p-2 w-16 text-center">{t.pos}</th>

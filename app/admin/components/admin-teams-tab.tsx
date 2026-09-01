@@ -27,7 +27,7 @@ export async function AdminTeamsTab({ teams }: AdminTeamsTabProps) {
       </div>
 
       <div className="overflow-x-auto border border-shell-line bg-black/10">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full min-w-[600px] text-left border-collapse">
           <thead>
             <tr className="border-b border-shell-line bg-black/40 text-xxs font-black uppercase tracking-wider text-slate-400">
               <th className="p-3">{t.colLogo}</th>

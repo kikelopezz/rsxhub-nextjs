@@ -38,7 +38,7 @@ function ContentEs() {
             RSX utiliza únicamente <strong className="text-white">cookies técnicas estrictamente necesarias</strong> para el funcionamiento de la plataforma. No utilizamos cookies publicitarias, de seguimiento ni de análisis de terceros.
           </p>
           <div className="overflow-x-auto mt-4 border border-white/10 rounded-lg">
-            <table className="w-full text-left border-collapse text-xs md:text-sm">
+            <table className="w-full min-w-[520px] text-left border-collapse text-xs md:text-sm">
               <thead>
                 <tr className="border-b border-white/10 bg-white/5 text-slate-300 font-bold uppercase tracking-wider">
                   <th className="p-3">Nombre</th>
@@ -126,7 +126,7 @@ function ContentEn() {
             RSX uses only <strong className="text-white">strictly necessary technical cookies</strong> for the operation of the platform. We do not use advertising, tracking, or third-party cookies for analysis purposes.
           </p>
           <div className="overflow-x-auto mt-4 border border-white/10 rounded-lg">
-            <table className="w-full text-left border-collapse text-xs md:text-sm">
+            <table className="w-full min-w-[520px] text-left border-collapse text-xs md:text-sm">
               <thead>
                 <tr className="border-b border-white/10 bg-white/5 text-slate-300 font-bold uppercase tracking-wider">
                   <th className="p-3">Name</th>

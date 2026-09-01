@@ -39,7 +39,6 @@ export function LeagueCard({
   const simAlt = league.simulator === 'ac' ? 'Assetto Corsa' : 'Le Mans Ultimate'
   const badgeSrc = (league as any).logoUrl || simLogo
   const badgeAlt = (league as any).logoUrl ? league.title : simAlt
-  const maxLabel = league.maxDrivers ? String(league.maxDrivers) : '-'
 
   const accentHex = league.accentColor || '#1274de'
 
@@ -149,8 +148,15 @@ export function LeagueCard({
           )}
         </div>
 
+        {/* Top-Right: Simulator Badge */}
+        {simLogo && (
+          <div className="absolute right-4 top-4 z-10 flex h-16 w-16 items-center justify-center rounded-lg border border-white/15 bg-white p-2 shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+            <Image src={simLogo} alt={simAlt} width={56} height={56} className="h-full w-full object-contain" />
+          </div>
+        )}
+
         {/* Top-Left: Title & Next Race Date */}
-        <div className="absolute left-4 top-4 z-10 max-w-[calc(100%-32px)]">
+        <div className="absolute left-4 top-4 z-10 max-w-[calc(100%-88px)]">
           <h3 className="text-2xl md:text-3xl font-black uppercase italic leading-[0.95] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] [letter-spacing:-0.03em]">
             {league.title}
           </h3>

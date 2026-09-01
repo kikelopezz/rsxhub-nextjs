@@ -5,6 +5,7 @@ import { Download } from 'lucide-react'
 import { updateTeam } from '@/app/equipos/actions/team-crud'
 import type { LeagueOption } from '@/components/team-cars-editor'
 import type { TeamMemberOption } from '@/components/team-cars-editor'
+import { MAX_DRIVERS_PER_CAR } from '@/components/team-cars-editor/types'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
@@ -15,7 +16,7 @@ type TeamVehiclesSectionProps = {
   takenDorsals: Array<{ teamId: string; teamName: string; category: string; dorsal: string; leagueId?: string | null }>
   leaguesOptions: LeagueOption[]
   teamMembersOptions: TeamMemberOption[]
-  leagues: Array<{ id: string; slug: string; maxDriversPerCar?: number | null; title: string }>
+  leagues: Array<{ id: string; slug: string; title: string }>
 }
 
 const CATEGORY_THEMES: Record<string, {
@@ -133,7 +134,7 @@ export async function TeamVehiclesSection({
                 <div className="grid gap-4 md:grid-cols-2">
                   {categoryCars.map((car: any) => {
                     const carLeague = car.leagueId ? leagues.find((l) => l.id === car.leagueId || l.slug === car.leagueId) : null
-                    const maxSlots = carLeague?.maxDriversPerCar ?? 4
+                    const maxSlots = MAX_DRIVERS_PER_CAR
                     const effectiveLeagueKey = car.leagueId || carLeague?.id || carLeague?.slug || 'general'
                     const byLeague = car.driverUserIdsByLeague || car.driver_user_ids_by_league || {}
                     const leagueDriverList = byLeague[effectiveLeagueKey] || byLeague[carLeague?.id || ''] || byLeague[carLeague?.slug || '']

@@ -1,6 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
+import { unstable_rethrow } from 'next/navigation'
 
 interface DeleteLeagueButtonProps {
   leagueId: string
@@ -20,6 +21,7 @@ export function DeleteLeagueButton({ leagueId, leagueTitle, deleteAction }: Dele
           formData.append('leagueId', leagueId)
           await deleteAction(formData)
         } catch (err: any) {
+          unstable_rethrow(err)
           alert(err.message || 'Failed to delete league.')
         }
       })

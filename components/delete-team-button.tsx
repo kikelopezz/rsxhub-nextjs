@@ -1,6 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
+import { unstable_rethrow } from 'next/navigation'
 
 interface DeleteTeamButtonProps {
   teamId: string
@@ -18,6 +19,7 @@ export function DeleteTeamButton({ teamId, teamName, deleteAction }: DeleteTeamB
         try {
           await deleteAction(teamId)
         } catch (err: any) {
+          unstable_rethrow(err)
           alert(err.message || 'Failed to delete team.')
         }
       })

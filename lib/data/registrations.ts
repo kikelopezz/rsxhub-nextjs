@@ -263,6 +263,7 @@ export const getEventConfirmations = cache(async (leagueId: string): Promise<any
             id: doc.id, eventId: data.event_id || '', leagueId: data.league_id || '',
             teamId: data.team_id || '', classTag: data.class_tag || '',
             carNumber: Number(data.car_number || 0), carModel: data.car_model || '',
+            driverUserIds: Array.isArray(data.driver_user_ids) ? data.driver_user_ids : [],
             status: data.status || 'confirmed',
             confirmedAt: formatFirestoreValue(data.confirmed_at) || '',
           }

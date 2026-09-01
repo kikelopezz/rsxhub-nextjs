@@ -241,13 +241,13 @@ export function AdminGallery() {
         {uploading ? (
           <div className="space-y-2 flex flex-col items-center">
             <Loader2 className="h-8 w-8 animate-spin text-[#1274de]" />
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Comprimiendo y subiendo imagen...</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Subiendo imagen...</p>
           </div>
         ) : (
           <div className="space-y-2 flex flex-col items-center">
             <Upload className="h-8 w-8 text-slate-450" />
             <p className="text-sm font-semibold">Arrastra y suelta una imagen aquí, o haz clic para buscar</p>
-            <p className="text-xxs text-slate-500 uppercase tracking-widest">Soporta PNG, JPG, WEBP (se optimiza automáticamente a WebP)</p>
+            <p className="text-xxs text-slate-500 uppercase tracking-widest">Soporta PNG, JPG, WEBP</p>
           </div>
         )}
       </div>

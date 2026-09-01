@@ -18,7 +18,6 @@ import {
   adminDeleteMarketListing,
   quickUpdateLeagueStatusAction,
   quickToggleLeagueFeaturedAction,
-  quickUpdateLeagueMaxDriversAction,
   deleteLeagueAction,
   resetDatabaseAction,
   updateUserRoleAction,
@@ -344,7 +343,7 @@ export default async function AdminPage({
           </div>
 
           <div className="overflow-x-auto border border-shell-line bg-black/10">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[640px] text-left border-collapse">
               <thead>
                 <tr className="border-b border-shell-line bg-black/40 text-xxs font-black uppercase tracking-wider text-slate-400">
                   <th className="p-3">{t.colDriver}</th>
@@ -492,7 +491,7 @@ export default async function AdminPage({
           </div>
 
           <div className="overflow-x-auto border border-shell-line bg-black/10">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[640px] text-left border-collapse">
               <thead>
                 <tr className="border-b border-shell-line bg-black/40 text-xxs font-black uppercase tracking-wider text-slate-400">
                   <th className="p-3">{t.colType}</th>

@@ -68,7 +68,6 @@ export default async function LigaDetailPage({
     classTags: league.classTags || [],
     startsAt: league.startsAt,
     endsAt: league.endsAt,
-    maxDrivers: league.maxDrivers ?? null,
     classLimits: league.classLimits || null,
     registrationOpen: !!league.registrationOpen,
     fullDescription: league.fullDescription || '',
@@ -94,6 +93,9 @@ export default async function LigaDetailPage({
     status: e.status,
     eventType: e.eventType ?? 'race',
     countryCode: e.countryCode ?? null,
+    color: (e as any).color ?? null,
+    maxDrivers: (e as any).maxDrivers ?? null,
+    classLimits: (e as any).classLimits ?? null,
   }))
 
   const serializableSession = session
@@ -148,6 +150,7 @@ export default async function LigaDetailPage({
     classTag: c.classTag,
     carNumber: c.carNumber,
     carModel: c.carModel || '',
+    driverUserIds: c.driverUserIds || [],
     status: c.status,
   }))
 

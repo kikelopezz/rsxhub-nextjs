@@ -9,6 +9,8 @@ const nav = {
   signOut: 'Cerrar sesión',
   driver: 'Piloto',
   profile: 'Perfil',
+  openMenu: 'Abrir menú',
+  closeMenu: 'Cerrar menú',
 }
 
 export default nav

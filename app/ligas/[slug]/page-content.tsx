@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { X, AlertCircle, Play, Clock } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter, unstable_rethrow } from 'next/navigation'
+import { X, AlertCircle, Play, Clock, ChevronDown } from 'lucide-react'
 import { useLeagueState, League, LeagueEvent, Registration, ManagedTeam, LeagueCar, EventConfirmation } from './hooks/use-league-state'
 import { LeagueBanner } from './components/league-banner'
 import { LeagueRegistration } from './components/league-registration'
@@ -31,6 +31,20 @@ function hexToRgba(hex: string, alpha: number) {
   const b = parseInt(c.substring(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
+
+const COUNTRY_OPTIONS = [
+  { value: 'FRA', label: '🇫🇷 France (FRA)' },
+  { value: 'ESP', label: '🇪🇸 Spain (ESP)' },
+  { value: 'ITA', label: '🇮🇹 Italy (ITA)' },
+  { value: 'GER', label: '🇩🇪 Germany (GER)' },
+  { value: 'GBR', label: '🇬🇧 United Kingdom (GBR)' },
+  { value: 'BEL', label: '🇧🇪 Belgium (BEL)' },
+  { value: 'USA', label: '🇺🇸 United States (USA)' },
+  { value: 'JPN', label: '🇯🇵 Japan (JPN)' },
+  { value: 'BRA', label: '🇧🇷 Brazil (BRA)' },
+  { value: 'ARG', label: '🇦🇷 Argentina (ARG)' },
+  { value: 'MEX', label: '🇲🇽 Mexico (MEX)' },
+]
 
 type Props = {
   league: League
@@ -127,7 +141,6 @@ export default function LeagueDetailPageContent({
   const [formEndsAt, setFormEndsAt] = useState(league.endsAt.split('T')[0])
   const [formClassLimits, setFormClassLimits] = useState<Record<string, number>>((league as any).classLimits || {})
   const [formRegistrationOpen, setFormRegistrationOpen] = useState(league.registrationOpen)
-  const [formMaxDriversPerCar, setFormMaxDriversPerCar] = useState<number>((league as any).maxDriversPerCar ?? 4)
   const [formSlogan, setFormSlogan] = useState(league.slogan || '')
   const [formAccentColor, setFormAccentColor] = useState(accentHex)
   const [formBannerUrl, setFormBannerUrl] = useState(league.bannerUrl || '')
@@ -150,6 +163,9 @@ export default function LeagueDetailPageContent({
   const [formEventEndsTime, setFormEventEndsTime] = useState('22:00')
   const [formEventImageUrl, setFormEventImageUrl] = useState('')
   const [formEventServerLink, setFormEventServerLink] = useState('')
+  const [formEventMaxDrivers, setFormEventMaxDrivers] = useState<string>('')
+  const [formEventClassLimits, setFormEventClassLimits] = useState<Record<string, string>>({})
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false)
   const [isEventSubmitting, setIsEventSubmitting] = useState(false)
   const [eventErrorMessage, setEventErrorMessage] = useState('')
 
@@ -180,6 +196,19 @@ export default function LeagueDetailPageContent({
     }
   }, [isEditLeagueOpen, isEventModalOpen, isRegisterOpen, isResultsOpen, finishingEventData, viewingResultsEvent])
 
+  // Close the country dropdown when clicking outside of it
+  const countryDropdownRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!isCountryDropdownOpen) return
+    const handleClickOutside = (event: MouseEvent) => {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target as Node)) {
+        setIsCountryDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isCountryDropdownOpen])
+
   // Handlers
   const handleLeagueDelete = async () => {
     if (!confirm(tr.deleteLeagueConfirm)) return
@@ -187,6 +216,7 @@ export default function LeagueDetailPageContent({
       await deleteLeagueAction(league.id, league.slug)
       router.push('/ligas')
     } catch (e: any) {
+      unstable_rethrow(e)
       alert(e.message || tr.deleteLeagueFailed)
     }
   }
@@ -208,7 +238,6 @@ export default function LeagueDetailPageContent({
       formData.set('endsAt', formEndsAt)
       formData.set('classLimitsJson', JSON.stringify(formClassLimits))
       formData.set('registrationOpen', formRegistrationOpen ? 'true' : 'false')
-      formData.set('maxDriversPerCar', String(formMaxDriversPerCar))
       formData.set('slogan', formSlogan)
       formData.set('accentColor', formAccentColor)
       formData.set('bannerUrl', String(formData.get('bannerUrl') || formBannerUrl))
@@ -265,6 +294,17 @@ export default function LeagueDetailPageContent({
       setFormEventEndsTime(formatLocalTimeInput(event.endsAt, '22:00'))
       setFormEventImageUrl(event.circuitImageUrl || '')
       setFormEventServerLink(event.serverLink || '')
+      setFormEventMaxDrivers((event as any).maxDrivers != null ? String((event as any).maxDrivers) : '')
+      setFormEventClassLimits(
+        Object.fromEntries(
+          classTags.map((tag) => [
+            tag,
+            String(
+              (event as any).classLimits?.[tag] ?? (league as any).classLimits?.[tag] ?? 30
+            ),
+          ])
+        )
+      )
     } else {
       const today = new Date()
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
@@ -283,6 +323,10 @@ export default function LeagueDetailPageContent({
       setFormEventEndsTime('22:00')
       setFormEventImageUrl('')
       setFormEventServerLink('')
+      setFormEventMaxDrivers('')
+      setFormEventClassLimits(
+        Object.fromEntries(classTags.map((tag) => [tag, String((league as any).classLimits?.[tag] ?? 30)]))
+      )
     }
     setEventErrorMessage('')
     setIsEventModalOpen(true)
@@ -315,6 +359,10 @@ export default function LeagueDetailPageContent({
       formData.set('qualyEndsAt', qualyEndsAtFull || '')
       formData.set('startsAt', startsAtFull)
       formData.set('endsAt', endsAtFull)
+      formData.set('maxDrivers', formEventMaxDrivers)
+      for (const tag of classTags) {
+        formData.set(`max_cars_${tag}`, formEventClassLimits[tag] || '')
+      }
 
       if (editingEvent) {
         formData.set('eventId', editingEvent.id)
@@ -536,25 +584,37 @@ export default function LeagueDetailPageContent({
                 </div>
 
                 {/* Country Flag Selection */}
-                <div>
+                <div ref={countryDropdownRef} className="relative">
                   <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">{trEvent.countryFlag}</label>
-                  <select
-                    value={formEventCountryCode}
-                    onChange={(e) => setFormEventCountryCode(e.target.value)}
-                    className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-cyan-400 font-mono"
+                  <button
+                    type="button"
+                    onClick={() => setIsCountryDropdownOpen((open) => !open)}
+                    className="w-full flex items-center justify-between border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-cyan-400 font-mono cursor-pointer"
                   >
-                    <option value="FRA">🇫🇷 France (FRA)</option>
-                    <option value="ESP">🇪🇸 Spain (ESP)</option>
-                    <option value="ITA">🇮🇹 Italy (ITA)</option>
-                    <option value="GER">🇩🇪 Germany (GER)</option>
-                    <option value="GBR">🇬🇧 United Kingdom (GBR)</option>
-                    <option value="BEL">🇧🇪 Belgium (BEL)</option>
-                    <option value="USA">🇺🇸 United States (USA)</option>
-                    <option value="JPN">🇯🇵 Japan (JPN)</option>
-                    <option value="BRA">🇧🇷 Brazil (BRA)</option>
-                    <option value="ARG">🇦🇷 Argentina (ARG)</option>
-                    <option value="MEX">🇲🇽 Mexico (MEX)</option>
-                  </select>
+                    <span>{COUNTRY_OPTIONS.find((c) => c.value === formEventCountryCode)?.label || formEventCountryCode}</span>
+                    <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${isCountryDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isCountryDropdownOpen && (
+                    <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto border border-shell-line bg-[#090d16] rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
+                      {COUNTRY_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setFormEventCountryCode(opt.value)
+                            setIsCountryDropdownOpen(false)
+                          }}
+                          className={`w-full text-left px-3 py-2 text-xs font-mono cursor-pointer transition-colors ${
+                            opt.value === formEventCountryCode
+                              ? 'bg-cyan-500/15 text-cyan-300'
+                              : 'text-white hover:bg-white/5'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Round Visual Color Palette Selection */}
@@ -671,6 +731,48 @@ export default function LeagueDetailPageContent({
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Race Limits Section */}
+                <div className="border border-shell-line bg-black/60 p-3 space-y-3 rounded-lg">
+                  <h4 className="text-xs font-black uppercase text-cyan-400 tracking-wider flex items-center gap-1.5 border-b border-white/10 pb-2">
+                    🏎️ {trEvent.raceLimitsTitle}
+                  </h4>
+
+                  <div>
+                    <label className="block text-[10px] text-slate-400 uppercase font-mono mb-1">{trEvent.maxDriversLabel}</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={formEventMaxDrivers}
+                      onChange={(e) => setFormEventMaxDrivers(e.target.value)}
+                      placeholder={trEvent.maxDriversPlaceholder}
+                      className="w-full border border-shell-line bg-black/40 px-2.5 py-1.5 text-xs text-white outline-none rounded-lg focus:border-cyan-400 font-mono"
+                    />
+                  </div>
+
+                  {classTags.length > 0 && (
+                    <div>
+                      <label className="block text-[10px] text-slate-400 uppercase font-mono mb-1">{trEvent.carsPerCategory}</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {classTags.map((tag) => (
+                          <div key={tag} className="flex items-center gap-1.5">
+                            <ClassBadge classTag={tag} className="text-[9px] shrink-0" />
+                            <input
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={formEventClassLimits[tag] ?? ''}
+                              onChange={(e) =>
+                                setFormEventClassLimits((prev) => ({ ...prev, [tag]: e.target.value }))
+                              }
+                              className="w-full border border-shell-line bg-black/40 px-2 py-1.5 text-xs text-white outline-none rounded-lg focus:border-cyan-400 font-mono text-center"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Circuit Image Upload */}

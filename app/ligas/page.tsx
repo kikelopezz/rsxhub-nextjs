@@ -80,7 +80,6 @@ export default async function LigasPage({ searchParams }: Props) {
     classTags: league.classTags || [],
     startsAt: league.startsAt,
     endsAt: league.endsAt,
-    maxDrivers: league.maxDrivers ?? null,
     registrationOpen: !!league.registrationOpen,
     status: league.status,
     bannerUrl: league.bannerUrl || null,

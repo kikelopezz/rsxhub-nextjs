@@ -12,9 +12,10 @@ interface HeroSectionProps {
   leaguesCount: number
   simulatorsCount: number
   racesCount: number
+  teamsCount: number
 }
 
-export function HeroSection({ driversCount, leaguesCount, simulatorsCount, racesCount }: HeroSectionProps) {
+export function HeroSection({ driversCount, leaguesCount, simulatorsCount, racesCount, teamsCount }: HeroSectionProps) {
   const [current, setCurrent] = useState(0)
   const dict = useDictionary()
   const slides = SLIDE_IMAGES.map((image, i) => ({ image, subtitle: dict.home.hero.slides[i] }))
@@ -91,10 +92,14 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
             </div>
 
             {/* Columnas de Estadísticas */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
               <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
                 <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{driversCount}</div>
                 <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.drivers}</div>
+              </div>
+              <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
+                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{teamsCount}</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.teams}</div>
               </div>
               <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
                 <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{leaguesCount}</div>

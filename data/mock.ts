@@ -17,7 +17,6 @@ export const leagues: League[] = [
     endsAt: '2026-06-28T18:00:00.000Z',
     featured: true,
     registrationOpen: true,
-    maxDrivers: 42,
   },
   {
     id: '2',
@@ -35,7 +34,6 @@ export const leagues: League[] = [
     endsAt: '2026-05-20T19:30:00.000Z',
     featured: true,
     registrationOpen: true,
-    maxDrivers: 30,
   }
 ]
 

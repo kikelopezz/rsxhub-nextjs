@@ -65,7 +65,7 @@ export async function AdminAdminsTab({ grants, fixedAdminSteamIds, currentUserSt
         </div>
 
         <div className="overflow-x-auto border border-shell-line bg-black/10 rounded-lg">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[480px] text-left border-collapse">
             <thead>
               <tr className="border-b border-shell-line bg-black/40 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 <th className="p-3">{t.colName}</th>

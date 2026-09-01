@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import type { CarEntry, LeagueOption, TakenDorsal } from './types'
+import { MAX_DRIVERS_PER_CAR } from './types'
 import { computeCarValidation } from './car-validation'
 import { uploadSkinFile } from './car-skin-upload'
 import { useDictionary } from '@/lib/i18n/locale-provider'
@@ -69,7 +70,7 @@ export function useCarEditor({
         byLeague[activeLeague?.id || ''] ||
         byLeague[activeLeague?.slug || ''] ||
         []
-      return [...list, '', '', '', ''].slice(0, activeLeague?.maxDriversPerCar ?? 4)
+      return [...list, '', '', '', ''].slice(0, MAX_DRIVERS_PER_CAR)
     },
     [activeLeague],
   )
@@ -145,8 +146,7 @@ export function useCarEditor({
 
       const targetLeagueKey =
         leagueKey && leagueKey !== 'all' ? leagueKey : targetCar.leagueId || 'general'
-      const leagueObj = leaguesOptions.find((l) => l.id === targetLeagueKey || l.slug === targetLeagueKey)
-      const maxSlots = leagueObj?.maxDriversPerCar ?? 4
+      const maxSlots = MAX_DRIVERS_PER_CAR
 
       return prev.map((car) => {
         const currentByLeague = { ...(car.driverUserIdsByLeague || {}) }

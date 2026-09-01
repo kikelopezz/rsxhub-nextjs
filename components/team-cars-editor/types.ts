@@ -38,8 +38,9 @@ export type LeagueOption = {
   slug: string
   title: string
   classTags: string[]
-  maxDriversPerCar?: number
 }
+
+export const MAX_DRIVERS_PER_CAR = 4
 
 export function getSkinFileName(url: string, skinName?: string): string {
   if (skinName && skinName.trim()) return skinName.trim()

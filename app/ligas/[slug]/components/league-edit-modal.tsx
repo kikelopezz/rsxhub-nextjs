@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, unstable_rethrow } from 'next/navigation'
 import { X } from 'lucide-react'
 import { ImagePicker } from '@/components/image-picker'
 import { updateLeagueDetailsAction, deleteLeagueAction } from '@/app/ligas/actions'
@@ -29,7 +29,6 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
   const [formStartsAt, setFormStartsAt] = useState(league.startsAt.split('T')[0])
   const [formEndsAt, setFormEndsAt] = useState(league.endsAt.split('T')[0])
   const [formRegistrationOpen, setFormRegistrationOpen] = useState(league.registrationOpen)
-  const [formMaxDriversPerCar, setFormMaxDriversPerCar] = useState<number>((league as any).maxDriversPerCar ?? 4)
   const [formSlogan, setFormSlogan] = useState(league.slogan || '')
   const [formAccentColor, setFormAccentColor] = useState(accentHex)
   const [formBannerUrl, setFormBannerUrl] = useState(league.bannerUrl || '')
@@ -44,6 +43,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
       await deleteLeagueAction(league.id, league.slug)
       router.push('/ligas')
     } catch (e: any) {
+      unstable_rethrow(e)
       alert(e.message || tEdit.deleteFailed)
     }
   }
@@ -64,7 +64,6 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
       formData.set('startsAt', formStartsAt)
       formData.set('endsAt', formEndsAt)
       formData.set('registrationOpen', formRegistrationOpen ? 'true' : 'false')
-      formData.set('maxDriversPerCar', String(formMaxDriversPerCar))
       formData.set('slogan', formSlogan)
       formData.set('accentColor', formAccentColor)
       formData.set('bannerUrl', String(formData.get('bannerUrl') || formBannerUrl))
@@ -208,7 +207,6 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                       .map((s: string) => s.trim().toUpperCase())
                       .filter(Boolean)
                     const isChecked = currentCats.includes(cat.toUpperCase())
-                    const currentLimit = (league as any).classLimits?.[cat.toUpperCase()] ?? 30
 
                     return (
                       <div
@@ -236,46 +234,9 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                           />
                           <span>{cat}</span>
                         </label>
-
-                        {isChecked && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-slate-400 font-mono uppercase font-bold">{t.maxCars}</span>
-                            <input
-                              type="number"
-                              name={`max_cars_${cat.toUpperCase()}`}
-                              defaultValue={currentLimit}
-                              min={1}
-                              max={100}
-                              required
-                              className="w-16 border border-shell-line bg-black/80 px-2 py-1 text-xs text-cyan-300 font-mono text-center outline-none rounded-lg focus:border-cyan-400"
-                            />
-                          </div>
-                        )}
                       </div>
                     )
                   })}
-                </div>
-
-                {/* Max Drivers Per Car Input */}
-                <div className="bg-black/60 p-3 border border-shell-line/50 space-y-1">
-                  <label className="block text-xs text-slate-300 uppercase font-semibold flex items-center justify-between">
-                    <span>{t.maxDriversPerCar}</span>
-                    <span className="text-[10px] text-cyan-400 font-mono font-bold">{formMaxDriversPerCar} {t.maxPerCar}</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="maxDriversPerCar"
-                    min={1}
-                    max={6}
-                    value={formMaxDriversPerCar}
-                    onChange={(e) => setFormMaxDriversPerCar(Number(e.target.value) || 4)}
-                    required
-                    className="w-full border border-shell-line bg-black/80 px-3 py-2 text-xs text-cyan-300 outline-none rounded-lg focus:border-cyan-400 font-mono font-bold"
-                    placeholder={t.maxDriversPerCarPlaceholder}
-                  />
-                  <p className="text-[10px] text-slate-400">
-                    {t.maxDriversPerCarHint}
-                  </p>
                 </div>
               </div>
 

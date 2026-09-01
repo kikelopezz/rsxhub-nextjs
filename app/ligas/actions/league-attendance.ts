@@ -21,7 +21,10 @@ export async function confirmAttendanceAction(formData: FormData) {
     throw new Error('All fields are required.')
   }
 
-  // 0. Verify car has assigned drivers
+  const docId = `${eventId}_${teamId}_${classTag}_${carNumber}`
+
+  // 0. Verify car has assigned drivers, and collect this car's driver ids
+  let driverUserIds: string[] = []
   if (hasFirebase) {
     const db = getFirestoreDb()
     if (db) {
@@ -41,7 +44,8 @@ export async function confirmAttendanceAction(formData: FormData) {
             : Array.isArray(car.driver_user_ids)
             ? car.driver_user_ids.filter(Boolean)
             : []
-          if (leagueDrivers.length === 0 && carDrivers.length === 0) {
+          driverUserIds = Array.from(new Set(leagueDrivers.length > 0 ? leagueDrivers : carDrivers))
+          if (driverUserIds.length === 0) {
             throw new Error('No se puede confirmar asistencia: El vehículo no tiene pilotos asignados.')
           }
         }
@@ -49,7 +53,7 @@ export async function confirmAttendanceAction(formData: FormData) {
     }
   }
 
-  // 1. Get the league's category limit
+  // 1. Get the league's category (car) limit
   let categoryLimit = 30
   try {
     const league = await getLeagueBySlug(slug)
@@ -62,21 +66,52 @@ export async function confirmAttendanceAction(formData: FormData) {
     console.error('Failed to get league classLimits:', e)
   }
 
-  // 2. Count current confirmed cars in this category for this event
+  // 2. Count current confirmed cars in this category, and enforce the event's driver cap
   let currentConfirmed = 0
-  const docId = `${eventId}_${teamId}_${classTag}_${carNumber}`
 
   if (hasFirebase) {
     const db = getFirestoreDb()
     if (db) {
-      const existingSnaps = await db
-        .collection('league_event_confirmations')
-        .where('event_id', '==', eventId)
-        .where('class_tag', '==', classTag)
-        .where('status', '==', 'confirmed')
-        .get()
-      
-      currentConfirmed = existingSnaps.size
+      const [categorySnap, eventDoc] = await Promise.all([
+        db
+          .collection('league_event_confirmations')
+          .where('event_id', '==', eventId)
+          .where('class_tag', '==', classTag)
+          .where('status', '==', 'confirmed')
+          .get(),
+        db.collection('league_events').doc(eventId).get(),
+      ])
+
+      currentConfirmed = categorySnap.size
+
+      const eventData = eventDoc.exists ? eventDoc.data() : null
+      const rawMaxDrivers = eventData?.max_drivers ?? eventData?.maxDrivers
+      const eventMaxDrivers = rawMaxDrivers != null ? Number(rawMaxDrivers) : null
+
+      const eventClassLimits = eventData?.class_limits || eventData?.classLimits
+      if (eventClassLimits && eventClassLimits[classTag] !== undefined) {
+        categoryLimit = Number(eventClassLimits[classTag])
+      }
+
+      if (eventMaxDrivers != null && driverUserIds.length > 0) {
+        const allConfirmedSnap = await db
+          .collection('league_event_confirmations')
+          .where('event_id', '==', eventId)
+          .where('status', '==', 'confirmed')
+          .get()
+
+        const distinctDrivers = new Set<string>()
+        allConfirmedSnap.docs.forEach((d: any) => {
+          if (d.id === docId) return
+          const ids: string[] = d.data().driver_user_ids || []
+          ids.forEach((id) => distinctDrivers.add(id))
+        })
+        driverUserIds.forEach((id) => distinctDrivers.add(id))
+
+        if (distinctDrivers.size > eventMaxDrivers) {
+          throw new Error(`¡Límite de pilotos alcanzado para esta carrera (${eventMaxDrivers} máximo)!`)
+        }
+      }
     }
   } else {
     try {
@@ -87,6 +122,28 @@ export async function confirmAttendanceAction(formData: FormData) {
       currentConfirmed = list.filter(
         (c: any) => c.eventId === eventId && c.classTag === classTag && c.status === 'confirmed'
       ).length
+
+      const eventsCookie = cookieStore.get('mock_league_events')?.value
+      const events = eventsCookie ? JSON.parse(eventsCookie) : []
+      const event = events.find((e: any) => e.id === eventId)
+      const eventMaxDrivers = event?.maxDrivers != null ? Number(event.maxDrivers) : null
+
+      const eventClassLimits = event?.classLimits
+      if (eventClassLimits && eventClassLimits[classTag] !== undefined) {
+        categoryLimit = Number(eventClassLimits[classTag])
+      }
+
+      if (eventMaxDrivers != null && driverUserIds.length > 0) {
+        const distinctDrivers = new Set<string>()
+        list
+          .filter((c: any) => c.eventId === eventId && c.status === 'confirmed' && c.id !== docId)
+          .forEach((c: any) => (c.driverUserIds || []).forEach((id: string) => distinctDrivers.add(id)))
+        driverUserIds.forEach((id) => distinctDrivers.add(id))
+
+        if (distinctDrivers.size > eventMaxDrivers) {
+          throw new Error(`¡Límite de pilotos alcanzado para esta carrera (${eventMaxDrivers} máximo)!`)
+        }
+      }
     } catch (e) {
       console.error('Error counting mock confirmations:', e)
     }
@@ -108,6 +165,7 @@ export async function confirmAttendanceAction(formData: FormData) {
         class_tag: classTag,
         car_number: carNumber,
         car_model: carModel,
+        driver_user_ids: driverUserIds,
         status: 'confirmed',
         confirmed_at: new Date().toISOString(),
       }, { merge: true })
@@ -130,6 +188,7 @@ export async function confirmAttendanceAction(formData: FormData) {
         classTag,
         carNumber,
         carModel,
+        driverUserIds,
         status: 'confirmed',
         confirmedAt: new Date().toISOString(),
       })

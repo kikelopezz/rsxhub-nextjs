@@ -63,7 +63,6 @@ export default async function TeamProfilePage({
     slug: l.slug,
     title: l.title,
     classTags: l.classTags || [],
-    maxDriversPerCar: l.maxDriversPerCar ?? 4,
   }))
 
   const isPlatformAdmin = access.canAccessPlatformAdmin

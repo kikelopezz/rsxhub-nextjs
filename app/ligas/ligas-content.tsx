@@ -19,7 +19,6 @@ type League = {
   classTags?: string[]
   startsAt: string
   endsAt: string
-  maxDrivers: number | null
   registrationOpen: boolean
   status: string
   bannerUrl: string | null
@@ -348,47 +347,11 @@ export default function LigasPageContent({
                                   />
                                   <span>{cat}</span>
                                 </label>
-
-                                {isChecked && (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] text-slate-400 font-mono uppercase font-bold">{t.createModal.maxCars}</span>
-                                    <input
-                                      type="number"
-                                      name={`max_cars_${cat}`}
-                                      defaultValue={30}
-                                      min={1}
-                                      max={100}
-                                      required
-                                      className="w-16 border border-shell-line bg-black/80 px-2 py-1 text-xs text-accent font-mono text-center outline-none rounded-lg focus:border-accent"
-                                    />
-                                  </div>
-                                )}
                               </div>
                             )
                           })}
                         </div>
                         <input type="hidden" name="classTags" value={selectedTags.join(', ')} />
-
-                        {/* Max Drivers Per Car Input */}
-                        <div className="rounded-lg bg-black/60 p-3 border border-shell-line space-y-1">
-                          <label className="block text-xs text-slate-300 uppercase font-semibold flex items-center justify-between">
-                            <span>{t.createModal.maxDriversPerCar}</span>
-                            <span className="text-[10px] text-accent font-mono font-bold">{t.createModal.maxPerCar}</span>
-                          </label>
-                          <input
-                            type="number"
-                            name="maxDriversPerCar"
-                            min={1}
-                            max={6}
-                            defaultValue={4}
-                            required
-                            className="w-full border border-shell-line bg-black/80 px-3 py-2 text-xs text-accent outline-none rounded-lg focus:border-accent font-mono font-bold"
-                            placeholder={t.createModal.maxDriversPerCarPlaceholder}
-                          />
-                          <p className="text-[10px] text-slate-400">
-                            {t.createModal.maxDriversPerCarHint}
-                          </p>
-                        </div>
                       </div>
 
                       {/* Championship Dates */}

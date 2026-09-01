@@ -221,7 +221,7 @@ export function LeagueSchedule({
                 {/* Grid Occupancy Meter */}
                 <div className="flex flex-wrap gap-4 pt-2 z-10 w-full">
                   {classTags.map((tag) => {
-                    const limit = (league as any).classLimits?.[tag] ?? 30
+                    const limit = (ev as any).classLimits?.[tag] ?? (league as any).classLimits?.[tag] ?? 30
                     const confirmedCount = localConfirmations.filter((c) => {
                       if (c.eventId !== ev.id || String(c.classTag || '').toUpperCase() !== tag.toUpperCase() || c.status !== 'confirmed') {
                         return false
@@ -259,6 +259,40 @@ export function LeagueSchedule({
                     )
                   })}
                 </div>
+
+                {/* Driver Occupancy Meter (per-race driver cap) */}
+                {Boolean((ev as any).maxDrivers) && (() => {
+                  const driverLimit = Number((ev as any).maxDrivers)
+                  const distinctDrivers = new Set<string>()
+                  localConfirmations
+                    .filter((c) => c.eventId === ev.id && c.status === 'confirmed')
+                    .forEach((c) => (c.driverUserIds || []).forEach((id) => distinctDrivers.add(id)))
+                  const driverCount = distinctDrivers.size
+                  const driverPct = Math.min(100, (driverCount / driverLimit) * 100)
+
+                  return (
+                    <div className="pt-1 z-10 w-full space-y-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-300">
+                          <Users className="h-3 w-3" />
+                          {tr.drivers}
+                        </span>
+                        <span className="font-mono text-xs font-bold text-slate-300">
+                          {driverCount} / {driverLimit} {tr.drivers}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-900/80 border border-white/5 h-2 overflow-hidden rounded-lg">
+                        <div
+                          className="h-full transition-all duration-300"
+                          style={{
+                            width: `${driverPct}%`,
+                            backgroundColor: driverPct >= 100 ? '#f43f5e' : accent,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* Team Confirmations */}
                 {(() => {
@@ -298,7 +332,7 @@ export function LeagueSchedule({
                           {activeCars.map((carObj: any, carIdx: number) => {
                             const tag = String(carObj.category).toUpperCase()
                             const dorsalDisplay = String(carObj.dorsal || '').trim()
-                            const limit = (league as any).classLimits?.[tag] ?? 30
+                            const limit = (ev as any).classLimits?.[tag] ?? (league as any).classLimits?.[tag] ?? 30
 
                             const carDriversList = (() => {
                               const byLeague = carObj.driverUserIdsByLeague || carObj.driver_user_ids_by_league || {}
@@ -395,6 +429,7 @@ export function LeagueSchedule({
                                             classTag: tag,
                                             carNumber: dorsalDisplay,
                                             carModel: '',
+                                            driverUserIds: carDriversList,
                                             status: 'confirmed',
                                           },
                                         ])

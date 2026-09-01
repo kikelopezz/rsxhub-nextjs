@@ -241,11 +241,6 @@ export default async function AdminLeaguePage({
                 className="w-full border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg"
               />
             </div>
-            <input name="maxDrivers" type="number" defaultValue={league.maxDrivers ?? ''} placeholder={t.maxDriversPlaceholder} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg" />
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase font-bold text-slate-400">{t.maxDriversPerCarLabel}</label>
-              <input name="maxDriversPerCar" type="number" min={1} max={6} defaultValue={league.maxDriversPerCar ?? 4} placeholder={t.maxDriversPerCarPlaceholder} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg" />
-            </div>
             <select name="status" defaultValue={league.status} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg">
               <option value="draft">{t.statusDraft}</option>
               <option value="open">{t.statusOpen}</option>
@@ -325,6 +320,30 @@ export default async function AdminLeaguePage({
                 <input name="startsAt" type="datetime-local" className="w-full border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg" />
                 <input name="durationMinutes" type="number" min={1} defaultValue={60} placeholder={t.durationPlaceholder} className="w-full border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg" />
               </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase font-bold text-slate-400">{t.eventMaxDriversLabel}</label>
+                <input name="maxDrivers" type="number" min={1} placeholder={t.eventMaxDriversPlaceholder} className="w-full border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg" />
+              </div>
+              {(league.classTags || []).length > 0 && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-400">{t.carsPerCategoryLabel}</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(league.classTags || []).map((cat) => (
+                      <div key={cat} className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 shrink-0">{cat}</span>
+                        <input
+                          name={`max_cars_${cat}`}
+                          type="number"
+                          min={1}
+                          max={100}
+                          defaultValue={(league as any).classLimits?.[cat] ?? 30}
+                          className="w-full border border-shell-line bg-black/20 px-2 py-1.5 text-sm text-white outline-none rounded-lg"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <select name="status" className="w-full border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg">
                 <option value="scheduled">{t.statusScheduled}</option>
                 <option value="completed">{t.statusCompleted}</option>
@@ -376,7 +395,7 @@ export default async function AdminLeaguePage({
                         </div>
                       </div>
                       {canManage ? (
-                        <form action={updateEvent} className="mt-3 grid gap-2 md:grid-cols-5 rounded-lg">
+                        <form action={updateEvent} className="mt-3 grid gap-2 md:grid-cols-6 rounded-lg">
                           <input type="hidden" name="leagueId" value={league.id} />
                           <input type="hidden" name="eventId" value={event.id} />
                           <input
@@ -405,6 +424,32 @@ export default async function AdminLeaguePage({
                             placeholder={t.durationPlaceholder}
                             className="border border-shell-line bg-black/20 px-2 py-1.5 text-xs text-white outline-none rounded-lg"
                           />
+                          <input
+                            name="maxDrivers"
+                            type="number"
+                            min={1}
+                            defaultValue={(event as any).maxDrivers ?? ''}
+                            placeholder={t.eventMaxDriversPlaceholder}
+                            className="border border-shell-line bg-black/20 px-2 py-1.5 text-xs text-white outline-none rounded-lg"
+                          />
+                          {(league.classTags || []).length > 0 && (
+                            <div className="md:col-span-6 flex flex-wrap items-center gap-2">
+                              <span className="text-[9px] uppercase font-bold text-slate-500">{t.carsPerCategoryLabel}:</span>
+                              {(league.classTags || []).map((cat) => (
+                                <div key={cat} className="flex items-center gap-1">
+                                  <span className="text-[9px] font-bold text-slate-400">{cat}</span>
+                                  <input
+                                    name={`max_cars_${cat}`}
+                                    type="number"
+                                    min={1}
+                                    max={100}
+                                    defaultValue={(event as any).classLimits?.[cat] ?? (league as any).classLimits?.[cat] ?? 30}
+                                    className="w-14 border border-shell-line bg-black/20 px-1.5 py-1 text-xs text-white outline-none rounded-lg"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           <div className="flex gap-2">
                             <select
                               name="status"

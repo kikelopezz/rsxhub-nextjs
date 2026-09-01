@@ -52,7 +52,6 @@ export async function createLeague(formData: FormData) {
     is_featured: formData.get('featured') === 'on',
     registration_open: formData.get('registrationOpen') === 'on',
     registration_mode: String(formData.get('registrationMode') || 'individual'),
-    max_drivers: formData.get('maxDrivers') ? Number(formData.get('maxDrivers')) : null,
     class_tags: classTags,
     created_at: new Date(),
   }
@@ -106,7 +105,6 @@ export async function createLeague(formData: FormData) {
         classTags: classTags,
         startsAt: new Date().toISOString(),
         endsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        maxDrivers: payload.max_drivers,
         registrationOpen: payload.registration_open,
         bannerUrl: payload.banner_url || null,
         logoUrl: null,
@@ -169,7 +167,6 @@ export async function updateLeague(formData: FormData) {
     is_featured: formData.get('featured') === 'on',
     registration_open: formData.get('registrationOpen') === 'on',
     registration_mode: String(formData.get('registrationMode') || 'individual'),
-    max_drivers: formData.get('maxDrivers') ? Number(formData.get('maxDrivers')) : null,
     class_tags: parseClassTags(formData),
   }
 
@@ -289,42 +286,6 @@ export async function quickToggleLeagueFeaturedAction(formData: FormData) {
       const existing = cookieStore.get('mock_leagues')?.value
       let current = existing ? JSON.parse(existing) : []
       current = current.map((l: any) => l.id === leagueId ? { ...l, featured: !l.featured } : l)
-      cookieStore.set('mock_leagues', JSON.stringify(current), { path: '/', maxAge: 60 * 60 * 24 * 30 })
-    } catch {}
-  }
-
-  invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
-  revalidatePath('/admin')
-  revalidatePath('/ligas')
-  revalidatePath(`/admin/ligas/${leagueId}`)
-  redirect('/admin?tab=leagues&updated=1')
-}
-
-export async function quickUpdateLeagueMaxDriversAction(formData: FormData) {
-  const session = await guardPlatformAdmin()
-  const leagueId = String(formData.get('leagueId') || '')
-  const maxDriversRaw = formData.get('maxDrivers')
-  const maxDrivers = maxDriversRaw ? Number(maxDriversRaw) : null
-
-  if (!leagueId) redirect('/admin?error=missing-fields')
-
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        await db.collection('leagues').doc(leagueId).update({ max_drivers: maxDrivers })
-      } catch (error) {
-        console.error('Failed to update max drivers in Firestore:', error)
-      }
-    }
-  } else {
-    // Mock Mode
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const existing = cookieStore.get('mock_leagues')?.value
-      let current = existing ? JSON.parse(existing) : []
-      current = current.map((l: any) => l.id === leagueId ? { ...l, maxDrivers } : l)
       cookieStore.set('mock_leagues', JSON.stringify(current), { path: '/', maxAge: 60 * 60 * 24 * 30 })
     } catch {}
   }

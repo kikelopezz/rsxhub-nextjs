@@ -12,7 +12,6 @@ export type League = {
   classTags?: string[]
   startsAt: string
   endsAt: string
-  maxDrivers: number | null
   registrationOpen: boolean
   fullDescription: string
   status: string
@@ -42,6 +41,8 @@ export type LeagueEvent = {
   color?: string | null
   qualyCompleted?: boolean
   completedAt?: string | null
+  maxDrivers?: number | null
+  classLimits?: Record<string, number> | null
 }
 
 export type Registration = {
@@ -78,6 +79,7 @@ export type EventConfirmation = {
   classTag: string
   carNumber: number | string
   status: string
+  driverUserIds?: string[]
 }
 
 export type TeamStanding = {
