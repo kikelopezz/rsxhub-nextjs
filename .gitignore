@@ -32,6 +32,12 @@ yarn-error.log*
 build.log
 .b
 
+# Firebase emulator
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
+.firebase/
+
 # TypeScript build info
 *.tsbuildinfo
 

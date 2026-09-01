@@ -10,7 +10,10 @@ const firebaseConfig = {
 }
 
 const hasAdminCredentials = typeof window === 'undefined'
-  ? Boolean(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY)
+  ? Boolean(
+      process.env.FIRESTORE_EMULATOR_HOST ||
+      (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY)
+    )
   : true
 
 export const hasFirebase = Boolean(
