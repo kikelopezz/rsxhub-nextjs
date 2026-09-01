@@ -67,7 +67,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
         {/* Logo */}
         <Link
           href="/"
-          className="hud-frame inline-flex w-fit items-center gap-2 border border-white/10 bg-black/40 px-3 py-1.5 md:justify-self-start"
+          className="glass glass-pill inline-flex w-fit items-center gap-2 px-4 py-2 md:justify-self-start"
           aria-label="RSX"
         >
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#1f8dff] shadow-[0_0_8px_rgba(31,141,255,0.9)]" />
@@ -75,24 +75,19 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
         </Link>
 
         {/* Nav links */}
-        <nav className="flex flex-wrap items-center justify-center gap-0.5 border border-white/10 bg-black/60 p-1 text-[11.5px] font-bold uppercase tracking-wider text-white shadow-inner">
-          {links.map((item, index) => {
+        <nav className="glass glass-pill flex flex-wrap items-center justify-center gap-0.5 p-1 text-[11.5px] font-bold uppercase tracking-wider text-white">
+          {links.map((item) => {
             const active = isActive(pathname, item.href)
             return (
               <Link
                 key={item.label}
                 href={item.href}
-                className={`clip-hud-sm relative flex items-center gap-1.5 px-3.5 py-2 transition-all duration-200 ${
+                className={`relative flex items-center gap-1.5 rounded-full px-4 py-2 transition-all duration-200 ${
                   active
-                    ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
+                    ? 'glass-tint text-white shadow-[0_0_16px_rgba(18,116,222,0.4)]'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <span
-                  className={`font-mono-hud text-[9px] ${active ? 'text-white/70' : 'text-slate-500'}`}
-                >
-                  {String(index + 1).padStart(2, '0')}
-                </span>
                 {item.label}
               </Link>
             )
@@ -109,7 +104,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
               {/* User Profile Button */}
               <Link
                 href="/perfil"
-                className="clip-hud-sm flex items-center gap-2.5 border border-white/20 bg-white/5 px-4 py-2.5 hover:bg-white/10 transition-colors"
+                className="glass glass-pill flex items-center gap-2.5 px-4 py-2.5 hover:bg-white/10 transition-colors"
               >
                 {avatarUrl ? (
                   <Image
@@ -133,7 +128,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
               <a
                 href="/api/auth/logout"
                 title={dict.nav.signOut}
-                className="clip-hud-sm flex items-center justify-center h-10 w-10 border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 text-rose-400 hover:text-rose-300 transition-colors"
+                className="glass glass-pill flex items-center justify-center h-10 w-10 !border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-colors"
                 aria-label={dict.nav.signOut}
               >
                 <LogoutIcon />
@@ -141,7 +136,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
             </div>
           ) : (
             <SteamLoginButton
-              className="clip-hud-sm inline-flex items-center gap-1.5 bg-[#1274de] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer"
+              className="glass glass-pill glass-tint inline-flex items-center gap-1.5 px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:brightness-110 cursor-pointer"
             >
               <SteamIcon />
               {dict.nav.signIn}
@@ -164,7 +159,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
             onClick={() => setIsMenuOpen((open) => !open)}
             aria-label={isMenuOpen ? dict.nav.closeMenu : dict.nav.openMenu}
             aria-expanded={isMenuOpen}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="glass glass-pill flex h-10 w-10 items-center justify-center text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -173,15 +168,15 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
 
       {/* Mobile dropdown panel */}
       {isMenuOpen && (
-        <div className="md:hidden absolute left-0 right-0 top-full mt-2 rounded-lg border border-white/10 bg-[#090d16] shadow-[0_16px_40px_rgba(0,0,0,0.6)] p-3 space-y-3 z-50">
+        <div className="glass glass-soft md:hidden absolute left-0 right-0 top-full mt-2 p-3 space-y-3 z-50">
           <nav className="flex flex-col gap-1 text-[13px] font-bold uppercase tracking-wider">
             {links.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className={`rounded-md px-4 py-2.5 transition-colors ${
+                className={`rounded-2xl px-4 py-2.5 transition-colors ${
                   isActive(pathname, item.href)
-                    ? 'bg-[#1274de] text-white'
+                    ? 'glass-tint text-white'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
@@ -195,7 +190,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
               <>
                 <Link
                   href="/perfil"
-                  className="flex min-w-0 flex-1 items-center gap-2.5 border border-white/20 bg-white/5 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
+                  className="glass glass-pill flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 hover:bg-white/10 transition-colors"
                 >
                   {avatarUrl ? (
                     <Image
@@ -218,14 +213,14 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
                   href="/api/auth/logout"
                   title={dict.nav.signOut}
                   aria-label={dict.nav.signOut}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 rounded-lg text-rose-400 hover:text-rose-300 transition-colors"
+                  className="glass glass-pill flex h-10 w-10 shrink-0 items-center justify-center !border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-colors"
                 >
                   <LogoutIcon />
                 </a>
               </>
             ) : (
               <SteamLoginButton
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#1274de] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer"
+                className="glass glass-pill glass-tint inline-flex flex-1 items-center justify-center gap-1.5 px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:brightness-110 cursor-pointer"
               >
                 <SteamIcon />
                 {dict.nav.signIn}

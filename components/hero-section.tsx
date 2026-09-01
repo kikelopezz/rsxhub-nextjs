@@ -60,9 +60,9 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
         <div className="relative mx-auto flex flex-col justify-between h-full max-w-[1400px] px-6 md:px-12 pt-16 pb-12 md:pb-16" style={{ zIndex: 5 }}>
           {/* Sección de Textos y CTA */}
           <div className="my-auto max-w-2xl text-left space-y-6 md:space-y-8">
-            <div className="inline-flex items-center gap-2 border border-[#1274de]/40 bg-[#1274de]/10 px-3 py-1 clip-hud-sm">
+            <div className="glass glass-pill glass-tint inline-flex items-center gap-2 px-3.5 py-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-[#1f8dff] animate-rsx-breath" />
-              <span className="font-mono-hud text-[10px] uppercase tracking-[0.25em] text-[#7cb8f5]">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bcdcff]">
                 {dict.home.hero.stats.simulators}: {slides.length > 0 ? 'AC / LMU' : ''}
               </span>
             </div>
@@ -76,10 +76,10 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2">
-              <Link href="/ligas" className="clip-hud inline-flex bg-[#1274de] hover:bg-[#1f82ee] px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider text-white transition-colors shadow-[0_0_15px_rgba(18,116,222,0.4)]">
+              <Link href="/ligas" className="glass glass-pill glass-tint inline-flex hover:brightness-110 px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider text-white transition-all shadow-[0_0_15px_rgba(18,116,222,0.4)]">
                 {dict.home.hero.viewLeagues}
               </Link>
-              <Link href="/about" className="clip-hud inline-flex border border-white/20 bg-black/40 hover:bg-white/10 px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider text-white transition-colors">
+              <Link href="/about" className="glass glass-pill inline-flex hover:bg-white/10 px-7 py-3 text-xs md:text-sm font-bold uppercase tracking-wider text-white transition-colors">
                 {dict.home.hero.aboutRsx}
               </Link>
             </div>
@@ -99,21 +99,20 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
               ))}
             </div>
 
-            {/* Columnas de Estadísticas (panel HUD) */}
-            <div className="hud-frame grid grid-cols-2 md:grid-cols-5 border border-white/10 bg-black/50 backdrop-blur-sm">
+            {/* Columnas de Estadísticas (vidrio) */}
+            <div className="glass glass-soft grid grid-cols-2 md:grid-cols-5 overflow-hidden">
               {[
                 { value: driversCount, label: dict.home.hero.stats.drivers },
                 { value: teamsCount, label: dict.home.hero.stats.teams },
                 { value: leaguesCount, label: dict.home.hero.stats.leagues },
                 { value: simulatorsCount, label: dict.home.hero.stats.simulators },
                 { value: racesCount, label: dict.home.hero.stats.races },
-              ].map((stat, i) => (
+              ].map((stat) => (
                 <div
                   key={stat.label}
                   className="space-y-1.5 border-white/10 px-4 py-4 text-center [&:not(:last-child)]:border-r [&:nth-child(n+3)]:border-t md:[&:nth-child(n+3)]:border-t-0"
                 >
-                  <div className="font-mono-hud text-[9px] text-[#1f8dff]">{String(i + 1).padStart(2, '0')}</div>
-                  <div className="font-mono-hud text-3xl font-bold tracking-tight text-white md:text-4xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{stat.value}</div>
+                  <div className="text-3xl font-extrabold tracking-tight text-white md:text-4xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{stat.value}</div>
                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-350">{stat.label}</div>
                 </div>
               ))}
