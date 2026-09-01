@@ -67,27 +67,36 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
         {/* Logo */}
         <Link
           href="/"
-          className="inline-flex w-fit items-center md:justify-self-start"
+          className="hud-frame inline-flex w-fit items-center gap-2 border border-white/10 bg-black/40 px-3 py-1.5 md:justify-self-start"
           aria-label="RSX"
         >
-          <Image src="/branding/rsx-logo.png" alt="RSX" width={140} height={38} priority className="h-auto w-[110px] md:w-[130px]" />
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#1f8dff] shadow-[0_0_8px_rgba(31,141,255,0.9)]" />
+          <Image src="/branding/rsx-logo.png" alt="RSX" width={140} height={38} priority className="h-auto w-[100px] md:w-[120px]" />
         </Link>
 
         {/* Nav links */}
-        <nav className="flex flex-wrap items-center justify-center gap-1 rounded-lg border border-white/10 bg-black/60 p-1.5 text-[12px] font-bold uppercase tracking-wider text-white shadow-inner">
-          {links.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`relative rounded-md px-4 py-2 transition-all duration-200 ${
-                isActive(pathname, item.href)
-                  ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
-                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="flex flex-wrap items-center justify-center gap-0.5 border border-white/10 bg-black/60 p-1 text-[11.5px] font-bold uppercase tracking-wider text-white shadow-inner">
+          {links.map((item, index) => {
+            const active = isActive(pathname, item.href)
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={`clip-hud-sm relative flex items-center gap-1.5 px-3.5 py-2 transition-all duration-200 ${
+                  active
+                    ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <span
+                  className={`font-mono-hud text-[9px] ${active ? 'text-white/70' : 'text-slate-500'}`}
+                >
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                {item.label}
+              </Link>
+            )
+          })}
         </nav>
 
         {/* Right side: user widget or sign-in */}
@@ -100,7 +109,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
               {/* User Profile Button */}
               <Link
                 href="/perfil"
-                className="flex items-center gap-2.5 border border-white/20 bg-white/5 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-colors"
+                className="clip-hud-sm flex items-center gap-2.5 border border-white/20 bg-white/5 px-4 py-2.5 hover:bg-white/10 transition-colors"
               >
                 {avatarUrl ? (
                   <Image
@@ -124,7 +133,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
               <a
                 href="/api/auth/logout"
                 title={dict.nav.signOut}
-                className="flex items-center justify-center h-10 w-10 border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 rounded-lg text-rose-400 hover:text-rose-300 transition-colors"
+                className="clip-hud-sm flex items-center justify-center h-10 w-10 border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 text-rose-400 hover:text-rose-300 transition-colors"
                 aria-label={dict.nav.signOut}
               >
                 <LogoutIcon />
@@ -132,7 +141,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
             </div>
           ) : (
             <SteamLoginButton
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#1274de] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer"
+              className="clip-hud-sm inline-flex items-center gap-1.5 bg-[#1274de] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer"
             >
               <SteamIcon />
               {dict.nav.signIn}
