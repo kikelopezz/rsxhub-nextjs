@@ -46,7 +46,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-shell flex flex-col">
       <TopLoadingBar />
       <div className="flex flex-1 flex-col">
-        <header className="border-b border-shell-line bg-black/95 backdrop-blur-sm relative sticky top-0 z-40 shadow-[0_4px_24px_rgba(0,0,0,0.5)]">
+        <header className="bg-transparent relative sticky top-0 z-40">
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#1274de]/60 to-transparent" />
           <div className="w-full px-6 py-3 md:px-12 md:py-3.5">
             <TopNav

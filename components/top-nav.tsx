@@ -74,7 +74,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
         </Link>
 
         {/* Nav links */}
-        <nav className="flex flex-wrap items-center justify-center gap-1 rounded-lg border border-white/10 bg-black/60 p-1.5 text-[12px] font-bold uppercase tracking-wider text-white shadow-inner">
+        <nav className="flex flex-wrap items-center justify-center gap-1 p-1.5 text-[12px] font-bold uppercase tracking-wider text-white">
           {links.map((item) => (
             <Link
               key={item.label}
