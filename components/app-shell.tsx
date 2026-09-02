@@ -46,9 +46,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-shell flex flex-col">
       <TopLoadingBar />
       <div className="flex flex-1 flex-col">
-        <header className="bg-transparent relative sticky top-0 z-40">
+        <header className="bg-transparent fixed inset-x-0 top-0 z-40 h-[76px] flex items-center">
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#1274de]/60 to-transparent" />
-          <div className="w-full px-6 py-3 md:px-12 md:py-3.5">
+          <div className="w-full px-6 md:px-12">
             <TopNav
               signedIn={Boolean(user)}
               showAdmin={access.canAccessPlatformAdmin}
@@ -58,7 +58,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="w-full flex-1 px-10 py-4 pb-16 md:px-20 md:py-6 md:pb-24">{children}</main>
+        <main className="w-full flex-1 px-10 pt-[76px] py-4 pb-16 md:px-20 md:py-6 md:pb-24">{children}</main>
       </div>
 
       <Footer />

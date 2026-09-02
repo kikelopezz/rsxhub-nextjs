@@ -28,9 +28,9 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
   }, [slides.length])
 
   return (
-    <div className="-mx-10 -mt-4 md:-mx-20 md:-mt-6 w-auto overflow-hidden">
-      {/* Banner de Hero Carousel - Altura completa y ancho de pantalla */}
-      <section className="relative h-[calc(100vh-65px)] min-h-[600px] w-full overflow-hidden">
+    <div className="-mx-10 -mt-[76px] md:-mx-20 w-auto overflow-hidden">
+      {/* Banner de Hero Carousel - Altura completa y ancho de pantalla, por detrás del header */}
+      <section className="relative h-screen min-h-[600px] w-full overflow-hidden">
         {/* Contenedor de las Slides (Cross-fade) */}
         <div className="absolute inset-0">
           {slides.map((slide, index) => (
@@ -56,7 +56,7 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-[#030508]" style={{ zIndex: 2 }} />
 
         {/* Contenido Superpuesto */}
-        <div className="relative mx-auto flex flex-col justify-between h-full max-w-[1400px] px-6 md:px-12 pt-16 pb-12 md:pb-16" style={{ zIndex: 5 }}>
+        <div className="relative mx-auto flex flex-col justify-between h-full max-w-[1400px] px-6 md:px-12 pt-24 pb-12 md:pb-16" style={{ zIndex: 5 }}>
           {/* Sección de Textos y CTA */}
           <div className="my-auto max-w-2xl text-left space-y-6 md:space-y-8">
             <div className="w-fit">
