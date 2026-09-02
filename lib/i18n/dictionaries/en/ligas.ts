@@ -261,6 +261,7 @@ const ligas: typeof es = {
     registerModal: {
       title: 'Add Team to League',
       selectTeam: 'Select Team',
+      selectCategory: 'Category',
       cancel: 'Cancel',
       registering: 'Registering...',
       confirmRegistration: 'Confirm Registration',

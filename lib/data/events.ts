@@ -50,6 +50,8 @@ export const getLeagueEvents = cache(async (leagueId?: string): Promise<LeagueEv
             color: data.color || null,
             maxDrivers: data.max_drivers != null ? Number(data.max_drivers) : (data.maxDrivers != null ? Number(data.maxDrivers) : null),
             classLimits: data.class_limits || data.classLimits || null,
+            qualyCompleted: Boolean(data.qualy_completed ?? data.qualyCompleted ?? false),
+            completedAt: formatFirestoreValue(data.completed_at || data.completedAt) || null,
           }
         })
         return events.sort((a: any, b: any) => (a.startsAt || '').localeCompare(b.startsAt || ''))

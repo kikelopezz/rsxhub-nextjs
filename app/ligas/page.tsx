@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
-import { getLeagues, getRegistrations } from '@/lib/platform-data'
+import { getLeagues, getRegistrations, getTeamPointsOverrides } from '@/lib/platform-data'
+import { getTeamsDashboard } from '@/lib/team-data'
 import LigasPageContent from './ligas-content'
 
 interface Props {
@@ -19,7 +20,12 @@ export default async function LigasPage({ searchParams }: Props) {
   const isAdmin = access.canAccessPlatformAdmin
 
   const params = await searchParams
-  const [leagues, registrations] = await Promise.all([getLeagues(), getRegistrations()])
+  const [leagues, registrations, teamsDashboard] = await Promise.all([
+    getLeagues(),
+    getRegistrations(),
+    getTeamsDashboard(),
+  ])
+  const teamById = new Map(teamsDashboard.teams.map((team) => [team.id, team]))
 
   // Get all valid team IDs in the system to filter out orphan registrations
   const { getFirestoreDb, hasFirebase } = await import('@/lib/firebase')
@@ -70,6 +76,36 @@ export default async function LigasPage({ searchParams }: Props) {
     }
   }
 
+  // Current points leader per league, for the season-directory card preview.
+  // Leader is computed off the league's first class tag (the same one its
+  // standings panel opens on) so the card and the detail page agree.
+  const leaderByLeague = new Map<string, { name: string; logoUrl: string | null; points: number } | null>()
+  await Promise.all(
+    leagues.map(async (league) => {
+      const primaryClass = (league.classTags || [])[0]
+      if (!primaryClass) {
+        leaderByLeague.set(league.id, null)
+        return
+      }
+      const pointsMap = await getTeamPointsOverrides(league.id)
+      const seenTeams = new Set<string>()
+      let best: { name: string; logoUrl: string | null; points: number } | null = null
+      for (const reg of registrations) {
+        if (reg.leagueId !== league.id || reg.status === 'rejected') continue
+        if (reg.classTag && reg.classTag !== primaryClass) continue
+        if (!reg.teamId || seenTeams.has(reg.teamId) || !validTeamIds.has(reg.teamId)) continue
+        seenTeams.add(reg.teamId)
+        const points = pointsMap[`${primaryClass.toUpperCase()}_${reg.teamId}`] || 0
+        const team = teamById.get(reg.teamId)
+        if (!team) continue
+        if (!best || points > best.points) {
+          best = { name: team.name, logoUrl: team.logoUrl || null, points }
+        }
+      }
+      leaderByLeague.set(league.id, best)
+    }),
+  )
+
   // Map leagues to serializable structures
   const serializableLeagues = leagues.map((league) => ({
     id: league.id,
@@ -84,8 +120,10 @@ export default async function LigasPage({ searchParams }: Props) {
     status: league.status,
     bannerUrl: league.bannerUrl || null,
     logoUrl: league.logoUrl || null,
+    accentColor: league.accentColor || null,
     shortDescription: league.shortDescription || '',
     fullDescription: league.fullDescription || '',
+    leader: leaderByLeague.get(league.id) || null,
   }))
 
   return (

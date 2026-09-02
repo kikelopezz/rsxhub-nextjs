@@ -259,6 +259,7 @@ const ligas = {
     registerModal: {
       title: 'Añadir equipo a la liga',
       selectTeam: 'Seleccionar equipo',
+      selectCategory: 'Categoría',
       cancel: 'Cancelar',
       registering: 'Registrando...',
       confirmRegistration: 'Confirmar registro',

@@ -1,6 +1,6 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { Roboto, Barlow_Condensed, JetBrains_Mono } from 'next/font/google'
+import { Roboto, Barlow_Condensed, JetBrains_Mono, Anton } from 'next/font/google'
 import { AppShell } from '@/components/app-shell'
 
 import { Suspense } from 'react'
@@ -30,6 +30,13 @@ const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
 })
 
+const anton = Anton({
+  subsets: ['latin'],
+  weight: ['400'],
+  display: 'swap',
+  variable: '--font-anton',
+})
+
 export const metadata: Metadata = {
   title: 'SimLeague Platform',
   description: 'League platform for Assetto Corsa and Le Mans Ultimate',
@@ -41,7 +48,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
   return (
     <html lang={locale}>
-      <body className={`${roboto.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} font-body`}>
+      <body className={`${roboto.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} ${anton.variable} font-body`}>
         <LocaleProvider locale={locale} dictionary={dictionary}>
           <AppShell>{children}</AppShell>
           <Suspense fallback={null}>

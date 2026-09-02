@@ -44,6 +44,11 @@ body {
   font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
+.font-display-league {
+  font-family: var(--font-anton), ui-sans-serif, sans-serif;
+  letter-spacing: 0.01em;
+}
+
 .font-display,
 h1,
 h2,
