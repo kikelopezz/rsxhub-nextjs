@@ -52,7 +52,20 @@ if (typeof window === 'undefined') {
     privateKey = privateKey.replace(/\\n/g, '\n')
   }
 
-  if (projectId && clientEmail && privateKey) {
+  const isEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST)
+
+  if (projectId && isEmulator) {
+    // Emulator mode: no real credentials needed — the Admin SDK talks to
+    // FIRESTORE_EMULATOR_HOST directly once it knows the project ID.
+    try {
+      if (getAdminApps().length === 0) {
+        initializeAdminApp({ projectId })
+      }
+      adminDb = getAdminFirestore()
+    } catch (error) {
+      console.error('Failed to initialize Firebase Admin SDK for emulator:', error)
+    }
+  } else if (projectId && clientEmail && privateKey) {
     try {
       if (getAdminApps().length === 0) {
         initializeAdminApp({
