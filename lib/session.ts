@@ -2,8 +2,10 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import type { SessionUser } from '@/types'
 const COOKIE_NAME = 'simleague_session'
-const secret = process.env.SESSION_SECRET || 'default_fallback_session_secret_for_simleague_league_1234567890'
-const encodedSecret = new TextEncoder().encode(secret)
+if (!process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET must be set — no insecure default is provided.')
+}
+const encodedSecret = new TextEncoder().encode(process.env.SESSION_SECRET)
 
 function getSecret() {
   return encodedSecret

@@ -1,5 +1,5 @@
 import { cache } from 'react'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
 
 export interface UserNotification {
@@ -16,74 +16,21 @@ export const getUserNotifications = cache(async (userId: string): Promise<UserNo
   if (!userId) return []
 
   return fetchWithTTLCache(`user_notifications_${userId}`, async () => {
-    let rawList: UserNotification[] = []
-
-    if (hasFirebase) {
-      const db = getFirestoreDb()
-      if (db) {
-        try {
-          const snap = await db
-            .collection('user_notifications')
-            .where('user_id', '==', userId)
-            .get()
-
-        if (!snap.empty) {
-          rawList = snap.docs.map((doc: any) => {
-            const data = doc.data()
-            let createdIso = new Date().toISOString()
-            if (data.created_at) {
-              if (typeof data.created_at.toDate === 'function') {
-                createdIso = data.created_at.toDate().toISOString()
-              } else {
-                createdIso = new Date(data.created_at).toISOString()
-              }
-            }
-
-            return {
-              id: doc.id,
-              userId: data.user_id || '',
-              title: data.title || '',
-              message: data.message || '',
-              read: Boolean(data.read),
-              createdAt: createdIso,
-              link: data.link || null,
-            }
-          })
-        }
-      } catch (err) {
-        console.error('Failed to fetch user notifications from Firestore:', err)
-      }
+    try {
+      const rows = await db.userNotification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 30 })
+      return rows.map((n) => ({
+        id: n.id,
+        userId: n.userId,
+        title: n.title,
+        message: n.message,
+        read: n.read,
+        createdAt: n.createdAt.toISOString(),
+        link: n.link,
+      }))
+    } catch (err) {
+      console.error('Failed to fetch user notifications:', err)
+      return []
     }
-  }
-
-  // Fallback / merge mock cookie mode
-  try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const cookieVal = cookieStore.get(`mock_notifications_${userId}`)?.value || cookieStore.get('mock_notifications')?.value
-    if (cookieVal) {
-      const mockList: UserNotification[] = JSON.parse(cookieVal)
-      const userMocks = mockList.filter((n) => n.userId === userId)
-      rawList = [...rawList, ...userMocks]
-    }
-  } catch (e) {}
-
-  // Deduplicate by title + message
-  const seen = new Set<string>()
-  const uniqueList: UserNotification[] = []
-  
-  // Sort descending by date first
-  rawList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-  for (const item of rawList) {
-    const key = `${item.title}_${item.message}`
-    if (!seen.has(key)) {
-      seen.add(key)
-      uniqueList.push(item)
-    }
-  }
-
-    return uniqueList.slice(0, 30)
   }, 30)
 })
 
@@ -100,133 +47,38 @@ export async function createNotification({
 }) {
   if (!userId) return
 
-  let createdInFirestore = false
+  try {
+    const isDuplicate = await db.userNotification.findFirst({ where: { userId, title, message } })
+    if (isDuplicate) return
 
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const snap = await db
-          .collection('user_notifications')
-          .where('user_id', '==', userId)
-          .get()
-
-        const isDuplicate = snap.docs.some((doc: any) => {
-          const d = doc.data()
-          if (d.title === title && d.message === message) return true
-          return false
-        })
-
-        if (isDuplicate) return
-
-        await db.collection('user_notifications').add({
-          user_id: userId,
-          title,
-          message,
-          read: false,
-          created_at: new Date(),
-          link: link || null,
-        })
-        createdInFirestore = true
-      } catch (err) {
-        console.error('Failed to create notification in Firestore:', err)
-      }
-    }
-  }
-
-  // Fallback to mock cookie ONLY if not saved in Firestore
-  if (!createdInFirestore) {
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const key = `mock_notifications_${userId}`
-      const existing = cookieStore.get(key)?.value
-      let current: UserNotification[] = existing ? JSON.parse(existing) : []
-
-      const isDup = current.some((n) => n.title === title && n.message === message)
-      if (isDup) return
-
-      current.unshift({
-        id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        userId,
-        title,
-        message,
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: link || null,
-      })
-      cookieStore.set(key, JSON.stringify(current.slice(0, 30)), { path: '/', maxAge: 60 * 60 * 24 * 30 })
-    } catch (e) {
-      console.error('Failed to save mock notification cookie:', e)
-    }
+    await db.userNotification.create({ data: { userId, title, message, read: false, link: link || null } })
+  } catch (err) {
+    console.error('Failed to create notification:', err)
   }
 }
 
 export async function markNotificationAsRead(userId: string, notificationId?: string) {
   if (!userId) return
 
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        if (notificationId) {
-          await db.collection('user_notifications').doc(notificationId).update({ read: true })
-        } else {
-          const snap = await db.collection('user_notifications').where('user_id', '==', userId).where('read', '==', false).get()
-          const batch = db.batch()
-          snap.docs.forEach((doc: any) => batch.update(doc.ref, { read: true }))
-          await batch.commit()
-        }
-      } catch (err) {
-        console.error('Failed to mark notification read in Firestore:', err)
-      }
-    }
-  }
-
   try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const key = `mock_notifications_${userId}`
-    const existing = cookieStore.get(key)?.value
-    if (existing) {
-      let current: UserNotification[] = JSON.parse(existing)
-      current = current.map((n) => {
-        if (!notificationId || n.id === notificationId) {
-          return { ...n, read: true }
-        }
-        return n
-      })
-      cookieStore.set(key, JSON.stringify(current), { path: '/', maxAge: 60 * 60 * 24 * 30 })
+    if (notificationId) {
+      await db.userNotification.update({ where: { id: notificationId }, data: { read: true } })
+    } else {
+      await db.userNotification.updateMany({ where: { userId, read: false }, data: { read: true } })
     }
-  } catch (e) {}
+  } catch (err) {
+    console.error('Failed to mark notification read:', err)
+  }
 }
 
 export async function clearAllNotifications(userId: string) {
   if (!userId) return
 
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const snap = await db.collection('user_notifications').where('user_id', '==', userId).get()
-        if (!snap.empty) {
-          const batch = db.batch()
-          snap.docs.forEach((doc: any) => batch.delete(doc.ref))
-          await batch.commit()
-        }
-      } catch (err) {
-        console.error('Failed to clear notifications in Firestore:', err)
-      }
-    }
-  }
-
   try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const key = `mock_notifications_${userId}`
-    cookieStore.delete(key)
-    cookieStore.delete('mock_notifications')
-  } catch (e) {}
+    await db.userNotification.deleteMany({ where: { userId } })
+  } catch (err) {
+    console.error('Failed to clear notifications:', err)
+  }
 }
 
 export async function notifyDriverHired({

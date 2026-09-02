@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { getLeagueBySlug } from '@/lib/platform-data'
 import { getCurrentUser } from '@/lib/auth'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 
 import {
   getPreferredNumbers as _getPreferredNumbers,
@@ -42,10 +42,6 @@ export async function registerForLeague(formData: FormData) {
   if (!session) redirect(`/ligas/${slug}?register=login`)
   if (!league.registrationOpen || league.status !== 'open') redirect(`/ligas/${slug}?register=closed`)
 
-  if (!hasFirebase) redirect(`/ligas/${slug}?register=mock`)
-  const db = getFirestoreDb()
-  if (!db) redirect(`/ligas/${slug}?register=mock`)
-
   const mode = String(formData.get('registrationMode') || 'driver').toLowerCase()
   const registrationMode = league.registrationMode || 'individual'
   const classTag = parseClassTag(league.classTags, String(formData.get('classTag') || ''))
@@ -67,41 +63,28 @@ export async function registerForLeague(formData: FormData) {
     if (!teamId) redirect(`/ligas/${slug}?register=team-data-required`)
 
     try {
-      const teamDoc = await db.collection('teams').doc(teamId).get()
-      const managerDoc = await db.collection('team_members').doc(`${teamId}_${session.userId}`).get()
-      const membersSnapshot = await db.collection('team_members').where('team_id', '==', teamId).get()
+      const team = await db.team.findUnique({
+        where: { id: teamId },
+        include: { cars: { include: { drivers: true } }, members: true },
+      })
+      const managerRow = team?.members.find((m) => m.userId === session.userId)
 
-      const team = teamDoc.data()
-      const managerRow = managerDoc.data()
-
-      const canManage = team?.owner_user_id === session.userId || managerRow?.role === 'owner' || managerRow?.role === 'manager'
+      const canManage = team?.ownerUserId === session.userId || managerRow?.role === 'owner' || managerRow?.role === 'manager'
       if (!canManage) redirect(`/ligas/${slug}?register=forbidden`)
 
-      const memberUserIds = new Set(membersSnapshot.docs.map((doc: any) => doc.data().user_id))
+      const memberUserIds = new Set(team!.members.map((m) => m.userId))
 
-      // Gather matching allowed cars in league
-      const allowedCarsSnapshot = await db
-        .collection('league_cars')
-        .where('league_id', '==', league.id)
-        .where('is_active', '==', true)
-        .get()
-      const allowedCars = allowedCarsSnapshot.docs.map((doc: any) => doc.data())
+      const allowedCars = await db.leagueCar.findMany({ where: { leagueId: league.id, isActive: true } })
 
-      const leagueClassTags = Array.isArray(league.classTags) ? league.classTags : []
-      const teamCars = Array.isArray(team?.cars) ? team.cars : []
+      const leagueClassTags = league.classTags || []
+      const teamCars = team!.cars
 
-      // Automatically identify categories to register
-      let categoriesToRegister: {
-        classTag: string
-        carNumber: number
-        carModel: string | null
-        driverUserIds: string[]
-      }[] = []
+      type CategoryToRegister = { classTag: string; carNumber: number; carModel: string | null; driverUserIds: string[] }
+      const categoriesToRegister: CategoryToRegister[] = []
 
-      const matchingCars = teamCars.filter((car: any) => {
-        if (!car.category) return false
+      const matchingCars = teamCars.filter((car) => {
         const c1 = car.category.toUpperCase()
-        return leagueClassTags.some((tag: any) => {
+        return leagueClassTags.some((tag) => {
           const c2 = tag.toUpperCase()
           return c1 === c2 || (c1.startsWith('LMP') && c2.startsWith('LMP'))
         })
@@ -110,169 +93,132 @@ export async function registerForLeague(formData: FormData) {
       if (matchingCars.length > 0) {
         for (const car of matchingCars) {
           const catUpper = car.category.toUpperCase()
-          const matchedLeagueClass = leagueClassTags.find(tag => {
-            const t = tag.toUpperCase()
-            return t === catUpper || (t.startsWith('LMP') && catUpper.startsWith('LMP'))
-          }) || catUpper
-          const allowedForCategory = allowedCars.find((ac: any) => {
-            const classUpper = ac.class_tag?.toUpperCase()
+          const matchedLeagueClass =
+            leagueClassTags.find((tag) => {
+              const t = tag.toUpperCase()
+              return t === catUpper || (t.startsWith('LMP') && catUpper.startsWith('LMP'))
+            }) || catUpper
+          const allowedForCategory = allowedCars.find((ac) => {
+            const classUpper = ac.classTag?.toUpperCase()
             return classUpper === catUpper || (classUpper?.startsWith('LMP') && catUpper.startsWith('LMP'))
           })
           const matchedModel = allowedForCategory ? allowedForCategory.model : carModel || null
-          const byLeague = car.driverUserIdsByLeague || car.driver_user_ids_by_league || {}
-          let carDriversRaw: string[] = []
-          if (league.id && Array.isArray(byLeague[league.id]) && byLeague[league.id].length > 0) {
-            carDriversRaw = byLeague[league.id].filter(Boolean).map(String)
-          } else if (league.slug && Array.isArray(byLeague[league.slug]) && byLeague[league.slug].length > 0) {
-            carDriversRaw = byLeague[league.slug].filter(Boolean).map(String)
-          } else if (Array.isArray(car.driverUserIds) && car.driverUserIds.length > 0) {
-            carDriversRaw = car.driverUserIds.filter(Boolean).map(String)
-          } else if (Array.isArray(car.driver_user_ids) && car.driver_user_ids.length > 0) {
-            carDriversRaw = car.driver_user_ids.filter(Boolean).map(String)
-          }
-          const carDrivers = carDriversRaw.filter((id: string) => memberUserIds.has(id))
 
-          // Enrol using the specific car drivers, or fallback to all team members so the whole team gets registered!
-          const finalDrivers: string[] = carDrivers.length > 0 ? carDrivers : Array.from(memberUserIds).map(String)
+          const leagueDrivers = car.drivers.filter((d) => d.leagueId === league.id || d.leagueId === league.slug).map((d) => d.userId)
+          const defaultDrivers = car.drivers.filter((d) => !d.leagueId).map((d) => d.userId)
+          const carDriversRaw = leagueDrivers.length > 0 ? leagueDrivers : defaultDrivers
+          const carDrivers = carDriversRaw.filter((id) => memberUserIds.has(id))
+
+          const finalDrivers = carDrivers.length > 0 ? carDrivers : Array.from(memberUserIds)
 
           if (finalDrivers.length > 0) {
             categoriesToRegister.push({
               classTag: matchedLeagueClass,
               carNumber: Number(car.dorsal || parsedCarNumber || '12'),
               carModel: matchedModel,
-              driverUserIds: finalDrivers
+              driverUserIds: finalDrivers,
             })
           }
         }
       }
 
-      // If no matching cars are found in the team profile, fallback to auto-registering ALL categories of the league using all team members
       if (categoriesToRegister.length === 0) {
-        const teamDrivers = Array.from(memberUserIds).map((id: any) => String(id))
+        const teamDrivers = Array.from(memberUserIds)
         if (teamDrivers.length > 0) {
           for (const leagueClass of leagueClassTags) {
             const catUpper = leagueClass.toUpperCase()
-            const allowedForCategory = allowedCars.find((ac: any) => {
-              const classUpper = ac.class_tag?.toUpperCase()
+            const allowedForCategory = allowedCars.find((ac) => {
+              const classUpper = ac.classTag?.toUpperCase()
               return classUpper === catUpper || (classUpper?.startsWith('LMP') && catUpper.startsWith('LMP'))
             })
-            const matchedModel = allowedForCategory ? allowedForCategory.model : null
             categoriesToRegister.push({
               classTag: leagueClass,
               carNumber: parsedCarNumber || 12,
-              carModel: matchedModel,
-              driverUserIds: teamDrivers
+              carModel: allowedForCategory ? allowedForCategory.model : null,
+              driverUserIds: teamDrivers,
             })
           }
         }
       }
 
-      // If we still have absolutely zero categories (e.g. no team members or empty), fallback to a basic placeholder using session user
       if (categoriesToRegister.length === 0) {
         categoriesToRegister.push({
           classTag: classTag || 'GENERAL',
           carNumber: parsedCarNumber || 12,
           carModel: carModel || null,
-          driverUserIds: [session.userId]
+          driverUserIds: [session.userId],
         })
       }
 
       // Check if any of the drivers are already registered in the league elsewhere
-      const allDriversToRegister = Array.from(new Set(categoriesToRegister.flatMap(c => c.driverUserIds)))
+      const allDriversToRegister = Array.from(new Set(categoriesToRegister.flatMap((c) => c.driverUserIds)))
       if (allDriversToRegister.length > 0) {
-        const existingDriversSnapshot = await db
-          .collection('league_registrations')
-          .where('league_id', '==', league.id)
-          .where('user_id', 'in', allDriversToRegister)
-          .get()
-
-        const activeDrivers = existingDriversSnapshot.docs
-          .map((doc: any) => doc.data())
-          .filter((r: any) => r.status !== 'rejected' && r.team_id !== teamId)
-        
+        const existingDrivers = await db.leagueRegistration.findMany({
+          where: { leagueId: league.id, userId: { in: allDriversToRegister } },
+        })
+        const activeDrivers = existingDrivers.filter((r) => r.status !== 'rejected' && r.teamId !== teamId)
         if (activeDrivers.length > 0) {
           redirect(`/ligas/${slug}?register=driver-already-assigned`)
         }
       }
 
-      // Also automatically synchronize/update team's garage/profile with any missing categories allowed in the league
-      const currentClassTags = Array.isArray(team?.class_tags) ? team.class_tags : []
-      const updatedClassTags = Array.from(new Set([...currentClassTags, ...leagueClassTags].map(t => t.toUpperCase())))
-      const updatedCars = [...teamCars]
+      // Make sure the team has a car entry for every league category, creating
+      // empty placeholders (no drivers) for ones it doesn't have yet.
+      const existingCategories = new Set(teamCars.map((c) => c.category.toUpperCase()))
+      const updatedClassTags = Array.from(new Set([...(team!.classTags || []), ...leagueClassTags].map((t) => t.toUpperCase())))
 
       for (const category of leagueClassTags) {
         const catUpper = category.toUpperCase()
-        const hasCarForCategory = updatedCars.some(car => car.category?.toUpperCase() === catUpper)
-        if (!hasCarForCategory) {
-          const allowedForCategory = allowedCars.find((ac: any) => ac.class_tag?.toUpperCase() === catUpper)
-          updatedCars.push({
-            id: `car_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            category: catUpper as any,
+        if (existingCategories.has(catUpper)) continue
+        const isSelectedCategory = Boolean(classTag && catUpper === classTag.toUpperCase())
+        await db.teamCar.create({
+          data: {
+            teamId,
+            category: catUpper,
             dorsal: String(parsedCarNumber || '12'),
             skinUrl: '',
-            driverUserIds: classTag && catUpper === classTag.toUpperCase() ? [...selectedDrivers, '', '', ''].slice(0, 4) : ['', '', '', '']
-          })
-        }
+            drivers: isSelectedCategory && selectedDrivers.length > 0
+              ? { create: selectedDrivers.map((userId) => ({ userId })) }
+              : undefined,
+          },
+        })
       }
 
-      // Save updated team in Firestore
-      await db.collection('teams').doc(teamId).update({
-        class_tags: updatedClassTags,
-        cars: updatedCars
-      })
-
-      // Update mock_teams cookie for local simulation and quick UI updates
-      try {
-        const { cookies } = await import('next/headers')
-        const cookieStore = await cookies()
-        const existing = cookieStore.get('mock_teams')?.value
-        if (existing) {
-          let current = JSON.parse(existing)
-          current = current.map((t: any) => {
-            if (t.id === teamId) {
-              return {
-                ...t,
-                classTags: updatedClassTags,
-                cars: updatedCars,
-              }
-            }
-            return t
-          })
-          cookieStore.set('mock_teams', JSON.stringify(current), { path: '/', maxAge: 60 * 60 * 24 * 30 })
-        }
-      } catch {}
+      await db.team.update({ where: { id: teamId }, data: { classTags: updatedClassTags } })
 
       revalidatePath('/equipos')
       revalidatePath(`/equipos/${teamId}`)
 
       // Perform the team registration for each category
       for (const catToReg of categoriesToRegister) {
-        const currentClassTag = catToReg.classTag
-        const currentCarNumber = catToReg.carNumber
-        const currentCarModel = catToReg.carModel
-        const currentDrivers = catToReg.driverUserIds
-
-        const teamRegId = `${league.id}_${teamId}_${currentClassTag || 'noclass'}_${currentCarNumber}`
-        await db.collection('league_team_registrations').doc(teamRegId).set({
-          league_id: league.id,
-          team_id: teamId,
-          class_tag: currentClassTag,
-          car_number: currentCarNumber,
-          car_model: currentCarModel || null,
-          status: 'pending',
-          created_by_user_id: session.userId,
-          created_at: new Date(),
+        const teamReg = await db.leagueTeamRegistration.upsert({
+          where: {
+            leagueId_teamId_classTag_carNumber: {
+              leagueId: league.id,
+              teamId,
+              classTag: catToReg.classTag,
+              carNumber: catToReg.carNumber,
+            },
+          },
+          create: {
+            leagueId: league.id,
+            teamId,
+            classTag: catToReg.classTag,
+            carNumber: catToReg.carNumber,
+            carModel: catToReg.carModel,
+            createdByUserId: session.userId,
+          },
+          update: { carModel: catToReg.carModel },
         })
 
-        const insertedDrivers = []
-        for (const driverUserId of currentDrivers) {
+        const insertedDrivers: { userId: string; assignedNumber: number | null }[] = []
+        for (const driverUserId of catToReg.driverUserIds) {
           const result = await upsertLeagueRegistration({
-            db,
             leagueId: league.id,
             userId: driverUserId,
             teamId,
-            classTag: currentClassTag,
-            desiredNumber: currentCarNumber,
+            classTag: catToReg.classTag,
+            desiredNumber: catToReg.carNumber,
           })
           if (!result.ok) {
             if (result.reason === 'number-taken') redirect(`/ligas/${slug}?register=number-taken`)
@@ -281,23 +227,15 @@ export async function registerForLeague(formData: FormData) {
           insertedDrivers.push({ userId: driverUserId, assignedNumber: result.assignedNumber })
         }
 
-        // Delete existing mapped drivers for this registration
-        const mappedSnapshot = await db.collection('league_team_registration_drivers').where('team_registration_id', '==', teamRegId).get()
-        const deleteBatch = db.batch()
-        mappedSnapshot.docs.forEach((doc: any) => deleteBatch.delete(doc.ref))
-        await deleteBatch.commit()
-
-        // Write drivers mapping
-        const insertBatch = db.batch()
-        insertedDrivers.forEach((item) => {
-          const docRef = db.collection('league_team_registration_drivers').doc(`${teamRegId}_${item.userId}`)
-          insertBatch.set(docRef, {
-            team_registration_id: teamRegId,
-            user_id: item.userId,
-            assigned_number: item.assignedNumber,
-          })
+        // Replace the driver mapping for this car registration wholesale.
+        await db.leagueTeamRegistrationDriver.deleteMany({ where: { teamRegistrationId: teamReg.id } })
+        await db.leagueTeamRegistrationDriver.createMany({
+          data: insertedDrivers.map((item) => ({
+            teamRegistrationId: teamReg.id,
+            userId: item.userId,
+            assignedNumber: item.assignedNumber,
+          })),
         })
-        await insertBatch.commit()
       }
     } catch (e) {
       console.error(e)
@@ -309,8 +247,8 @@ export async function registerForLeague(formData: FormData) {
 
   // Individual registration check
   try {
-    const existingDoc = await db.collection('league_registrations').doc(`${league.id}_${session.userId}`).get()
-    if (existingDoc.exists && existingDoc.data()?.status !== 'rejected') {
+    const existing = await db.leagueRegistration.findFirst({ where: { leagueId: league.id, userId: session.userId } })
+    if (existing && existing.status !== 'rejected') {
       redirect(`/ligas/${slug}?register=exists`)
     }
 
@@ -320,16 +258,13 @@ export async function registerForLeague(formData: FormData) {
 
     let finalTeamId: string | null = null
     if (representedTeamId) {
-      const teamDoc = await db.collection('teams').doc(representedTeamId).get()
-      const memberDoc = await db.collection('team_members').doc(`${representedTeamId}_${session.userId}`).get()
-
-      const isMember = teamDoc.data()?.owner_user_id === session.userId || memberDoc.exists
+      const team = await db.team.findUnique({ where: { id: representedTeamId }, include: { members: true } })
+      const isMember = team?.ownerUserId === session.userId || team?.members.some((m) => m.userId === session.userId)
       if (!isMember) redirect(`/ligas/${slug}?register=forbidden`)
-      finalTeamId = teamDoc.id || null
+      finalTeamId = team?.id || null
     }
 
     const result = await upsertLeagueRegistration({
-      db,
       leagueId: league.id,
       userId: session.userId,
       teamId: finalTeamId,
@@ -358,132 +293,70 @@ export async function unregisterFromLeague(formData: FormData) {
   const classTagRaw = parsedTeamCar.length === 3 ? parsedTeamCar[1] : String(formData.get('classTag') || '').trim()
   const classTag = classTagRaw === '__NULL__' ? null : classTagRaw
   const carNumberRaw = parsedTeamCar.length === 3 ? parsedTeamCar[2] : String(formData.get('carNumber') || '').trim()
-  
+
   const league = await getLeagueBySlug(slug)
   const session = await getCurrentUser()
   if (!league) redirect('/ligas')
   if (!session) redirect(`/ligas/${slug}?register=login`)
-
-  if (!hasFirebase) redirect(`/ligas/${slug}?register=mock`)
-  const db = getFirestoreDb()
-  if (!db) redirect(`/ligas/${slug}?register=mock`)
 
   try {
     if (teamId && carNumberRaw) {
       const carNumber = Number(carNumberRaw)
       if (!Number.isInteger(carNumber)) redirect(`/ligas/${slug}?register=error`)
 
-      const teamDoc = await db.collection('teams').doc(teamId).get()
-      const memberDoc = await db.collection('team_members').doc(`${teamId}_${session.userId}`).get()
-
-      const canManageCar = teamDoc.data()?.owner_user_id === session.userId || memberDoc.data()?.role === 'owner' || memberDoc.data()?.role === 'manager'
+      const team = await db.team.findUnique({ where: { id: teamId }, include: { members: true } })
+      const memberRow = team?.members.find((m) => m.userId === session.userId)
+      const canManageCar = team?.ownerUserId === session.userId || memberRow?.role === 'owner' || memberRow?.role === 'manager'
       if (!canManageCar) redirect(`/ligas/${slug}?register=forbidden`)
 
-      // Delete registrations
-      let snapshot = await db
-        .collection('league_registrations')
-        .where('league_id', '==', league.id)
-        .where('team_id', '==', teamId)
-        .where('assigned_number', '==', carNumber)
-        .get()
-
-      let filteredDocs = snapshot.docs
-      if (classTag) {
-        filteredDocs = filteredDocs.filter((doc: any) => doc.data().class_tag === classTag)
-      } else {
-        filteredDocs = filteredDocs.filter((doc: any) => !doc.data().class_tag)
-      }
-
-      const batch = db.batch()
-      filteredDocs.forEach((doc: any) => batch.delete(doc.ref))
-      await batch.commit()
-
-      // Delete team registrations
-      let teamSnapshot = await db
-        .collection('league_team_registrations')
-        .where('league_id', '==', league.id)
-        .where('team_id', '==', teamId)
-        .where('car_number', '==', carNumber)
-        .get()
-
-      let filteredTeamDocs = teamSnapshot.docs
-      if (classTag) {
-        filteredTeamDocs = filteredTeamDocs.filter((doc: any) => doc.data().class_tag === classTag)
-      } else {
-        filteredTeamDocs = filteredTeamDocs.filter((doc: any) => !doc.data().class_tag)
-      }
-
-      const teamBatch = db.batch()
-      filteredTeamDocs.forEach((doc: any) => teamBatch.delete(doc.ref))
-      await teamBatch.commit()
+      await db.leagueRegistration.deleteMany({
+        where: { leagueId: league.id, teamId, assignedNumber: carNumber, classTag },
+      })
+      await db.leagueTeamRegistration.deleteMany({
+        where: { leagueId: league.id, teamId, carNumber, classTag },
+      })
     } else if (registrationId) {
-      const doc = await db.collection('league_registrations').doc(registrationId).get()
-      if (!doc.exists || doc.data()?.league_id !== league.id) {
-        // Try absolute ID or fallback
-        const altDoc = await db.collection('league_registrations').doc(`${league.id}_${session.userId}`).get()
-        if (!altDoc.exists) redirect(`/ligas/${slug}?register=error`)
+      let target = await db.leagueRegistration.findUnique({ where: { id: registrationId } })
+      if (!target || target.leagueId !== league.id) {
+        target = await db.leagueRegistration.findFirst({ where: { leagueId: league.id, userId: session.userId } })
+        if (!target) redirect(`/ligas/${slug}?register=error`)
       }
 
-      const targetRegistration = doc.exists ? doc.data() : null
-      const resolvedId = doc.exists ? doc.id : `${league.id}_${session.userId}`
-      const resolvedUserId = targetRegistration ? targetRegistration.user_id : session.userId
-      const resolvedTeamId = targetRegistration ? targetRegistration.team_id : null
-      const resolvedClassTag = targetRegistration ? targetRegistration.class_tag : null
-      const resolvedAssignedNumber = targetRegistration ? targetRegistration.assigned_number : null
+      const resolvedUserId = target.userId
+      const resolvedTeamId = target.teamId
+      const resolvedClassTag = target.classTag
+      const resolvedAssignedNumber = target.assignedNumber
 
       let canRemove = resolvedUserId === session.userId
       if (!canRemove && resolvedTeamId) {
-        const teamDoc = await db.collection('teams').doc(resolvedTeamId).get()
-        const memberDoc = await db.collection('team_members').doc(`${resolvedTeamId}_${session.userId}`).get()
-        canRemove = teamDoc.data()?.owner_user_id === session.userId || memberDoc.data()?.role === 'owner' || memberDoc.data()?.role === 'manager'
+        const team = await db.team.findUnique({ where: { id: resolvedTeamId }, include: { members: true } })
+        const memberRow = team?.members.find((m) => m.userId === session.userId)
+        canRemove = team?.ownerUserId === session.userId || memberRow?.role === 'owner' || memberRow?.role === 'manager'
       }
 
       if (!canRemove) redirect(`/ligas/${slug}?register=forbidden`)
 
-      await db.collection('league_registrations').doc(resolvedId).delete()
+      await db.leagueRegistration.delete({ where: { id: target.id } })
 
       if (resolvedTeamId) {
-        const teamRegSnapshot = await db
-          .collection('league_team_registrations')
-          .where('league_id', '==', league.id)
-          .where('team_id', '==', resolvedTeamId)
-          .where('class_tag', '==', resolvedClassTag)
-          .where('car_number', '==', resolvedAssignedNumber)
-          .limit(1)
-          .get()
+        const teamReg = await db.leagueTeamRegistration.findFirst({
+          where: { leagueId: league.id, teamId: resolvedTeamId, classTag: resolvedClassTag, carNumber: resolvedAssignedNumber ?? undefined },
+        })
 
-        if (!teamRegSnapshot.empty) {
-          const teamRegDoc = teamRegSnapshot.docs[0]
-          await db.collection('league_team_registration_drivers').doc(`${teamRegDoc.id}_${resolvedUserId}`).delete()
-
-          const remainingDrivers = await db
-            .collection('league_team_registration_drivers')
-            .where('team_registration_id', '==', teamRegDoc.id)
-            .limit(1)
-            .get()
-
-          if (remainingDrivers.empty) {
-            await teamRegDoc.ref.delete()
+        if (teamReg) {
+          await db.leagueTeamRegistrationDriver.deleteMany({ where: { teamRegistrationId: teamReg.id, userId: resolvedUserId } })
+          const remaining = await db.leagueTeamRegistrationDriver.count({ where: { teamRegistrationId: teamReg.id } })
+          if (remaining === 0) {
+            await db.leagueTeamRegistration.delete({ where: { id: teamReg.id } })
           }
         }
       }
     } else {
-      // General withdrawal
-      await db.collection('league_registrations').doc(`${league.id}_${session.userId}`).delete()
-
-      const teamRegsSnapshot = await db
-        .collection('league_team_registrations')
-        .where('league_id', '==', league.id)
-        .get()
-
-      const teamRegistrationIds = teamRegsSnapshot.docs.map((doc: any) => doc.id)
-      if (teamRegistrationIds.length > 0) {
-        const batch = db.batch()
-        for (const regId of teamRegistrationIds) {
-          batch.delete(db.collection('league_team_registration_drivers').doc(`${regId}_${session.userId}`))
-        }
-        await batch.commit()
-      }
+      // General withdrawal — remove every registration this user holds in the league.
+      await db.leagueRegistration.deleteMany({ where: { leagueId: league.id, userId: session.userId } })
+      await db.leagueTeamRegistrationDriver.deleteMany({
+        where: { userId: session.userId, teamRegistration: { leagueId: league.id } },
+      })
     }
   } catch (e) {
     console.error(e)

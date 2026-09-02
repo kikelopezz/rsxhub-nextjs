@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getCurrentUser, getAdminAccessContext, canStewardLeague } from '@/lib/auth'
 import { getLeagueBySlug, getLeagueCars, getLeagueEvents, getRegistrations, getEventConfirmations, getTeamPointsOverrides } from '@/lib/platform-data'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
 import { getTeamsDashboard } from '@/lib/team-data'
 import LeagueDetailPageContent from './page-content'
 
@@ -75,6 +74,10 @@ export default async function LigaDetailPage({
     bannerUrl: league.bannerUrl || null,
     logoUrl: (league as any).logoUrl || null,
     accentColor: (league as any).accentColor || null,
+    slogan: (league as any).slogan || null,
+    discordUrl: (league as any).discordUrl || null,
+    youtubeUrl: (league as any).youtubeUrl || null,
+    rulebookUrl: (league as any).rulebookUrl || null,
   }
 
   const serializableEvents = events.map((e) => ({
@@ -96,6 +99,8 @@ export default async function LigaDetailPage({
     color: (e as any).color ?? null,
     maxDrivers: (e as any).maxDrivers ?? null,
     classLimits: (e as any).classLimits ?? null,
+    qualyCompleted: (e as any).qualyCompleted ?? false,
+    completedAt: (e as any).completedAt ?? null,
   }))
 
   const serializableSession = session

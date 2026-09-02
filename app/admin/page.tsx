@@ -5,7 +5,7 @@ import { getAdminAccessContext, getCurrentUser, getConfiguredAdminSteamIds } fro
 import { getLeagueEvents, getLeagues, getRegistrations, getAllRegisteredDrivers } from '@/lib/platform-data'
 import { getTeamsDashboard } from '@/lib/team-data'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 import { simulatorLabel } from '@/lib/utils'
 import { SubmitButton } from '@/components/submit-button'
 import { ConfirmForm } from '@/components/confirm-form'
@@ -32,47 +32,28 @@ import { getDictionary } from '@/lib/i18n/get-dictionary'
 
 async function fetchAdminMarketListings(): Promise<any[]> {
   return fetchWithTTLCache('admin_market_listings', async () => {
-    if (hasFirebase) {
-      const db = getFirestoreDb()
-      if (db) {
-        try {
-          const snap = await db.collection('market_listings').orderBy('created_at', 'desc').get()
-          return snap.docs.map((doc: any) => {
-            const data = doc.data()
-            const createdAtVal =
-              data.created_at && typeof data.created_at.toDate === 'function'
-                ? data.created_at.toDate().toISOString()
-                : data.created_at || new Date().toISOString()
-            return {
-              id: doc.id,
-              type: data.type || 'team_seeking_driver',
-              user_id: data.user_id || '',
-              user_name: data.user_name || 'Driver',
-              user_avatar: data.user_avatar || null,
-              team_id: data.team_id || null,
-              team_name: data.team_name || null,
-              team_logo: data.team_logo || null,
-              title: data.title || '',
-              description: data.description || '',
-              main_sim: data.main_sim || 'ac',
-              class_tag: data.class_tag || 'ALL',
-              contact_info: data.contact_info || '',
-              created_at: createdAtVal,
-            }
-          })
-        } catch (error) {
-          console.error('Failed to get market listings from Firestore:', error)
-          return []
-        }
-      }
-    }
     try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const existing = cookieStore.get('mock_market_listings')?.value
-      if (existing) return JSON.parse(existing)
-    } catch {}
-    return []
+      const rows = await db.marketListing.findMany({ orderBy: { createdAt: 'desc' } })
+      return rows.map((data) => ({
+        id: data.id,
+        type: data.type,
+        user_id: data.userId,
+        user_name: data.userName,
+        user_avatar: data.userAvatar,
+        team_id: data.teamId,
+        team_name: data.teamName,
+        team_logo: data.teamLogo,
+        title: data.title,
+        description: data.description,
+        main_sim: data.mainSim,
+        class_tag: data.classTag,
+        contact_info: data.contactInfo,
+        created_at: data.createdAt.toISOString(),
+      }))
+    } catch (error) {
+      console.error('Failed to get market listings:', error)
+      return []
+    }
   }, 60)
 }
 
@@ -86,40 +67,24 @@ type AdminGrant = {
 
 async function fetchAdminGrants(): Promise<AdminGrant[]> {
   return fetchWithTTLCache('admin_grants_list', async () => {
-    if (!hasFirebase) return []
-    const db = getFirestoreDb()
-    if (!db) return []
     try {
-      const snap = await db.collection('admin_grants').orderBy('created_at', 'desc').get()
-      return Promise.all(
-        snap.docs.map(async (doc: any) => {
-          const data = doc.data()
-          const steamId = doc.id
-          let displayName: string | null = null
-          let avatarUrl: string | null = null
-          try {
-            const steamSnap = await db.collection('steam_accounts').where('steam_id', '==', steamId).limit(1).get()
-            if (!steamSnap.empty) {
-              const steamData = steamSnap.docs[0].data()
-              displayName = steamData.steam_display_name || null
-              avatarUrl = steamData.steam_avatar_url || null
-            }
-          } catch {}
-          const createdAtVal =
-            data.created_at && typeof data.created_at.toDate === 'function'
-              ? data.created_at.toDate().toISOString()
-              : data.created_at || new Date().toISOString()
-          return {
-            steamId,
-            grantedByName: data.granted_by_name || 'Admin',
-            createdAt: createdAtVal,
-            displayName,
-            avatarUrl,
-          }
-        })
-      )
+      const grants = await db.adminGrant.findMany({ orderBy: { createdAt: 'desc' } })
+      const steamIds = grants.map((g) => g.steamId)
+      const steamAccounts = steamIds.length > 0 ? await db.steamAccount.findMany({ where: { steamId: { in: steamIds } } }) : []
+      const bySteamId = new Map(steamAccounts.map((s) => [s.steamId, s]))
+
+      return grants.map((g) => {
+        const steam = bySteamId.get(g.steamId)
+        return {
+          steamId: g.steamId,
+          grantedByName: g.grantedByName || 'Admin',
+          createdAt: g.createdAt.toISOString(),
+          displayName: steam?.steamDisplayName || null,
+          avatarUrl: steam?.steamAvatarUrl || null,
+        }
+      })
     } catch (error) {
-      console.error('Failed to get admin grants from Firestore:', error)
+      console.error('Failed to get admin grants:', error)
       return []
     }
   }, 20)

@@ -2,8 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { getCurrentUser } from '@/lib/auth'
 import { getRegistrations, getLeagues } from '@/lib/platform-data'
-import { getTeamsDashboard } from '@/lib/team-data'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 import { SteamLoginButton } from '@/components/steam-login-button'
 import PerfilContent from './perfil-content'
 import { getLocale } from '@/lib/i18n/get-locale'
@@ -43,113 +42,58 @@ export default async function PerfilPage({
   }
   let pendingInvites: Array<{ id: string; teamName: string; teamLogoUrl: string | null; invitedBy: string; message: string | null }> = []
 
-  const db = getFirestoreDb()
-  if (hasFirebase && db) {
-    try {
-      const [doc, invitesSnapshot] = await Promise.all([
-        db.collection('profiles').doc(session.userId).get(),
-        db.collection('team_invites').where('status', '==', 'pending').get(),
-      ])
-      if (doc.exists) {
-        const data = doc.data()
-        profile = {
-          id: doc.id,
-          displayName: data.display_name || session.steamDisplayName,
-          countryCode: data.country_code || 'ES',
-          bio: data.bio || '',
-          mainSim: (data.main_sim || 'ac') as 'ac' | 'lmu',
-          avatarUrl: data.avatar_url || session.avatarUrl || null,
-          steamId: session.steamId,
-          steamDisplayName: session.steamDisplayName,
-          preferredCategories: data.preferred_categories || [],
-        }
+  try {
+    const [dbProfile, matchingInvites] = await Promise.all([
+      db.profile.findUnique({ where: { userId: session.userId } }),
+      db.teamInvite.findMany({
+        where: {
+          status: 'pending',
+          OR: [{ invitedUserId: session.userId }, { invitedSteamId: session.steamId }],
+        },
+      }),
+    ])
+
+    if (dbProfile) {
+      profile = {
+        id: dbProfile.userId,
+        displayName: dbProfile.displayName || session.steamDisplayName,
+        countryCode: dbProfile.countryCode || 'ES',
+        bio: dbProfile.bio || '',
+        mainSim: dbProfile.mainSim,
+        avatarUrl: dbProfile.avatarUrl || session.avatarUrl || null,
+        steamId: session.steamId,
+        steamDisplayName: session.steamDisplayName,
+        preferredCategories: dbProfile.preferredCategories || [],
       }
-
-      const matchingInvites = invitesSnapshot.docs
-        .map((doc: any) => ({ id: doc.id, ...doc.data() }))
-        .filter((item: any) => item.invited_user_id === session.userId || String(item.invited_steam_id || '') === session.steamId)
-
-      const teamIds = Array.from(new Set(matchingInvites.map((item: any) => item.team_id)))
-      const inviterIds = Array.from(new Set(matchingInvites.map((item: any) => item.invited_by_user_id)))
-
-      const [teamSnaps, pSnaps, sSnaps] = await Promise.all([
-        Promise.all(teamIds.map((id: any) => db.collection('teams').doc(id).get())),
-        Promise.all(inviterIds.map((id: any) => db.collection('profiles').doc(id).get())),
-        Promise.all(inviterIds.map((id: any) => db.collection('steam_accounts').doc(id).get())),
-      ])
-      const teamDocs = teamSnaps.filter((s: any) => s.exists).map((s: any) => ({ id: s.id, ...s.data() }))
-      const profileDocs = pSnaps.filter((s: any) => s.exists).map((s: any) => ({ id: s.id, ...s.data() }))
-      const steamDocs = sSnaps.filter((s: any) => s.exists).map((s: any) => ({ id: s.id, ...s.data() }))
-
-      const teamById = new Map(teamDocs.map((t: any) => [t.id, { name: t.name || '', logoUrl: t.logo_url || t.logoUrl || null }]))
-      const inviterNameByUserId = new Map(profileDocs.map((p: any) => [p.user_id, p.display_name || '']))
-      steamDocs.forEach((s: any) => {
-        if (!inviterNameByUserId.get(s.user_id)) {
-          inviterNameByUserId.set(s.user_id, s.steam_display_name || '')
-        }
-      })
-
-      pendingInvites = matchingInvites.map((item: any) => {
-        const teamInfo = teamById.get(item.team_id)
-        return {
-          id: item.id,
-          teamName: teamInfo?.name || t.teamFallback,
-          teamLogoUrl: teamInfo?.logoUrl || null,
-          invitedBy: inviterNameByUserId.get(item.invited_by_user_id) || t.userFallback,
-          message: item.message,
-        }
-      })
-    } catch (e) {
-      console.error('Failed to load profile details from Firestore:', e)
     }
-  }
 
-  // Load mock invites if pendingInvites is empty
-  if (pendingInvites.length === 0) {
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const mockProfile = cookieStore.get(`mock_profile_${session.userId}`)?.value || cookieStore.get('mock_profile')?.value
-      if (mockProfile) {
-        const parsed = JSON.parse(mockProfile)
-        if (!parsed.user_id || parsed.user_id === session.userId) {
-          profile.displayName = parsed.display_name || profile.displayName
-          profile.countryCode = parsed.country_code || profile.countryCode
-          profile.bio = parsed.bio || profile.bio
-          profile.mainSim = parsed.main_sim || profile.mainSim
-          profile.avatarUrl = parsed.avatar_url || profile.avatarUrl
-          profile.preferredCategories = parsed.preferred_categories || profile.preferredCategories
-        }
+    const teamIds = Array.from(new Set(matchingInvites.map((item) => item.teamId)))
+    const inviterIds = Array.from(new Set(matchingInvites.map((item) => item.invitedByUserId)))
+
+    const [teams, profiles, steamAccounts] = await Promise.all([
+      teamIds.length > 0 ? db.team.findMany({ where: { id: { in: teamIds } } }) : Promise.resolve([]),
+      inviterIds.length > 0 ? db.profile.findMany({ where: { userId: { in: inviterIds } } }) : Promise.resolve([]),
+      inviterIds.length > 0 ? db.steamAccount.findMany({ where: { userId: { in: inviterIds } } }) : Promise.resolve([]),
+    ])
+
+    const teamById = new Map(teams.map((tm) => [tm.id, { name: tm.name, logoUrl: tm.logoUrl }]))
+    const inviterNameByUserId = new Map(profiles.map((p) => [p.userId, p.displayName]))
+    steamAccounts.forEach((s) => {
+      if (!inviterNameByUserId.get(s.userId)) inviterNameByUserId.set(s.userId, s.steamDisplayName)
+    })
+
+    pendingInvites = matchingInvites.map((item) => {
+      const teamInfo = teamById.get(item.teamId)
+      return {
+        id: item.id,
+        teamName: teamInfo?.name || t.teamFallback,
+        teamLogoUrl: teamInfo?.logoUrl || null,
+        invitedBy: inviterNameByUserId.get(item.invitedByUserId) || t.userFallback,
+        message: item.message,
       }
-
-      const mockInvitesVal = cookieStore.get('mock_invites')?.value
-      const mockMarketInvitesVal = cookieStore.get('mock_market_invites')?.value
-      const mockInvites = mockInvitesVal ? JSON.parse(mockInvitesVal) : []
-      const mockMarketInvites = mockMarketInvitesVal ? JSON.parse(mockMarketInvitesVal) : []
-      const dashboard = await getTeamsDashboard(session.userId)
-      const teamMap = new Map(dashboard.teams.map((t) => [t.id, t]))
-
-      const combinedMock = [...mockInvites, ...mockMarketInvites]
-      combinedMock.forEach((inv: any) => {
-        const targetUserId = inv.invited_user_id || inv.invitedUserId
-        const targetSteamId = String(inv.invited_steam_id || inv.invitedSteamId || '')
-        const isTarget = (targetUserId && targetUserId === session.userId) || (targetSteamId && targetSteamId === session.steamId)
-        const isPending = inv.status === 'pending'
-        if (isTarget && isPending) {
-          const team = teamMap.get(inv.team_id || inv.teamId)
-          const teamLogoUrl = inv.teamLogo || team?.logoUrl || cookieStore.get(`mock_team_logo_${inv.team_id || inv.teamId}`)?.value || null
-          pendingInvites.push({
-            id: inv.id,
-            teamName: team?.name || inv.teamName || t.teamFallback,
-            teamLogoUrl,
-            invitedBy: inv.invitedBy || t.teamAdminFallback,
-            message: inv.message || null,
-          })
-        }
-      })
-    } catch (e) {
-      console.error('Failed to read mock_profile or invites cookie:', e)
-    }
+    })
+  } catch (e) {
+    console.error('Failed to load profile details:', e)
   }
 
   const registrations = (await getRegistrations()).filter((item) => item.userId === session.userId)

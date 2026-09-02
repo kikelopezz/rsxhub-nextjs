@@ -6,8 +6,6 @@ import Link from 'next/link'
 import { ClearStatusQuery } from '@/components/clear-status-query'
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { getLeagues, getRegistrations, getLeagueEvents, getTeamPointsOverrides } from '@/lib/platform-data'
-import { getFirestoreDb, hasFirebase, runWithTimeout } from '@/lib/firebase'
-import { formatFirestoreValue } from '@/lib/firestore-utils'
 import { getTeamsDashboard } from '@/lib/team-data'
 import { profileStatusMessage, hexToRgba } from './team-utils'
 import type { TeamStats, TeamPilot, LeagueParticipation, RecentResult, PendingApplication } from './team-utils'
@@ -68,20 +66,18 @@ export default async function TeamProfilePage({
   const isPlatformAdmin = access.canAccessPlatformAdmin
 
   const canManage = Boolean(
-    !hasFirebase ||
-    (session?.userId && (
+    session?.userId && (
       myTeamIds.includes(team.id) ||
       team.ownerUserId === session.userId ||
       isPlatformAdmin ||
       team.members.some((m) => m.userId === session.userId && (m.role === 'owner' || m.role === 'manager'))
-    ))
+    )
   )
   const canDelete = Boolean(
-    !hasFirebase ||
-    (session?.userId && (
+    session?.userId && (
       team.ownerUserId === session.userId ||
       isPlatformAdmin
-    ))
+    )
   )
 
   const message = profileStatusMessage(qs, dict.equipos.profileMessages)
@@ -96,6 +92,7 @@ export default async function TeamProfilePage({
   const {
     teamPilots,
     pendingApplications,
+    inviteCandidates,
     recentResults,
     leagueParticipation,
     stats,
@@ -179,6 +176,7 @@ export default async function TeamProfilePage({
           canManage={canManage}
           teamPilots={teamPilots}
           pendingApplications={pendingApplications}
+          inviteCandidates={inviteCandidates}
           accentSoft={accentSoft}
         />
         <TeamVehiclesSection

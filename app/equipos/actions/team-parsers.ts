@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
-import { getFirestoreDb, hasFirebase, runWithTimeout } from '@/lib/firebase'
+import { db } from '@/lib/db'
 
 export function parseSkinUrls(value: FormDataEntryValue | null) {
   return String(value || '')
@@ -57,67 +57,22 @@ export async function guardSession() {
 }
 
 export async function canManageTeam(teamId: string, userId: string) {
-  // Always check platform admin bypass
   try {
     const { getAdminAccessContext } = await import('@/lib/auth')
     const access = await getAdminAccessContext(userId)
     if (access.canAccessPlatformAdmin) return true
   } catch {}
 
-  let foundInFirestore = false
-  let allowedInFirestore = false
-
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const teamDoc = await runWithTimeout(db.collection('teams').doc(teamId).get(), 3000)
-        if (teamDoc.exists) {
-          foundInFirestore = true
-          const team = teamDoc.data()
-          if (team?.owner_user_id === userId) {
-            allowedInFirestore = true
-          } else {
-            const memberDoc = await runWithTimeout(db.collection('team_members').doc(`${teamId}_${userId}`).get(), 3000)
-            if (memberDoc.exists) {
-              const member = memberDoc.data()
-              if (member?.role === 'owner' || member?.role === 'manager') {
-                allowedInFirestore = true
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Error checking canManageTeam in Firestore:', err)
-      }
-    }
-  }
-
-  if (foundInFirestore) {
-    return allowedInFirestore
-  }
-
-  // Fallback: check Mock Mode in cookies
   try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const existing = cookieStore.get('mock_teams')?.value
-    if (existing) {
-      const current = JSON.parse(existing)
-      const mockTeam = current.find((t: any) => t.id === teamId)
-      if (mockTeam) {
-        if (mockTeam.ownerUserId === userId) return true
-        if (Array.isArray(mockTeam.members)) {
-          const m = mockTeam.members.find((member: any) => member.userId === userId)
-          if (m && (m.role === 'owner' || m.role === 'manager')) return true
-        }
-      }
-    }
-  } catch (e) {
-    console.error('Error checking canManageTeam in mock cookies:', e)
+    const team = await db.team.findUnique({ where: { id: teamId }, include: { members: true } })
+    if (!team) return false
+    if (team.ownerUserId === userId) return true
+    const member = team.members.find((m) => m.userId === userId)
+    return member?.role === 'owner' || member?.role === 'manager'
+  } catch (err) {
+    console.error('Error checking canManageTeam:', err)
+    return false
   }
-
-  return false
 }
 
 export function cleanPilotName(carNumber: string): string {

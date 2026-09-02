@@ -11,7 +11,7 @@ import {
   getPlatformRole,
 } from '@/lib/auth'
 import { getCircuits, getLeagueCars, getLeagueEvents, getLeagues, getRegistrations } from '@/lib/platform-data'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 import { formatDateTime } from '@/lib/utils'
 import { FormattedDate } from '@/components/formatted-date'
 import {
@@ -106,22 +106,14 @@ export default async function AdminLeaguePage({
     getRegistrations(league.id),
     getCircuits(),
   ])
-  const db = getFirestoreDb()
-
   const teamInfoById = new Map<string, { name: string; primaryColor: string | null }>()
   const registrationTeamIds = Array.from(new Set(registrations.map((item) => item.teamId).filter(Boolean))) as string[]
 
-  if (hasFirebase && db && registrationTeamIds.length > 0) {
+  if (registrationTeamIds.length > 0) {
     try {
-      const chunks = []
-      for (let i = 0; i < registrationTeamIds.length; i += 10) {
-        chunks.push(registrationTeamIds.slice(i, i + 10))
-      }
-      const snaps = await Promise.all(chunks.map(chunk => db.collection('teams').where('__name__', 'in', chunk).get()))
-      const teamsRes = snaps.flatMap((snap: any) => snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })))
-
+      const teamsRes = await db.team.findMany({ where: { id: { in: registrationTeamIds } } })
       for (const row of teamsRes) {
-        teamInfoById.set(row.id, { name: row.name || '', primaryColor: row.primary_color || null })
+        teamInfoById.set(row.id, { name: row.name || '', primaryColor: row.primaryColor })
       }
     } catch (e) {
       console.error(e)

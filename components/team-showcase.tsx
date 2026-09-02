@@ -73,7 +73,7 @@ export function TeamShowcase({
             className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
           />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#090d16] via-[#090d16]/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#090d16] from-15% via-[#090d16]/75 via-45% to-transparent" />
         <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: `linear-gradient(90deg, transparent, ${barColor}, transparent)` }} />
 
         {profileHref && (
@@ -84,29 +84,34 @@ export function TeamShowcase({
             <ArrowRight className="h-4 w-4" />
           </button>
         )}
-
-        {/* Logo badge, overlapping banner and body */}
-        <div
-          className="absolute -bottom-6 left-4 flex h-16 w-16 shrink-0 items-center justify-center bg-[#090d16] border-2 shadow-lg p-1"
-          style={{ borderColor: barColor }}
-        >
-          {teamLogoUrl ? (
-            <Image
-              src={teamLogoUrl}
-              alt={teamName}
-              width={56}
-              height={56}
-              unoptimized={!isOptimizable(teamLogoUrl)}
-              className="h-full w-full object-contain"
-            />
-          ) : (
-            <Users className="h-6 w-6 text-slate-500" />
-          )}
-        </div>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-1 flex-col justify-between px-4 pb-4 pt-8 space-y-4">
+      {/* Logo badge, overlapping the banner/body seam — deliberately a sibling of the
+          banner div (not nested inside it) so the banner's own overflow-hidden (needed
+          to clip/scale the banner image) doesn't clip the logo along with it. */}
+      <div
+        className="absolute left-4 top-[88px] z-10 flex h-16 w-16 shrink-0 items-center justify-center bg-[#090d16] border-2 shadow-lg p-1"
+        style={{ borderColor: barColor }}
+      >
+        {teamLogoUrl ? (
+          <Image
+            src={teamLogoUrl}
+            alt={teamName}
+            width={56}
+            height={56}
+            unoptimized={!isOptimizable(teamLogoUrl)}
+            className="h-full w-full object-contain"
+          />
+        ) : (
+          <Users className="h-6 w-6 text-slate-500" />
+        )}
+      </div>
+
+      {/* Body — pt-11 (44px) clears the logo badge's own bottom edge (top-[88px] +
+          h-16/64px = 152px from the banner's top, vs. the 112px-tall banner box),
+          so the name never sits under the logo regardless of how busy the
+          banner image is. */}
+      <div className="flex flex-1 flex-col justify-between px-4 pb-4 pt-11 space-y-4">
         <div className="space-y-2">
           <div>
             <h3 className="truncate text-lg font-black uppercase italic tracking-wider text-white transition-colors" style={{ '--tw-text-opacity': 1 } as any}>

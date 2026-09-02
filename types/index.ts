@@ -151,6 +151,10 @@ export interface Team {
   slogan?: string | null
   discordUrl?: string | null
   youtubeUrl?: string | null
+  instagramUrl?: string | null
+  twitterUrl?: string | null
+  twitchUrl?: string | null
+  tiktokUrl?: string | null
   cars?: Array<{
     id: string
     category: 'GT3' | 'LMP2' | 'HYPERCAR'

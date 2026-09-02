@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import { CenterModal } from '@/components/center-modal'
-import { MessageSquare, Users } from 'lucide-react'
-import { updateTeamMemberRole, removeTeamMember } from '@/app/equipos/actions/team-membership'
+import { MessageSquare, Users, UserPlus } from 'lucide-react'
+import { updateTeamMemberRole, removeTeamMember, invitePilot } from '@/app/equipos/actions/team-membership'
 import { acceptDriverApplicationAction, declineDriverApplicationAction } from '@/app/equipos/actions/team-market'
 import type { TeamPilot, PendingApplication } from '../team-utils'
 import { getLocale } from '@/lib/i18n/get-locale'
@@ -12,6 +12,7 @@ type TeamDriversSectionProps = {
   canManage: boolean
   teamPilots: TeamPilot[]
   pendingApplications: PendingApplication[]
+  inviteCandidates: Array<{ userId: string; label: string }>
   accentSoft: string
 }
 
@@ -20,6 +21,7 @@ export async function TeamDriversSection({
   canManage,
   teamPilots,
   pendingApplications,
+  inviteCandidates,
   accentSoft,
 }: TeamDriversSectionProps) {
   const t = getDictionary(await getLocale()).equipos.driversSection
@@ -127,6 +129,73 @@ export async function TeamDriversSection({
                       })}
                     </div>
                   )}
+                </div>
+
+                {/* Section 1.5: Invite a member */}
+                <div className="bg-[#0c1220] border border-slate-800/90 rounded-lg p-4 space-y-3 shadow-md">
+                  <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+                    <UserPlus className="h-4 w-4 text-cyan-400" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">{t.inviteTitle}</h3>
+                  </div>
+
+                  <form action={invitePilot} className="space-y-3">
+                    <input type="hidden" name="teamId" value={team.id} />
+                    <input type="hidden" name="redirectTo" value={`/equipos/${team.id}`} />
+
+                    {inviteCandidates.length > 0 ? (
+                      <div>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                          {t.inviteExistingLabel}
+                        </label>
+                        <select
+                          name="invitedUserId"
+                          defaultValue=""
+                          className="w-full bg-[#141d31] border border-slate-700 focus:border-cyan-400 text-slate-200 text-xs font-semibold rounded-lg px-3 py-2 outline-none cursor-pointer"
+                        >
+                          <option value="">{t.inviteExistingPlaceholder}</option>
+                          {inviteCandidates.map((candidate) => (
+                            <option key={candidate.userId} value={candidate.userId}>{candidate.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 italic">{t.noCandidates}</p>
+                    )}
+
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                      <span className="h-px flex-1 bg-slate-800" />
+                      {t.inviteOr}
+                      <span className="h-px flex-1 bg-slate-800" />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                        {t.inviteSteamIdLabel}
+                      </label>
+                      <input
+                        type="text"
+                        name="steamId"
+                        placeholder={t.inviteSteamIdPlaceholder}
+                        className="w-full bg-[#141d31] border border-slate-700 focus:border-cyan-400 text-slate-200 text-xs font-mono rounded-lg px-3 py-2 outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                        {t.inviteMessageLabel}
+                      </label>
+                      <textarea
+                        name="message"
+                        rows={2}
+                        placeholder={t.inviteMessagePlaceholder}
+                        className="w-full resize-none bg-[#141d31] border border-slate-700 focus:border-cyan-400 text-slate-200 text-xs rounded-lg px-3 py-2 outline-none"
+                      />
+                    </div>
+
+                    <button className="w-full bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer">
+                      {t.sendInvite}
+                    </button>
+                  </form>
                 </div>
 
                 {/* Section 2: Pending Applications from Driver Market */}

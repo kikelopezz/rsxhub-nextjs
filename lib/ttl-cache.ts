@@ -12,6 +12,17 @@ type CacheEntry<T> = {
 // Global server singleton cache map across requests in the Node process
 const globalCache = new Map<string, CacheEntry<any>>()
 
+// Right after a key is invalidated, the very next fetch can race the data
+// source's own eventual consistency (most visibly the Firestore emulator,
+// whose collection queries can lag a moment behind a write that already
+// resolved) and come back stale or empty. Caching that result for the full
+// TTL would make the page look "stuck" until it expires. So for a short
+// window after invalidation, whatever a fetch returns is cached only
+// briefly, giving the next request a chance to see the settled data.
+const recentlyInvalidated = new Map<string, number>()
+const INVALIDATION_GRACE_WINDOW_MS = 5_000
+const GRACE_TTL_SECONDS = 2
+
 export async function fetchWithTTLCache<T>(
   key: string,
   fetcher: () => Promise<T>,
@@ -26,9 +37,11 @@ export async function fetchWithTTLCache<T>(
 
   try {
     const freshData = await fetcher()
+    const invalidatedAt = recentlyInvalidated.get(key)
+    const inGraceWindow = invalidatedAt !== undefined && now - invalidatedAt < INVALIDATION_GRACE_WINDOW_MS
     globalCache.set(key, {
       data: freshData,
-      expiresAt: now + ttlSeconds * 1000,
+      expiresAt: now + (inGraceWindow ? GRACE_TTL_SECONDS : ttlSeconds) * 1000,
     })
     return freshData
   } catch (err) {
@@ -41,15 +54,19 @@ export async function fetchWithTTLCache<T>(
 }
 
 export function invalidateCache(keys?: string | string[]) {
+  const now = Date.now()
   if (!keys) {
     globalCache.clear()
+    recentlyInvalidated.clear()
     return
   }
   const keyList = Array.isArray(keys) ? keys : [keys]
   for (const targetKey of keyList) {
+    recentlyInvalidated.set(targetKey, now)
     for (const cacheKey of globalCache.keys()) {
       if (cacheKey.startsWith(targetKey)) {
         globalCache.delete(cacheKey)
+        recentlyInvalidated.set(cacheKey, now)
       }
     }
   }

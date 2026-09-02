@@ -5,134 +5,98 @@
  */
 
 import { cache } from 'react'
-import { leagueEvents as mockLeagueEvents } from '@/data/mock'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
-import { formatFirestoreValue } from '@/lib/firestore-utils'
+import { db } from '@/lib/db'
 import type { LeagueCar, LeagueEvent, LeagueResult } from '@/types'
-import { getCircuits, getLeagues } from './leagues'
+import { getCircuits } from './leagues'
 
 export const getLeagueEvents = cache(async (leagueId?: string): Promise<LeagueEvent[]> => {
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        let query = db.collection('league_events')
-        let snapshot: any
-        if (leagueId) {
-          snapshot = await query.where('league_id', '==', leagueId).get()
-        } else {
-          snapshot = await query.get()
-        }
-        if (snapshot.empty) return []
-
-        const circuits = await getCircuits()
-        const circuitsById = new Map(circuits.map((circuit: any) => [circuit.id, circuit]))
-
-        const events = snapshot.docs.map((doc: any) => {
-          const data = doc.data()
-          const linkedCircuit = data.circuit_id || data.circuitId ? circuitsById.get((data.circuit_id || data.circuitId) as string) : null
-          return {
-            id: doc.id,
-            leagueId: data.league_id || data.leagueId || '',
-            circuitId: data.circuit_id || data.circuitId || null,
-            title: data.title || null,
-            circuitName: linkedCircuit?.name || data.circuit_name || data.circuitName || '',
-            circuitImageUrl: linkedCircuit?.imageUrl || data.circuit_image_url || data.circuitImageUrl || null,
-            serverLink: data.server_link || data.serverLink || null,
-            hasQualy: data.has_qualy ?? data.hasQualy ?? true,
-            qualyStartsAt: formatFirestoreValue(data.qualy_starts_at || data.qualyStartsAt) || null,
-            qualyEndsAt: formatFirestoreValue(data.qualy_ends_at || data.qualyEndsAt) || null,
-            startsAt: formatFirestoreValue(data.starts_at || data.startsAt) || '',
-            endsAt: formatFirestoreValue(data.ends_at || data.endsAt) || '',
-            status: data.status || 'scheduled',
-            eventType: data.event_type || data.eventType || undefined,
-            countryCode: data.country_code || data.countryCode || null,
-            color: data.color || null,
-            maxDrivers: data.max_drivers != null ? Number(data.max_drivers) : (data.maxDrivers != null ? Number(data.maxDrivers) : null),
-            classLimits: data.class_limits || data.classLimits || null,
-          }
-        })
-        return events.sort((a: any, b: any) => (a.startsAt || '').localeCompare(b.startsAt || ''))
-      } catch (error) {
-        console.error('Failed to get league events from Firestore:', error)
-        return []
-      }
-    }
-  }
-
-  const leagues = await getLeagues()
-  if (leagues.length === 0) return []
-
-  let events = mockLeagueEvents
   try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const override = cookieStore.get('mock_league_events')?.value
-    if (override) events = JSON.parse(override)
-  } catch (e) {}
-  return leagueId ? events.filter((event) => event.leagueId === leagueId) : events
+    const [events, classLimits, circuits] = await Promise.all([
+      db.leagueEvent.findMany({
+        where: leagueId ? { leagueId } : undefined,
+        orderBy: { startsAt: 'asc' },
+      }),
+      db.leagueClassLimit.findMany({ where: { eventId: { not: null } } }),
+      getCircuits(),
+    ])
+
+    const circuitsById = new Map(circuits.map((circuit) => [circuit.id, circuit]))
+    const limitsByEvent = new Map<string, Record<string, number>>()
+    for (const limit of classLimits) {
+      if (!limit.eventId) continue
+      const bucket = limitsByEvent.get(limit.eventId) || {}
+      bucket[limit.classTag] = limit.maxCars
+      limitsByEvent.set(limit.eventId, bucket)
+    }
+
+    return events.map((data): LeagueEvent => {
+      const linkedCircuit = data.circuitId ? circuitsById.get(data.circuitId) : null
+      return {
+        id: data.id,
+        leagueId: data.leagueId,
+        circuitId: data.circuitId,
+        title: data.title ?? '',
+        circuitName: linkedCircuit?.name || data.circuitName,
+        circuitImageUrl: linkedCircuit?.imageUrl || data.circuitImageUrl,
+        serverLink: data.serverLink,
+        hasQualy: data.hasQualy,
+        qualyStartsAt: data.qualyStartsAt?.toISOString() ?? null,
+        qualyEndsAt: data.qualyEndsAt?.toISOString() ?? null,
+        startsAt: data.startsAt.toISOString(),
+        endsAt: data.endsAt.toISOString(),
+        status: data.status,
+        eventType: data.eventType,
+        countryCode: data.countryCode,
+        color: data.color,
+        maxDrivers: data.maxDrivers,
+        classLimits: limitsByEvent.get(data.id) || null,
+        qualyCompleted: data.qualyCompleted,
+        completedAt: data.completedAt?.toISOString() ?? null,
+      }
+    })
+  } catch (error) {
+    console.error('Failed to get league events:', error)
+    return []
+  }
 })
 
 export const getLeagueCars = cache(async (leagueId: string): Promise<LeagueCar[]> => {
-  if (!hasFirebase) return []
-  const db = getFirestoreDb()
-  if (!db) return []
-
   try {
-    const snapshot = await db
-      .collection('league_cars')
-      .where('league_id', '==', leagueId)
-      .where('is_active', '==', true)
-      .get()
-
-    if (snapshot.empty) return []
-
-    const cars = snapshot.docs.map((doc: any) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        leagueId: data.league_id || '',
-        label: data.label || '',
-        model: data.model || '',
-        sortOrder: data.sort_order ? Number(data.sort_order) : 0,
-        isActive: data.is_active !== false,
-      }
+    const cars = await db.leagueCar.findMany({
+      where: { leagueId, isActive: true },
+      orderBy: { sortOrder: 'asc' },
     })
-    return cars.sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+    return cars.map((data) => ({
+      id: data.id,
+      leagueId: data.leagueId,
+      label: data.label,
+      model: data.model,
+      sortOrder: data.sortOrder,
+      isActive: data.isActive,
+    }))
   } catch (error) {
-    console.error('Failed to get league cars from Firestore:', error)
+    console.error('Failed to get league cars:', error)
     return []
   }
 })
 
 export const getLeagueResults = cache(async (leagueId: string): Promise<LeagueResult[]> => {
-  if (!hasFirebase) return []
-  const db = getFirestoreDb()
-  if (!db) return []
-
   try {
-    const snapshot = await db
-      .collection('league_results')
-      .where('league_id', '==', leagueId)
-      .get()
-
-    if (snapshot.empty) return []
-
-    const results = snapshot.docs.map((doc: any) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        leagueId: data.league_id || '',
-        eventId: data.event_id || '',
-        userId: data.user_id || '',
-        position: data.position ? Number(data.position) : 0,
-        points: data.points != null ? Number(data.points) : null,
-        createdAt: formatFirestoreValue(data.created_at) || '',
-      }
+    const results = await db.leagueResult.findMany({
+      where: { leagueId },
+      orderBy: { position: 'asc' },
     })
-    return results.sort((a: any, b: any) => a.position - b.position)
+    return results.map((data) => ({
+      id: data.id,
+      leagueId: data.leagueId,
+      eventId: data.eventId,
+      userId: data.userId,
+      position: data.position ?? 0,
+      points: data.points,
+      createdAt: data.createdAt.toISOString(),
+    }))
   } catch (error) {
-    console.error('Failed to get league results from Firestore:', error)
+    console.error('Failed to get league results:', error)
     return []
   }
 })

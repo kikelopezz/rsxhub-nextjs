@@ -1,5 +1,6 @@
 import { cache } from 'react'
-import { getFirestoreDb, hasFirebase, runWithTimeout } from '@/lib/firebase'
+import { Prisma } from '@prisma/client'
+import { db } from '@/lib/db'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
 import { createSession, getSession } from '@/lib/session'
 import type { LeagueRole, PlatformRole, SessionUser } from '@/types'
@@ -50,15 +51,12 @@ export function getConfiguredAdminSteamIds() {
 }
 
 export async function getGrantedAdminSteamIds(): Promise<string[]> {
-  if (!hasFirebase) return []
   return fetchWithTTLCache('admin_grants_steam_ids', async () => {
-    const db = getFirestoreDb()
-    if (!db) return []
     try {
-      const snapshot = await runWithTimeout(db.collection('admin_grants').get(), 3000)
-      return snapshot.docs.map((doc: any) => doc.id)
+      const grants = await db.adminGrant.findMany({ select: { steamId: true } })
+      return grants.map((g) => g.steamId)
     } catch (error) {
-      console.error('Failed to fetch granted admin Steam IDs from Firestore:', error)
+      console.error('Failed to fetch granted admin Steam IDs:', error)
       return []
     }
   }, 20)
@@ -91,120 +89,49 @@ export const getPlatformRole = cache(async (userId?: string): Promise<PlatformRo
   const resolvedUserId = userId || session.userId
   if (!resolvedUserId) return 'user'
 
-  // 3. Check Firestore platform_roles
+  // 3. Check platform_roles
   return fetchWithTTLCache(`platform_role_${resolvedUserId}`, async () => {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const snapshot = await runWithTimeout(db.collection('platform_roles').where('user_id', '==', resolvedUserId).get(), 3000)
-        if (!snapshot.empty) {
-          const roles = snapshot.docs.map((doc: any) => doc.data().role as PlatformRole)
-          const topRole = roles.sort((a: PlatformRole, b: PlatformRole) => PLATFORM_ROLE_WEIGHT[b] - PLATFORM_ROLE_WEIGHT[a])[0]
-          if (topRole && topRole !== 'user') return topRole
-        }
-      } catch (error) {
-        console.error('Failed to get platform role from Firestore:', error)
-      }
-      // Firestore is configured and answered: never fall through to the mock cookie in this mode.
-      return 'user'
-    }
-
-    // 3. Demo mode only (no Firestore configured): fallback to mock cookie if set
     try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const mockRole = cookieStore.get('mock_role')?.value
-      if (mockRole === 'admin') return 'super_admin'
-    } catch (e) {}
-
+      const roles = await db.platformRole.findMany({ where: { userId: resolvedUserId } })
+      if (roles.length > 0) {
+        const topRole = roles
+          .map((r) => r.role as PlatformRole)
+          .sort((a, b) => PLATFORM_ROLE_WEIGHT[b] - PLATFORM_ROLE_WEIGHT[a])[0]
+        if (topRole && topRole !== 'user') return topRole
+      }
+    } catch (error) {
+      console.error('Failed to get platform role:', error)
+    }
     return 'user'
   }, 30)
 })
 
 export const getLeagueRole = cache(async (leagueId: string, userId?: string): Promise<LeagueRole | null> => {
-  // Demo mode only (no Firestore configured): allow the mock role cookie to drive access.
-  if (!hasFirebase) {
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const mockRole = cookieStore.get('mock_role')?.value
-      if (mockRole === 'admin') return 'league_owner'
-      if (mockRole === 'leader') return 'steward'
-      if (mockRole === 'driver') return null
-    } catch (e) {}
-  }
-
   const session = await getSession()
   if (!session) return null
   const resolvedUserId = userId || session.userId
   if (!resolvedUserId) return null
 
-  if (!hasFirebase) return null
-  const db = getFirestoreDb()
-  if (!db) return null
-
   try {
-    const snapshot = await runWithTimeout(
-      db
-        .collection('league_members')
-        .where('league_id', '==', leagueId)
-        .where('user_id', '==', resolvedUserId)
-        .limit(1)
-        .get(),
-      3000
-    )
-
-    if (snapshot.empty) return null
-    return (snapshot.docs[0].data().role as LeagueRole) || null
+    const member = await db.leagueMember.findFirst({ where: { leagueId, userId: resolvedUserId } })
+    return (member?.role as LeagueRole) || null
   } catch (error) {
-    console.error('Failed to get league role from Firestore:', error)
+    console.error('Failed to get league role:', error)
     return null
   }
 })
 
 export const getLeagueMemberships = cache(async (userId?: string) => {
-  // Demo mode only (no Firestore configured): allow the mock role cookie to drive access.
-  if (!hasFirebase) {
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const mockRole = cookieStore.get('mock_role')?.value
-      if (mockRole === 'leader' || mockRole === 'admin') {
-        const { getLeagues } = await import('@/lib/platform-data')
-        const leagues = await getLeagues()
-        return leagues.map((l: any) => ({
-          leagueId: l.id,
-          role: (mockRole === 'admin' ? 'league_owner' : 'steward') as LeagueRole,
-        }))
-      }
-    } catch (e) {}
-  }
-
   const session = await getSession()
   if (!session) return []
   const resolvedUserId = userId || session.userId
   if (!resolvedUserId) return []
 
-  if (!hasFirebase) return []
-  const db = getFirestoreDb()
-  if (!db) return []
-
   try {
-    const snapshot = await runWithTimeout(
-      db.collection('league_members').where('user_id', '==', resolvedUserId).get(),
-      3000
-    )
-    if (snapshot.empty) return []
-
-    return snapshot.docs.map((doc: any) => {
-      const data = doc.data()
-      return {
-        leagueId: data.league_id as string,
-        role: data.role as LeagueRole,
-      }
-    })
+    const members = await db.leagueMember.findMany({ where: { userId: resolvedUserId } })
+    return members.map((m) => ({ leagueId: m.leagueId, role: m.role as LeagueRole }))
   } catch (error) {
-    console.error('Failed to get league memberships from Firestore:', error)
+    console.error('Failed to get league memberships:', error)
     return []
   }
 })
@@ -223,7 +150,7 @@ export const getAdminAccessContext = cache(async (userId?: string) => {
 
   const platformRole = await getPlatformRole(userId)
   const memberships = await getLeagueMemberships(userId)
-  const managedLeagueIds = memberships.filter((item: any) => canStewardLeague(item.role)).map((item: any) => item.leagueId)
+  const managedLeagueIds = memberships.filter((item) => canStewardLeague(item.role)).map((item) => item.leagueId)
   const platformAdmin = canAccessPlatformAdmin(platformRole)
 
   return {
@@ -241,126 +168,78 @@ export async function isAdminUser() {
 }
 
 export async function upsertUserFromSteam(user: SessionUser) {
-  const resolvedUserId = user.userId || `steam_${user.steamId}`
-  if (!hasFirebase) {
-    await createSession({ ...user, userId: resolvedUserId })
-    let isNew = true
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const mockProfileStr = cookieStore.get(`mock_profile_${resolvedUserId}`)?.value || cookieStore.get('mock_profile')?.value
-      if (mockProfileStr) {
-        const parsed = JSON.parse(mockProfileStr)
-        if (!parsed.user_id || parsed.user_id === resolvedUserId) {
-          if (parsed.onboarded) {
-            isNew = false
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Failed to read mock_profile during upsertUserFromSteam:', e)
-    }
-    return { ok: true, mode: 'session-only', isNew }
-  }
-  const db = getFirestoreDb()
-  if (!db) {
-    await createSession({ ...user, userId: resolvedUserId })
-    let isNew = true
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const mockProfileStr = cookieStore.get(`mock_profile_${resolvedUserId}`)?.value || cookieStore.get('mock_profile')?.value
-      if (mockProfileStr) {
-        const parsed = JSON.parse(mockProfileStr)
-        if (!parsed.user_id || parsed.user_id === resolvedUserId) {
-          if (parsed.onboarded) {
-            isNew = false
-          }
-        }
-      }
-    } catch (e) {}
-    return { ok: true, mode: 'session-only', isNew }
-  }
-
   try {
-    const steamSnapshot = await db
-      .collection('steam_accounts')
-      .where('steam_id', '==', user.steamId)
-      .limit(1)
-      .get()
+    // Postgres's unique constraint on steam_accounts.steam_id plus a real
+    // transaction give us the same "no duplicate account for a brand-new
+    // Steam ID" guarantee Firestore needed a dedicated lookup index for —
+    // a concurrent duplicate insert simply fails the unique constraint here.
+    const result = await db.$transaction(async (tx) => {
+      const existing = await tx.steamAccount.findUnique({ where: { steamId: user.steamId } })
 
-    let userId = ''
-    let isNew = false
-
-    if (steamSnapshot.empty) {
-      isNew = true
-      // Create a new user ID
-      const userRef = db.collection('users').doc()
-      userId = userRef.id
-
-      await userRef.set({
-        created_at: new Date(),
-      })
-
-      // Link steam account (using userId as the document ID)
-      await db.collection('steam_accounts').doc(userId).set({
-        user_id: userId,
-        steam_id: user.steamId,
-        steam_display_name: user.steamDisplayName,
-        steam_avatar_url: user.avatarUrl || null,
-        steam_profile_url: `https://steamcommunity.com/profiles/${user.steamId}`,
-        created_at: new Date(),
-      })
-
-      // Create pilot profile
-      await db.collection('profiles').doc(userId).set({
-        user_id: userId,
-        display_name: user.steamDisplayName,
-        main_sim: 'ac',
-        avatar_url: user.avatarUrl || null,
-        country_code: 'ES',
-        bio: '',
-        onboarded: false,
-        created_at: new Date(),
-      })
-
-      // Assign default platform role
-      await db.collection('platform_roles').doc(userId).set({
-        user_id: userId,
-        role: 'user',
-        created_at: new Date(),
-      })
-    } else {
-      const doc = steamSnapshot.docs[0]
-      userId = doc.data().user_id || doc.id
-
-      // Check if they are actually onboarded
-      try {
-        const profileDoc = await db.collection('profiles').doc(userId).get()
-        if (profileDoc.exists) {
-          const profileData = profileDoc.data()
-          if (!profileData || !profileData.onboarded) {
-            isNew = true
-          }
-        } else {
-          isNew = true
-        }
-      } catch (err) {
-        console.error('Failed to read profile status during Steam callback:', err)
+      if (existing) {
+        await tx.steamAccount.update({
+          where: { userId: existing.userId },
+          data: {
+            steamDisplayName: user.steamDisplayName,
+            steamAvatarUrl: user.avatarUrl || null,
+          },
+        })
+        return { userId: existing.userId, isNew: false }
       }
 
-      await db.collection('steam_accounts').doc(userId).update({
-        steam_display_name: user.steamDisplayName,
-        steam_avatar_url: user.avatarUrl || null,
+      const newUser = await tx.user.create({ data: {} })
+
+      await tx.steamAccount.create({
+        data: {
+          userId: newUser.id,
+          steamId: user.steamId,
+          steamDisplayName: user.steamDisplayName,
+          steamAvatarUrl: user.avatarUrl || null,
+          steamProfileUrl: `https://steamcommunity.com/profiles/${user.steamId}`,
+        },
       })
+
+      await tx.profile.create({
+        data: {
+          userId: newUser.id,
+          displayName: user.steamDisplayName,
+          mainSim: 'ac',
+          avatarUrl: user.avatarUrl || null,
+          countryCode: 'ES',
+          bio: '',
+          onboarded: false,
+        },
+      })
+
+      await tx.platformRole.create({
+        data: { userId: newUser.id, role: 'user' },
+      })
+
+      return { userId: newUser.id, isNew: true }
+    })
+
+    let isNew = result.isNew
+    if (!isNew) {
+      const profile = await db.profile.findUnique({ where: { userId: result.userId } })
+      if (!profile || !profile.onboarded) {
+        isNew = true
+      }
     }
 
-    await createSession({ ...user, userId })
-    return { ok: true, userId, isNew }
+    await createSession({ ...user, userId: result.userId })
+    return { ok: true, userId: result.userId, isNew }
   } catch (error) {
-    console.error('Failed to upsert user from Steam in Firestore:', error)
-    console.log('Falling back to session-only authentication mode.')
-    await createSession({ ...user, userId: `steam_${user.steamId}` })
-    return { ok: true, mode: 'session-only-fallback', isNew: true }
+    // A unique-constraint race (two logins for the same brand-new Steam ID
+    // at once) lands here — retry once by re-reading the now-existing row.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const existing = await db.steamAccount.findUnique({ where: { steamId: user.steamId } })
+      if (existing) {
+        const profile = await db.profile.findUnique({ where: { userId: existing.userId } })
+        await createSession({ ...user, userId: existing.userId })
+        return { ok: true, userId: existing.userId, isNew: !profile?.onboarded }
+      }
+    }
+    console.error('Failed to upsert user from Steam:', error)
+    throw error
   }
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { canAccessPlatformAdmin, canManageLeague, getCurrentUser, getLeagueRole, getPlatformRole } from '@/lib/auth'
 import { getLeagues, getRegistrations } from '@/lib/platform-data'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 
 const DEFAULT_MODEL = 'RSX_Porsche_992_GT3R'
 
@@ -50,37 +50,23 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   if (!league) return new NextResponse('League not found', { status: 404 })
 
   const registrations = (await getRegistrations(leagueId)).filter((item) => item.status === 'approved')
-  const db = getFirestoreDb()
 
   const teamIds = Array.from(new Set(registrations.map((item) => item.teamId).filter(Boolean))) as string[]
   const teamInfoById = new Map<string, { name: string; skin: string }>()
   const carModelByKey = new Map<string, string>()
 
-  if (hasFirebase && db) {
-    if (teamIds.length > 0) {
-      const chunks = []
-      for (let i = 0; i < teamIds.length; i += 10) {
-        chunks.push(teamIds.slice(i, i + 10))
-      }
-      const snaps = await Promise.all(chunks.map(chunk => db.collection('teams').where('__name__', 'in', chunk).get()))
-      const teams = snaps.flatMap((snap: any) => snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })))
-
-      for (const team of teams) {
-        const skinCandidate = Array.isArray(team.car_skin_urls) && team.car_skin_urls.length > 0 ? skinFromValue(team.car_skin_urls[0]) : ''
-        teamInfoById.set(team.id, { name: team.name || '', skin: skinCandidate })
-      }
+  if (teamIds.length > 0) {
+    const teams = await db.team.findMany({ where: { id: { in: teamIds } } })
+    for (const team of teams) {
+      const skinCandidate = team.carSkinUrls.length > 0 ? skinFromValue(team.carSkinUrls[0]) : ''
+      teamInfoById.set(team.id, { name: team.name || '', skin: skinCandidate })
     }
+  }
 
-    const teamCarRowsSnapshot = await db
-      .collection('league_team_registrations')
-      .where('league_id', '==', leagueId)
-      .get()
-
-    const teamCarRows = teamCarRowsSnapshot.docs.map((doc: any) => doc.data())
-    for (const row of teamCarRows) {
-      const key = `${row.team_id}::${row.class_tag || 'noclass'}::${typeof row.car_number === 'number' ? row.car_number : 'no-number'}`
-      if (row.car_model) carModelByKey.set(key, row.car_model)
-    }
+  const teamCarRows = await db.leagueTeamRegistration.findMany({ where: { leagueId } })
+  for (const row of teamCarRows) {
+    const key = `${row.teamId}::${row.classTag || 'noclass'}::${typeof row.carNumber === 'number' ? row.carNumber : 'no-number'}`
+    if (row.carModel) carModelByKey.set(key, row.carModel)
   }
 
   const usedSlots = new Set<number>()

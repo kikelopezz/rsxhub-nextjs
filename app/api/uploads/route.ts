@@ -2,235 +2,50 @@ import { NextResponse } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
 import { getPlatformRole, getCurrentUser } from '@/lib/auth'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 import { hasR2, uploadBufferToR2, deleteFromR2, listR2Objects, getR2KeyFromUrl } from '@/lib/r2'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
 const BRANDING_DIR = path.join(process.cwd(), 'public', 'branding')
 
-const globalDeletedAssets = new Set<string>()
-
-async function getDeletedAssets(): Promise<string[]> {
-  const deleted: string[] = []
-  
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const doc = await db.collection('settings').doc('deleted_assets').get()
-        if (doc.exists) {
-          const data = doc.data()
-          if (data && Array.isArray(data.urls)) {
-            return data.urls
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch deleted assets from Firestore:', err)
-      }
-    }
-  }
-
+async function getUrlListSetting(key: string): Promise<string[]> {
   try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const cookieVal = cookieStore.get('deleted_assets')?.value
-    if (cookieVal) {
-      return JSON.parse(cookieVal)
-    }
+    const setting = await db.setting.findUnique({ where: { key } })
+    const urls = (setting?.value as any)?.urls
+    return Array.isArray(urls) ? urls : []
   } catch (err) {
-    // ignore
+    console.error(`Failed to fetch setting "${key}":`, err)
+    return []
   }
-
-  return deleted
 }
 
-async function addDeletedAsset(url: string) {
-  globalDeletedAssets.add(url)
-
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const docRef = db.collection('settings').doc('deleted_assets')
-        const doc = await docRef.get()
-        let urls = [url]
-        if (doc.exists) {
-          const data = doc.data()
-          if (data && Array.isArray(data.urls)) {
-            urls = Array.from(new Set([...data.urls, url]))
-          }
-        }
-        await docRef.set({ urls, updated_at: new Date() }, { merge: true })
-        return
-      } catch (err) {
-        console.error('Failed to save deleted asset to Firestore:', err)
-      }
-    }
-  }
-
+async function addUrlToSetting(key: string, url: string, prepend = false) {
   try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const cookieVal = cookieStore.get('deleted_assets')?.value
-    let urls = [url]
-    if (cookieVal) {
-      urls = Array.from(new Set([...JSON.parse(cookieVal), url]))
-    }
-    cookieStore.set('deleted_assets', JSON.stringify(urls), {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365,
-    })
+    const existing = await getUrlListSetting(key)
+    const urls = prepend ? Array.from(new Set([url, ...existing])) : Array.from(new Set([...existing, url]))
+    await db.setting.upsert({ where: { key }, create: { key, value: { urls } }, update: { value: { urls } } })
   } catch (err) {
-    // ignore
+    console.error(`Failed to add url to setting "${key}":`, err)
   }
 }
 
-async function removeDeletedAsset(url: string) {
-  globalDeletedAssets.delete(url)
-
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const docRef = db.collection('settings').doc('deleted_assets')
-        const doc = await docRef.get()
-        if (doc.exists) {
-          const data = doc.data()
-          if (data && Array.isArray(data.urls)) {
-            const urls = data.urls.filter((u: string) => u !== url)
-            await docRef.set({ urls, updated_at: new Date() }, { merge: true })
-          }
-        }
-        return
-      } catch (err) {
-        console.error('Failed to remove deleted asset from Firestore:', err)
-      }
-    }
-  }
-
+async function removeUrlFromSetting(key: string, url: string) {
   try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const cookieVal = cookieStore.get('deleted_assets')?.value
-    if (cookieVal) {
-      const urls = JSON.parse(cookieVal).filter((u: string) => u !== url)
-      cookieStore.set('deleted_assets', JSON.stringify(urls), {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 365,
-      })
-    }
+    const existing = await getUrlListSetting(key)
+    const urls = existing.filter((u) => u !== url)
+    await db.setting.upsert({ where: { key }, create: { key, value: { urls } }, update: { value: { urls } } })
   } catch (err) {
-    // ignore
+    console.error(`Failed to remove url from setting "${key}":`, err)
   }
 }
 
-const globalGalleryUploads = new Set<string>()
+const getDeletedAssets = () => getUrlListSetting('deleted_assets')
+const addDeletedAsset = (url: string) => addUrlToSetting('deleted_assets', url)
+const removeDeletedAsset = (url: string) => removeUrlFromSetting('deleted_assets', url)
 
-async function getGalleryUploads(): Promise<string[]> {
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const doc = await db.collection('settings').doc('gallery_uploads').get()
-        if (doc.exists) {
-          const data = doc.data()
-          if (data && Array.isArray(data.urls)) {
-            return data.urls
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch gallery uploads from Firestore:', err)
-      }
-    }
-  }
-
-  try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const cookieVal = cookieStore.get('gallery_uploads')?.value
-    if (cookieVal) {
-      return JSON.parse(cookieVal)
-    }
-  } catch (err) {}
-
-  return Array.from(globalGalleryUploads)
-}
-
-async function addGalleryUpload(url: string) {
-  globalGalleryUploads.add(url)
-
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const docRef = db.collection('settings').doc('gallery_uploads')
-        const doc = await docRef.get()
-        let urls = [url]
-        if (doc.exists) {
-          const data = doc.data()
-          if (data && Array.isArray(data.urls)) {
-            urls = Array.from(new Set([url, ...data.urls]))
-          }
-        }
-        await docRef.set({ urls, updated_at: new Date() }, { merge: true })
-        return
-      } catch (err) {
-        console.error('Failed to save gallery upload to Firestore:', err)
-      }
-    }
-  }
-
-  try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const cookieVal = cookieStore.get('gallery_uploads')?.value
-    let urls = [url]
-    if (cookieVal) {
-      urls = Array.from(new Set([url, ...JSON.parse(cookieVal)]))
-    }
-    cookieStore.set('gallery_uploads', JSON.stringify(urls), {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365,
-    })
-  } catch (err) {}
-}
-
-async function removeGalleryUpload(url: string) {
-  globalGalleryUploads.delete(url)
-
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const docRef = db.collection('settings').doc('gallery_uploads')
-        const doc = await docRef.get()
-        if (doc.exists) {
-          const data = doc.data()
-          if (data && Array.isArray(data.urls)) {
-            const urls = data.urls.filter((u: string) => u !== url)
-            await docRef.set({ urls, updated_at: new Date() }, { merge: true })
-          }
-        }
-        return
-      } catch (err) {
-        console.error('Failed to remove gallery upload from Firestore:', err)
-      }
-    }
-  }
-
-  try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const cookieVal = cookieStore.get('gallery_uploads')?.value
-    if (cookieVal) {
-      const urls = JSON.parse(cookieVal).filter((u: string) => u !== url)
-      cookieStore.set('gallery_uploads', JSON.stringify(urls), {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 365,
-      })
-    }
-  } catch (err) {}
-}
+const getGalleryUploads = () => getUrlListSetting('gallery_uploads')
+const addGalleryUpload = (url: string) => addUrlToSetting('gallery_uploads', url, true)
+const removeGalleryUpload = (url: string) => removeUrlFromSetting('gallery_uploads', url)
 
 export async function GET(req: Request) {
   try {
@@ -272,8 +87,7 @@ export async function GET(req: Request) {
     }
 
     // Filter out any assets that have been soft-deleted
-    const deletedList = await getDeletedAssets()
-    const deletedSet = new Set([...deletedList, ...Array.from(globalDeletedAssets)])
+    const deletedSet = new Set(await getDeletedAssets())
     const filteredImages = images.filter((img) => !deletedSet.has(img))
 
     return NextResponse.json({ images: filteredImages })
@@ -341,7 +155,7 @@ export async function POST(req: Request) {
           const finalUrl = await uploadBufferToR2(`skins/${safeSkinName}`, inputBuffer, file.type || 'application/zip')
           return NextResponse.json({ url: finalUrl, name: file.name })
         } catch (r2Err) {
-          console.warn('Uploading skin to R2 failed, falling back to disk/Firestore:', r2Err)
+          console.warn('Uploading skin to R2 failed, falling back to disk:', r2Err)
         }
       }
 
@@ -355,63 +169,19 @@ export async function POST(req: Request) {
         const finalUrl = `/api/uploads/skins/${safeSkinName}`
         return NextResponse.json({ url: finalUrl, name: file.name })
       } catch (fsErr) {
-        console.warn('Writing compressed skin to public disk failed (serverless environment). Trying /tmp storage:', fsErr)
+        console.warn('Writing compressed skin to public disk failed. Trying /tmp storage:', fsErr)
       }
 
-      // 2. Write to /tmp disk AND store in Firestore skin_files for serverless persistence
+      // 2. Write to /tmp disk as a last resort (ephemeral — only survives within this request's lifetime).
       const TMP_SKINS_DIR = path.join('/tmp', 'skins')
       const tmpTargetPath = path.join(TMP_SKINS_DIR, safeSkinName)
       try {
         await fs.mkdir(TMP_SKINS_DIR, { recursive: true })
         await fs.writeFile(tmpTargetPath, inputBuffer)
+        const finalUrl = `/api/uploads/skins/${safeSkinName}`
+        return NextResponse.json({ url: finalUrl, name: file.name })
       } catch (tmpErr) {
         console.warn('Writing compressed skin to /tmp failed:', tmpErr)
-      }
-
-      // 3. Store in Firestore skin_files collection for persistent cross-request serving
-      if (hasFirebase) {
-        const db = getFirestoreDb()
-        if (db) {
-          try {
-            const chunkSize = 500 * 1024 // 500KB per chunk
-            const chunks: string[] = []
-            for (let i = 0; i < inputBuffer.length; i += chunkSize) {
-              const chunkBuf = inputBuffer.subarray(i, i + chunkSize)
-              chunks.push(chunkBuf.toString('base64'))
-            }
-
-            const batch = db.batch()
-            const mainDocRef = db.collection('skin_files').doc(safeSkinName)
-            batch.set(mainDocRef, {
-              name: file.name,
-              mimeType: file.type || 'application/zip',
-              chunkCount: chunks.length,
-              sizeBytes: inputBuffer.length,
-              created_at: new Date().toISOString(),
-            })
-
-            for (let i = 0; i < chunks.length; i++) {
-              const chunkDocRef = db.collection('skin_files').doc(`${safeSkinName}_chunk_${i}`)
-              batch.set(chunkDocRef, { base64: chunks[i] })
-            }
-
-            await batch.commit()
-          } catch (dbErr) {
-            console.error('Failed to save skin chunks to Firestore:', dbErr)
-          }
-        }
-      }
-
-      const finalUrl = `/api/uploads/skins/${safeSkinName}`
-      return NextResponse.json({ url: finalUrl, name: file.name })
-
-      // 4. Ultimate fallback for very small files (<200KB)
-      if (inputBuffer.length < 200 * 1024) {
-        const mimeType = file?.type || 'application/zip'
-        const fileName = file?.name || 'skin.zip'
-        const base64 = inputBuffer.toString('base64')
-        const finalUrl = `data:${mimeType};name=${encodeURIComponent(fileName)};base64,${base64}`
-        return NextResponse.json({ url: finalUrl, name: fileName })
       }
 
       return NextResponse.json(

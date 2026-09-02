@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 import { guardLeaguePermission } from './admin-league'
 
 type ImportedResultRow = {
@@ -205,9 +205,6 @@ export async function importRaceResultsJson(formData: FormData) {
   const leagueId = String(formData.get('leagueId') || '')
   const { session } = await guardLeaguePermission(leagueId, 'steward')
 
-  if (!hasFirebase) redirect('/admin?mode=mock')
-  const db = getFirestoreDb()
-  if (!db) redirect('/admin?mode=mock')
   if (!leagueId) redirect('/admin?resultsError=missing-league')
 
   const uploadedRaw = formData.get('resultsFile')
@@ -242,8 +239,8 @@ export async function importRaceResultsJson(formData: FormData) {
   }
 
   try {
-    const eventDoc = await db.collection('league_events').doc(eventId).get()
-    if (!eventDoc.exists || eventDoc.data()?.league_id !== leagueId) {
+    const event = await db.leagueEvent.findUnique({ where: { id: eventId } })
+    if (!event || event.leagueId !== leagueId) {
       redirect(`/admin/ligas/${leagueId}?resultsError=event-not-found`)
     }
 
@@ -257,38 +254,19 @@ export async function importRaceResultsJson(formData: FormData) {
     const knownUserIds = new Set<string>()
 
     if (steamIds.length > 0) {
-      // Chunk query steam_accounts
-      const chunks = []
-      for (let i = 0; i < steamIds.length; i += 10) {
-        chunks.push(steamIds.slice(i, i + 10))
-      }
-      const snaps = await Promise.all(chunks.map(c => db.collection('steam_accounts').where('steam_id', 'in', c).get()))
-      snaps.flatMap(s => s.docs).forEach((doc: any) => {
-        steamToUserId.set(doc.data().steam_id, doc.data().user_id)
-      })
-
-      const regSnaps = await Promise.all(chunks.map(c => 
-        db.collection('league_registrations')
-          .where('league_id', '==', leagueId)
-          .where('steam_id', 'in', c)
-          .get()
-      ))
-      regSnaps.flatMap(s => s.docs).forEach((doc: any) => {
-        if (!steamToUserId.has(doc.data().steam_id)) {
-          steamToUserId.set(doc.data().steam_id, doc.data().user_id)
-        }
+      const [steamAccounts, regsBySteam] = await Promise.all([
+        db.steamAccount.findMany({ where: { steamId: { in: steamIds } } }),
+        db.leagueRegistration.findMany({ where: { leagueId, steamId: { in: steamIds } } }),
+      ])
+      steamAccounts.forEach((s) => steamToUserId.set(s.steamId, s.userId))
+      regsBySteam.forEach((r) => {
+        if (r.steamId && !steamToUserId.has(r.steamId)) steamToUserId.set(r.steamId, r.userId)
       })
     }
 
     if (userIdCandidates.length > 0) {
-      const chunks = []
-      for (let i = 0; i < userIdCandidates.length; i += 10) {
-        chunks.push(userIdCandidates.slice(i, i + 10))
-      }
-      const snaps = await Promise.all(chunks.map(c => db.collection('users').where('__name__', 'in', c).get()))
-      snaps.flatMap(s => s.docs).forEach((doc: any) => {
-        knownUserIds.add(doc.id)
-      })
+      const users = await db.user.findMany({ where: { id: { in: userIdCandidates } }, select: { id: true } })
+      users.forEach((u) => knownUserIds.add(u.id))
     }
 
     const resolved = parsed.results
@@ -303,19 +281,20 @@ export async function importRaceResultsJson(formData: FormData) {
 
     const unresolvedCount = parsed.results.length - resolved.length
     if (resolved.length === 0) {
-      await db.collection('league_result_imports').add({
-        league_id: leagueId,
-        event_id: eventId,
-        uploaded_by_user_id: session.userId,
-        file_name: (uploaded && uploaded.name) || 'results.json',
-        payload_text: rawJson,
-        rows_total: parsed.results.length,
-        rows_imported: 0,
-        rows_unresolved: unresolvedCount,
-        rows_not_registered: 0,
-        created_at: new Date(),
+      await db.leagueResultImport.create({
+        data: {
+          leagueId,
+          eventId,
+          uploadedByUserId: session.userId,
+          fileName: (uploaded && uploaded.name) || 'results.json',
+          payloadText: rawJson,
+          rowsTotal: parsed.results.length,
+          rowsImported: 0,
+          rowsUnresolved: unresolvedCount,
+          rowsNotRegistered: 0,
+        },
       })
-      await db.collection('league_events').doc(eventId).update({ status: 'completed' })
+      await db.leagueEvent.update({ where: { id: eventId }, data: { status: 'completed' } })
 
       revalidatePath(`/admin/ligas/${leagueId}`)
       revalidatePath('/admin')
@@ -326,36 +305,27 @@ export async function importRaceResultsJson(formData: FormData) {
     }
 
     const resolvedUserIds = Array.from(new Set(resolved.map((row) => row.userId as string)))
-    
-    // Chunk query registrations
-    const rChunks = []
-    for (let i = 0; i < resolvedUserIds.length; i += 10) {
-      rChunks.push(resolvedUserIds.slice(i, i + 10))
-    }
-    const regSnaps = await Promise.all(rChunks.map(c => 
-      db.collection('league_registrations')
-        .where('league_id', '==', leagueId)
-        .where('user_id', 'in', c)
-        .get()
-    ))
-    const registeredUserIds = new Set(regSnaps.flatMap(s => s.docs).map((doc: any) => doc.data().user_id))
+
+    const regs = await db.leagueRegistration.findMany({ where: { leagueId, userId: { in: resolvedUserIds } } })
+    const registeredUserIds = new Set(regs.map((r) => r.userId))
 
     const filtered = resolved.filter((row) => registeredUserIds.has(String(row.userId)))
     const notRegisteredCount = resolved.length - filtered.length
     if (filtered.length === 0) {
-      await db.collection('league_result_imports').add({
-        league_id: leagueId,
-        event_id: eventId,
-        uploaded_by_user_id: session.userId,
-        file_name: (uploaded && uploaded.name) || 'results.json',
-        payload_text: rawJson,
-        rows_total: parsed.results.length,
-        rows_imported: 0,
-        rows_unresolved: unresolvedCount,
-        rows_not_registered: notRegisteredCount,
-        created_at: new Date(),
+      await db.leagueResultImport.create({
+        data: {
+          leagueId,
+          eventId,
+          uploadedByUserId: session.userId,
+          fileName: (uploaded && uploaded.name) || 'results.json',
+          payloadText: rawJson,
+          rowsTotal: parsed.results.length,
+          rowsImported: 0,
+          rowsUnresolved: unresolvedCount,
+          rowsNotRegistered: notRegisteredCount,
+        },
       })
-      await db.collection('league_events').doc(eventId).update({ status: 'completed' })
+      await db.leagueEvent.update({ where: { id: eventId }, data: { status: 'completed' } })
 
       revalidatePath(`/admin/ligas/${leagueId}`)
       revalidatePath('/admin')
@@ -367,45 +337,33 @@ export async function importRaceResultsJson(formData: FormData) {
     }
 
     if (replaceExisting) {
-      const existingResultsSnap = await db
-        .collection('league_results')
-        .where('league_id', '==', leagueId)
-        .where('event_id', '==', eventId)
-        .get()
-      const delBatch = db.batch()
-      existingResultsSnap.docs.forEach((doc: any) => delBatch.delete(doc.ref))
-      await delBatch.commit()
+      await db.leagueResult.deleteMany({ where: { leagueId, eventId } })
     }
 
-    const payload = filtered.map((row) => ({
-      league_id: leagueId,
-      event_id: eventId,
-      user_id: row.userId as string,
-      position: row.position,
-      points: row.points,
-      created_at: new Date(),
-    }))
-
-    const insertBatch = db.batch()
-    payload.forEach((row) => {
-      const docRef = db.collection('league_results').doc()
-      insertBatch.set(docRef, row)
+    await db.leagueResult.createMany({
+      data: filtered.map((row) => ({
+        leagueId,
+        eventId,
+        userId: row.userId as string,
+        position: row.position,
+        points: row.points,
+      })),
     })
-    await insertBatch.commit()
 
-    await db.collection('league_events').doc(eventId).update({ status: 'completed' })
+    await db.leagueEvent.update({ where: { id: eventId }, data: { status: 'completed' } })
 
-    await db.collection('league_result_imports').add({
-      league_id: leagueId,
-      event_id: eventId,
-      uploaded_by_user_id: session.userId,
-      file_name: (uploaded && uploaded.name) || 'results.json',
-      payload_text: rawJson,
-      rows_total: parsed.results.length,
-      rows_imported: filtered.length,
-      rows_unresolved: unresolvedCount,
-      rows_not_registered: notRegisteredCount,
-      created_at: new Date(),
+    await db.leagueResultImport.create({
+      data: {
+        leagueId,
+        eventId,
+        uploadedByUserId: session.userId,
+        fileName: (uploaded && uploaded.name) || 'results.json',
+        payloadText: rawJson,
+        rowsTotal: parsed.results.length,
+        rowsImported: filtered.length,
+        rowsUnresolved: unresolvedCount,
+        rowsNotRegistered: notRegisteredCount,
+      },
     })
 
     revalidatePath(`/admin/ligas/${leagueId}`)
@@ -416,7 +374,7 @@ export async function importRaceResultsJson(formData: FormData) {
     const notRegisteredFlag = notRegisteredCount > 0 ? `&resultsNotRegistered=${notRegisteredCount}` : ''
     redirect(`/admin/ligas/${leagueId}?resultsImported=${filtered.length}${unresolvedFlag}${notRegisteredFlag}`)
   } catch (error) {
-    console.error('Failed to import race results in Firestore:', error)
+    console.error('Failed to import race results:', error)
     redirect(`/admin/ligas/${leagueId}?resultsError=insert-failed`)
   }
 }

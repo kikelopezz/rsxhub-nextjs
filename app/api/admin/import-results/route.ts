@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { canAccessPlatformAdmin, canStewardLeague, getCurrentUser, getLeagueRole, getPlatformRole } from '@/lib/auth'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 
 type ImportedResultRow = {
   userId?: string
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
   const formData = await req.formData()
   const leagueId = String(formData.get('leagueId') || '')
   const selectedEventId = String(formData.get('eventId') || '').trim()
-  const sessionType = String(formData.get('sessionType') || 'race').trim()
+  const sessionType = String(formData.get('sessionType') || 'race').trim() as 'qualifying' | 'race'
   const rawFromTextField = String(formData.get('resultsJsonText') || '').trim()
   const replaceExisting = formData.get('replaceExisting') === 'on'
 
@@ -119,10 +119,6 @@ export async function POST(req: Request) {
   if (!canAccessPlatformAdmin(platformRole) && !canStewardLeague(leagueRole)) {
     return NextResponse.redirect(new URL('/admin', req.url))
   }
-
-  if (!hasFirebase) return NextResponse.redirect(new URL('/admin?mode=mock', req.url))
-  const db = getFirestoreDb()
-  if (!db) return NextResponse.redirect(new URL('/admin?mode=mock', req.url))
 
   const uploadedRaw = formData.get('resultsFile')
   const uploaded =
@@ -150,8 +146,8 @@ export async function POST(req: Request) {
   if (!eventId) return NextResponse.redirect(toAdminLeagueUrl(req, leagueId, 'resultsError=event-required'))
 
   try {
-    const eventDoc = await db.collection('league_events').doc(eventId).get()
-    if (!eventDoc.exists || eventDoc.data()?.league_id !== leagueId) {
+    const event = await db.leagueEvent.findUnique({ where: { id: eventId } })
+    if (!event || event.leagueId !== leagueId) {
       return NextResponse.redirect(toAdminLeagueUrl(req, leagueId, 'resultsError=event-not-found'))
     }
     if (parsed.results.length === 0) return NextResponse.redirect(toAdminLeagueUrl(req, leagueId, 'resultsError=no-valid-rows'))
@@ -162,37 +158,19 @@ export async function POST(req: Request) {
     const knownUserIds = new Set<string>()
 
     if (steamIds.length > 0) {
-      const chunks = []
-      for (let i = 0; i < steamIds.length; i += 10) {
-        chunks.push(steamIds.slice(i, i + 10))
-      }
-      const snaps = await Promise.all(chunks.map(c => db.collection('steam_accounts').where('steam_id', 'in', c).get()))
-      snaps.flatMap(s => s.docs).forEach((doc: any) => {
-        steamToUserId.set(doc.data().steam_id, doc.data().user_id)
-      })
-
-      const regSnaps = await Promise.all(chunks.map(c => 
-        db.collection('league_registrations')
-          .where('league_id', '==', leagueId)
-          .where('steam_id', 'in', c)
-          .get()
-      ))
-      regSnaps.flatMap(s => s.docs).forEach((doc: any) => {
-        if (!steamToUserId.has(doc.data().steam_id)) {
-          steamToUserId.set(doc.data().steam_id, doc.data().user_id)
-        }
+      const [steamAccounts, regsBySteam] = await Promise.all([
+        db.steamAccount.findMany({ where: { steamId: { in: steamIds } } }),
+        db.leagueRegistration.findMany({ where: { leagueId, steamId: { in: steamIds } } }),
+      ])
+      steamAccounts.forEach((s) => steamToUserId.set(s.steamId, s.userId))
+      regsBySteam.forEach((r) => {
+        if (r.steamId && !steamToUserId.has(r.steamId)) steamToUserId.set(r.steamId, r.userId)
       })
     }
 
     if (userIdCandidates.length > 0) {
-      const chunks = []
-      for (let i = 0; i < userIdCandidates.length; i += 10) {
-        chunks.push(userIdCandidates.slice(i, i + 10))
-      }
-      const snaps = await Promise.all(chunks.map(c => db.collection('users').where('__name__', 'in', c).get()))
-      snaps.flatMap(s => s.docs).forEach((doc: any) => {
-        knownUserIds.add(doc.id)
-      })
+      const users = await db.user.findMany({ where: { id: { in: userIdCandidates } }, select: { id: true } })
+      users.forEach((u) => knownUserIds.add(u.id))
     }
 
     const resolved = parsed.results
@@ -207,85 +185,48 @@ export async function POST(req: Request) {
 
     const unresolvedCount = parsed.results.length - resolved.length
     const resolvedUserIds = Array.from(new Set(resolved.map((row) => row.userId as string)))
-    
-    let registeredUserIds = new Set<string>()
-    if (resolvedUserIds.length > 0) {
-      const chunks = []
-      for (let i = 0; i < resolvedUserIds.length; i += 10) {
-        chunks.push(resolvedUserIds.slice(i, i + 10))
-      }
-      const regSnaps = await Promise.all(chunks.map(c => 
-        db.collection('league_registrations')
-          .where('league_id', '==', leagueId)
-          .where('user_id', 'in', c)
-          .get()
-      ))
-      registeredUserIds = new Set(regSnaps.flatMap(s => s.docs).map((doc: any) => doc.data().user_id))
-    }
+
+    const regs = resolvedUserIds.length > 0 ? await db.leagueRegistration.findMany({ where: { leagueId, userId: { in: resolvedUserIds } } }) : []
+    const registeredUserIds = new Set(regs.map((r) => r.userId))
 
     const filtered = resolved.filter((row) => registeredUserIds.has(String(row.userId)))
     const notRegisteredCount = resolved.length - filtered.length
 
     if (replaceExisting) {
-      const existingResultsSnap = await db
-        .collection('league_results')
-        .where('league_id', '==', leagueId)
-        .where('event_id', '==', eventId)
-        .get()
-      const delBatch = db.batch()
-      existingResultsSnap.docs.forEach((doc: any) => {
-        const docSession = doc.data()?.session_type || doc.data()?.sessionType || 'race'
-        if (docSession === sessionType) {
-          delBatch.delete(doc.ref)
-        }
-      })
-      await delBatch.commit()
+      await db.leagueResult.deleteMany({ where: { leagueId, eventId, sessionType } })
     }
 
     if (filtered.length > 0) {
-      const payload = filtered.map((row) => ({
-        league_id: leagueId,
-        event_id: eventId,
-        session_type: sessionType,
-        user_id: row.userId as string,
-        position: row.position,
-        points: sessionType === 'qualifying' ? 0 : row.points,
-        created_at: new Date(),
-      }))
-
-      const insertBatch = db.batch()
-      payload.forEach((row) => {
-        const docRef = db.collection('league_results').doc()
-        insertBatch.set(docRef, row)
+      await db.leagueResult.createMany({
+        data: filtered.map((row) => ({
+          leagueId,
+          eventId,
+          sessionType,
+          userId: row.userId as string,
+          position: row.position,
+          points: sessionType === 'qualifying' ? 0 : row.points,
+        })),
       })
-      await insertBatch.commit()
     }
 
     if (sessionType === 'qualifying') {
-      await db.collection('league_events').doc(eventId).update({
-        qualy_completed: true,
-        qualyCompleted: true,
-      })
+      await db.leagueEvent.update({ where: { id: eventId }, data: { qualyCompleted: true } })
     } else {
-      const nowIso = new Date().toISOString()
-      await db.collection('league_events').doc(eventId).update({
-        status: 'completed',
-        completed_at: nowIso,
-        completedAt: nowIso,
-      })
+      await db.leagueEvent.update({ where: { id: eventId }, data: { status: 'completed', completedAt: new Date() } })
     }
 
-    await db.collection('league_result_imports').add({
-      league_id: leagueId,
-      event_id: eventId,
-      uploaded_by_user_id: session.userId,
-      file_name: (uploaded && uploaded.name) || 'results.json',
-      payload_text: rawJson,
-      rows_total: parsed.results.length,
-      rows_imported: filtered.length,
-      rows_unresolved: unresolvedCount,
-      rows_not_registered: notRegisteredCount,
-      created_at: new Date(),
+    await db.leagueResultImport.create({
+      data: {
+        leagueId,
+        eventId,
+        uploadedByUserId: session.userId,
+        fileName: (uploaded && uploaded.name) || 'results.json',
+        payloadText: rawJson,
+        rowsTotal: parsed.results.length,
+        rowsImported: filtered.length,
+        rowsUnresolved: unresolvedCount,
+        rowsNotRegistered: notRegisteredCount,
+      },
     })
 
     revalidatePath(`/admin/ligas/${leagueId}`)

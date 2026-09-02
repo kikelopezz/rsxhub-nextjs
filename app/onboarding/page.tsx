@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 import OnboardingForm from './onboarding-form'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
@@ -22,43 +22,19 @@ export default async function OnboardingPage() {
     preferredCategories: [] as string[],
   }
 
-  const db = getFirestoreDb()
-  if (hasFirebase && db) {
-    try {
-      const doc = await db.collection('profiles').doc(session.userId).get()
-      if (doc.exists) {
-        const data = doc.data()
-        defaultData = {
-          displayName: data.display_name || session.steamDisplayName || '',
-          avatarUrl: data.avatar_url || session.avatarUrl || null,
-          countryCode: data.country_code || 'ES',
-          mainSim: (data.main_sim || 'ac') as 'ac' | 'lmu',
-          preferredCategories: data.preferred_categories || [],
-        }
+  try {
+    const profile = await db.profile.findUnique({ where: { userId: session.userId } })
+    if (profile) {
+      defaultData = {
+        displayName: profile.displayName || session.steamDisplayName || '',
+        avatarUrl: profile.avatarUrl || session.avatarUrl || null,
+        countryCode: profile.countryCode || 'ES',
+        mainSim: profile.mainSim,
+        preferredCategories: profile.preferredCategories || [],
       }
-    } catch (err) {
-      console.error('Failed to load onboarding default data:', err)
     }
-  } else {
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const mockProfile = cookieStore.get(`mock_profile_${session.userId}`)?.value || cookieStore.get('mock_profile')?.value
-      if (mockProfile) {
-        const parsed = JSON.parse(mockProfile)
-        if (!parsed.user_id || parsed.user_id === session.userId) {
-          defaultData = {
-            displayName: parsed.display_name || session.steamDisplayName || '',
-            avatarUrl: parsed.avatar_url || session.avatarUrl || null,
-            countryCode: parsed.country_code || 'ES',
-            mainSim: (parsed.main_sim || 'ac') as 'ac' | 'lmu',
-            preferredCategories: parsed.preferred_categories || [],
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load onboarding mock data from cookie:', err)
-    }
+  } catch (err) {
+    console.error('Failed to load onboarding default data:', err)
   }
 
   return (

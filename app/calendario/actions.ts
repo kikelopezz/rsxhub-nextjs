@@ -1,10 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import { getCurrentUser, getAdminAccessContext, getLeagueRole, canStewardLeague } from '@/lib/auth'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
-import { getLeagueEvents } from '@/lib/platform-data'
+import { db } from '@/lib/db'
 
 export async function saveCalendarEvent(formData: FormData) {
   try {
@@ -57,139 +55,45 @@ export async function saveCalendarEvent(formData: FormData) {
     const qualyStartsAtTime = String(formData.get('qualyStartsAtTime') || '').trim()
     const qualyEndsAtTime = String(formData.get('qualyEndsAtTime') || '').trim()
 
-    const startsAt = formData.get('startsAt') 
-      ? String(formData.get('startsAt')).trim()
-      : `${dateStr}T${startsAtTime}:00`
-    const endsAt = formData.get('endsAt') 
-      ? String(formData.get('endsAt')).trim()
-      : `${dateStr}T${endsAtTime}:00`
+    const startsAt = formData.get('startsAt') ? String(formData.get('startsAt')).trim() : `${dateStr}T${startsAtTime}:00`
+    const endsAt = formData.get('endsAt') ? String(formData.get('endsAt')).trim() : `${dateStr}T${endsAtTime}:00`
 
     const rawQualyStarts = formData.get('qualyStartsAt') ? String(formData.get('qualyStartsAt')).trim() : null
     const rawQualyEnds = formData.get('qualyEndsAt') ? String(formData.get('qualyEndsAt')).trim() : null
 
-    const qualyStartsAt = hasQualy
-      ? (rawQualyStarts || `${qualyDateStr}T${qualyStartsAtTime || '19:30'}:00`)
-      : null
-    const qualyEndsAt = hasQualy
-      ? (rawQualyEnds || `${qualyDateStr}T${qualyEndsAtTime || '20:00'}:00`)
-      : null
-
-    const extractedDate = dateStr || (startsAt ? startsAt.split('T')[0] : '')
-
-    if (!leagueId || !circuitName || !extractedDate) {
-      return { success: false, error: 'League, Circuit name and Date are required.' }
-    }
+    const qualyStartsAt = hasQualy ? rawQualyStarts || `${qualyDateStr}T${qualyStartsAtTime || '19:30'}:00` : null
+    const qualyEndsAt = hasQualy ? rawQualyEnds || `${qualyDateStr}T${qualyEndsAtTime || '20:00'}:00` : null
 
     const payload = {
-      league_id: leagueId,
+      leagueId,
       title: title || null,
-      circuit_name: circuitName,
-      circuit_image_url: circuitImageUrl || null,
-      server_link: serverLink || null,
-      event_type: eventType,
-      country_code: countryCode || null,
+      circuitName,
+      circuitImageUrl: circuitImageUrl || null,
+      serverLink: serverLink || null,
+      eventType: eventType as any,
+      countryCode: countryCode || null,
       color: color || null,
-      max_drivers: maxDrivers,
-      class_limits: classLimits,
-      has_qualy: hasQualy,
-      qualy_starts_at: qualyStartsAt,
-      qualy_ends_at: qualyEndsAt,
-      starts_at: startsAt,
-      ends_at: endsAt,
-      status: 'scheduled',
+      maxDrivers,
+      hasQualy,
+      qualyStartsAt: qualyStartsAt ? new Date(qualyStartsAt) : null,
+      qualyEndsAt: qualyEndsAt ? new Date(qualyEndsAt) : null,
+      startsAt: new Date(startsAt),
+      endsAt: new Date(endsAt),
     }
 
-    if (hasFirebase) {
-      const db = getFirestoreDb()
-      if (db) {
-        if (eventId) {
-          // Verify if document exists or use a robust write method
-          const docRef = db.collection('league_events').doc(eventId)
-          const docSnap = await docRef.get()
-          if (!docSnap.exists) {
-            // Fallback to set if not found to handle custom IDs or newly created offline syncs gracefully
-            await docRef.set({
-              id: eventId,
-              ...payload,
-            })
-          } else {
-            await docRef.update(payload)
-          }
-        } else {
-          const docRef = db.collection('league_events').doc()
-          await docRef.set({
-            id: docRef.id,
-            ...payload,
-          })
-        }
-      }
-    } else {
-      // Mock Mode Fallback
-      const cookieStore = await cookies()
-      const existingCookie = cookieStore.get('mock_league_events')?.value
-      
-      // Fetch initial events if cookie is empty, so we preserve pre-existing mock events
-      let currentEvents = []
-      if (existingCookie) {
-        currentEvents = JSON.parse(existingCookie)
-      } else {
-        // Read the default mock events
-        const { leagueEvents: defaultEvents } = await import('@/data/mock')
-        currentEvents = [...defaultEvents]
-      }
-
-      if (eventId) {
-        // Edit existing
-        currentEvents = currentEvents.map((ev: any) => {
-          if (ev.id === eventId) {
-            return {
-              ...ev,
-              leagueId,
-              title: title || null,
-              circuitName,
-              circuitImageUrl: circuitImageUrl || null,
-              serverLink: serverLink || null,
-              eventType,
-              countryCode: countryCode || null,
-              color: color || null,
-              maxDrivers,
-              classLimits,
-              hasQualy,
-              qualyStartsAt,
-              qualyEndsAt,
-              startsAt,
-              endsAt,
-            }
-          }
-          return ev
+    const event = eventId
+      ? await db.leagueEvent.upsert({
+          where: { id: eventId },
+          create: { id: eventId, ...payload, status: 'scheduled' },
+          update: payload,
         })
-      } else {
-        // Create new
-        const newEvent = {
-          id: `mock_event_${Date.now()}`,
-          leagueId,
-          title: title || null,
-          circuitName,
-          circuitImageUrl: circuitImageUrl || null,
-          serverLink: serverLink || null,
-          eventType,
-          countryCode: countryCode || null,
-          color: color || null,
-          maxDrivers,
-          classLimits,
-          hasQualy,
-          qualyStartsAt,
-          qualyEndsAt,
-          startsAt,
-          endsAt,
-          status: 'scheduled',
-        }
-        currentEvents.push(newEvent)
-      }
+      : await db.leagueEvent.create({ data: { ...payload, status: 'scheduled' } })
 
-      cookieStore.set('mock_league_events', JSON.stringify(currentEvents), {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
+    await db.leagueClassLimit.deleteMany({ where: { eventId: event.id } })
+    const limitEntries = Object.entries(classLimits)
+    if (limitEntries.length > 0) {
+      await db.leagueClassLimit.createMany({
+        data: limitEntries.map(([classTag, maxCars]) => ({ leagueId, eventId: event.id, classTag, maxCars })),
       })
     }
 
@@ -207,52 +111,23 @@ export async function deleteCalendarEvent(eventId: string) {
     const session = await getCurrentUser()
     if (!session) return { success: false, error: 'Unauthorized: No active session found.' }
 
-    if (hasFirebase) {
-      const db = getFirestoreDb()
-      if (db) {
-        const docRef = db.collection('league_events').doc(eventId)
-        const docSnap = await docRef.get()
-        if (!docSnap.exists) {
-          return { success: false, error: 'Event not found.' }
-        }
-        
-        const data = docSnap.data()
-        const leagueId = data?.league_id || ''
+    const event = await db.leagueEvent.findUnique({ where: { id: eventId } })
+    if (!event) return { success: false, error: 'Event not found.' }
 
-        const access = await getAdminAccessContext(session.userId)
-        const isPlatformAdmin = access.canAccessPlatformAdmin
+    const access = await getAdminAccessContext(session.userId)
+    const isPlatformAdmin = access.canAccessPlatformAdmin
 
-        let isLeagueAuthorized = false
-        if (leagueId) {
-          const leagueRole = await getLeagueRole(leagueId, session.userId)
-          isLeagueAuthorized = canStewardLeague(leagueRole)
-        }
-
-        if (!isPlatformAdmin && !isLeagueAuthorized) {
-          return { success: false, error: 'Forbidden: Only platform admins or league stewards can delete events.' }
-        }
-
-        await docRef.delete()
-      }
-    } else {
-      // Mock Mode Fallback
-      const cookieStore = await cookies()
-      const existingCookie = cookieStore.get('mock_league_events')?.value
-      let currentEvents = []
-      if (existingCookie) {
-        currentEvents = JSON.parse(existingCookie)
-      } else {
-        const { leagueEvents: defaultEvents } = await import('@/data/mock')
-        currentEvents = [...defaultEvents]
-      }
-
-      currentEvents = currentEvents.filter((ev: any) => ev.id !== eventId)
-
-      cookieStore.set('mock_league_events', JSON.stringify(currentEvents), {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-      })
+    let isLeagueAuthorized = false
+    if (event.leagueId) {
+      const leagueRole = await getLeagueRole(event.leagueId, session.userId)
+      isLeagueAuthorized = canStewardLeague(leagueRole)
     }
+
+    if (!isPlatformAdmin && !isLeagueAuthorized) {
+      return { success: false, error: 'Forbidden: Only platform admins or league stewards can delete events.' }
+    }
+
+    await db.leagueEvent.delete({ where: { id: eventId } })
 
     revalidatePath('/calendario')
     return { success: true }

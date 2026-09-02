@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { getFirestoreDb, hasFirebase, runWithTimeout } from '@/lib/firebase'
+import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { guardPlatformAdmin } from './admin-league'
 
@@ -17,30 +17,17 @@ export async function grantAdminAction(formData: FormData) {
     redirect('/admin?tab=admins&error=invalid-steamid')
   }
 
-  if (!hasFirebase) redirect('/admin?tab=admins&mode=mock')
-  const db = getFirestoreDb()
-  if (!db) redirect('/admin?tab=admins&mode=mock')
-
   try {
-    let grantedByName = session.steamDisplayName
-    try {
-      const profileDoc = await db.collection('profiles').doc(session.userId).get()
-      if (profileDoc.exists) {
-        grantedByName = profileDoc.data()?.display_name || grantedByName
-      }
-    } catch {}
+    const profile = await db.profile.findUnique({ where: { userId: session.userId } })
+    const grantedByName = profile?.displayName || session.steamDisplayName
 
-    await runWithTimeout(
-      db.collection('admin_grants').doc(steamId).set({
-        steam_id: steamId,
-        granted_by_user_id: session.userId,
-        granted_by_name: grantedByName,
-        created_at: new Date(),
-      }),
-      3500
-    )
+    await db.adminGrant.upsert({
+      where: { steamId },
+      create: { steamId, grantedByUserId: session.userId, grantedByName },
+      update: { grantedByUserId: session.userId, grantedByName },
+    })
   } catch (error) {
-    console.error('Failed to grant admin access in Firestore:', error)
+    console.error('Failed to grant admin access:', error)
     redirect('/admin?tab=admins&error=grant-failed')
   }
 
@@ -59,15 +46,10 @@ export async function revokeAdminAction(formData: FormData) {
     redirect('/admin?tab=admins&error=cannot-revoke-self')
   }
 
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        await runWithTimeout(db.collection('admin_grants').doc(steamId).delete(), 3500)
-      } catch (error) {
-        console.error('Failed to revoke admin access in Firestore:', error)
-      }
-    }
+  try {
+    await db.adminGrant.delete({ where: { steamId } })
+  } catch (error) {
+    console.error('Failed to revoke admin access:', error)
   }
 
   invalidateCache(['admin_grants_steam_ids', 'admin_grants_list'])

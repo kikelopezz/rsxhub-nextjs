@@ -10,7 +10,7 @@ import {
   getLeagueRole,
   getPlatformRole,
 } from '@/lib/auth'
-import { getFirestoreDb, hasFirebase, runWithTimeout } from '@/lib/firebase'
+import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
 import type { LeagueRole } from '@/types'
 
@@ -40,89 +40,25 @@ export async function createLeague(formData: FormData) {
   const slug = String(formData.get('slug') || '')
   const classTags = parseClassTags(formData)
 
-  const payload = {
-    title,
-    slug,
-    short_description: String(formData.get('shortDescription') || ''),
-    full_description: String(formData.get('fullDescription') || ''),
-    simulator: String(formData.get('simulator') || 'ac'),
-    format: String(formData.get('format') || 'sprint'),
-    status: String(formData.get('status') || 'draft'),
-    banner_url: String(formData.get('bannerUrl') || ''),
-    is_featured: formData.get('featured') === 'on',
-    registration_open: formData.get('registrationOpen') === 'on',
-    registration_mode: String(formData.get('registrationMode') || 'individual'),
-    class_tags: classTags,
-    created_at: new Date(),
-  }
+  const league = await db.league.create({
+    data: {
+      title,
+      slug,
+      shortDescription: String(formData.get('shortDescription') || ''),
+      fullDescription: String(formData.get('fullDescription') || ''),
+      simulator: String(formData.get('simulator') || 'ac') as any,
+      format: String(formData.get('format') || 'sprint') as any,
+      status: String(formData.get('status') || 'draft') as any,
+      bannerUrl: String(formData.get('bannerUrl') || '') || null,
+      isFeatured: formData.get('featured') === 'on',
+      registrationMode: String(formData.get('registrationMode') || 'individual') as any,
+      classTags,
+    },
+  })
 
-  let createdViaFirestore = false
-  let leagueId = ''
-
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const docRef = await runWithTimeout(db.collection('leagues').add(payload), 3500)
-        leagueId = docRef.id
-
-        await runWithTimeout(db.collection('league_members').doc(`${leagueId}_${session.userId}`).set({
-          league_id: leagueId,
-          user_id: session.userId,
-          role: 'league_owner',
-          created_at: new Date(),
-        }), 3500)
-
-        createdViaFirestore = true
-      } catch (error) {
-        console.error('Failed to create league in Firestore (falling back to mock):', error)
-      }
-    }
-  }
-
-  if (!createdViaFirestore) {
-    // Fallback Mock Mode cookie creation
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const existingCookie = cookieStore.get('mock_leagues')?.value
-      
-      let currentLeagues = []
-      if (existingCookie) {
-        currentLeagues = JSON.parse(existingCookie)
-      } else {
-        const { leagues: defaultLeagues } = await import('@/data/mock')
-        currentLeagues = [...defaultLeagues]
-      }
-
-      const mockLeagueId = `mock_league_${Date.now()}`
-      const newLeague = {
-        id: mockLeagueId,
-        title,
-        slug,
-        simulator: payload.simulator,
-        format: payload.format,
-        classTags: classTags,
-        startsAt: new Date().toISOString(),
-        endsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        registrationOpen: payload.registration_open,
-        bannerUrl: payload.banner_url || null,
-        logoUrl: null,
-        status: payload.status,
-        featured: payload.is_featured,
-        registrationMode: payload.registration_mode,
-        shortDescription: payload.short_description,
-      }
-
-      currentLeagues.push(newLeague)
-      cookieStore.set('mock_leagues', JSON.stringify(currentLeagues), {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 30,
-      })
-    } catch (e) {
-      console.error('Failed to create mock league in fallback:', e)
-    }
-  }
+  await db.leagueMember.create({
+    data: { leagueId: league.id, userId: session.userId, role: 'league_owner' },
+  })
 
   invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
   revalidatePath('/admin')
@@ -151,29 +87,25 @@ export async function updateLeague(formData: FormData) {
   const leagueId = String(formData.get('leagueId') || '')
   await guardLeaguePermission(leagueId, 'manage')
 
-  if (!hasFirebase) redirect('/admin?mode=mock')
-  const db = getFirestoreDb()
-  if (!db) redirect('/admin?mode=mock')
-
-  const payload = {
-    title: String(formData.get('title') || ''),
-    slug: String(formData.get('slug') || ''),
-    short_description: String(formData.get('shortDescription') || ''),
-    full_description: String(formData.get('fullDescription') || ''),
-    simulator: String(formData.get('simulator') || 'ac'),
-    format: String(formData.get('format') || 'sprint'),
-    status: String(formData.get('status') || 'draft'),
-    banner_url: String(formData.get('bannerUrl') || ''),
-    is_featured: formData.get('featured') === 'on',
-    registration_open: formData.get('registrationOpen') === 'on',
-    registration_mode: String(formData.get('registrationMode') || 'individual'),
-    class_tags: parseClassTags(formData),
-  }
-
   try {
-    await db.collection('leagues').doc(leagueId).update(payload)
+    await db.league.update({
+      where: { id: leagueId },
+      data: {
+        title: String(formData.get('title') || ''),
+        slug: String(formData.get('slug') || ''),
+        shortDescription: String(formData.get('shortDescription') || ''),
+        fullDescription: String(formData.get('fullDescription') || ''),
+        simulator: String(formData.get('simulator') || 'ac') as any,
+        format: String(formData.get('format') || 'sprint') as any,
+        status: String(formData.get('status') || 'draft') as any,
+        bannerUrl: String(formData.get('bannerUrl') || '') || null,
+        isFeatured: formData.get('featured') === 'on',
+        registrationMode: String(formData.get('registrationMode') || 'individual') as any,
+        classTags: parseClassTags(formData),
+      },
+    })
   } catch (error) {
-    console.error('Failed to update league in Firestore:', error)
+    console.error('Failed to update league:', error)
     redirect(`/admin/ligas/${leagueId}?leagueError=update-failed`)
   }
 
@@ -185,32 +117,15 @@ export async function updateLeague(formData: FormData) {
 }
 
 export async function quickUpdateLeagueStatusAction(formData: FormData) {
-  const session = await guardPlatformAdmin()
+  await guardPlatformAdmin()
   const leagueId = String(formData.get('leagueId') || '')
   const status = String(formData.get('status') || 'draft')
 
   if (!leagueId) redirect('/admin?error=missing-fields')
 
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        await db.collection('leagues').doc(leagueId).update({ status })
-      } catch (error) {
-        console.error('Failed to update status in Firestore:', error)
-      }
-    }
-  } else {
-    // Mock Mode
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const existing = cookieStore.get('mock_leagues')?.value
-      let current = existing ? JSON.parse(existing) : []
-      current = current.map((l: any) => l.id === leagueId ? { ...l, status } : l)
-      cookieStore.set('mock_leagues', JSON.stringify(current), { path: '/', maxAge: 60 * 60 * 24 * 30 })
-    } catch {}
-  }
+  await db.league.update({ where: { id: leagueId }, data: { status: status as any } }).catch((error) => {
+    console.error('Failed to update league status:', error)
+  })
 
   invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
   revalidatePath('/admin')
@@ -220,35 +135,18 @@ export async function quickUpdateLeagueStatusAction(formData: FormData) {
 }
 
 export async function quickToggleLeagueRegistrationAction(formData: FormData) {
-  const session = await guardPlatformAdmin()
+  await guardPlatformAdmin()
   const leagueId = String(formData.get('leagueId') || '')
 
   if (!leagueId) redirect('/admin?error=missing-fields')
 
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const docRef = db.collection('leagues').doc(leagueId)
-        const doc = await docRef.get()
-        if (doc.exists) {
-          const current = Boolean(doc.data()?.registration_open)
-          await docRef.update({ registration_open: !current })
-        }
-      } catch (error) {
-        console.error('Failed to toggle registration in Firestore:', error)
-      }
-    }
-  } else {
-    // Mock Mode
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const existing = cookieStore.get('mock_leagues')?.value
-      let current = existing ? JSON.parse(existing) : []
-      current = current.map((l: any) => l.id === leagueId ? { ...l, registrationOpen: !l.registrationOpen } : l)
-      cookieStore.set('mock_leagues', JSON.stringify(current), { path: '/', maxAge: 60 * 60 * 24 * 30 })
-    } catch {}
+  // registrationOpen is derived from status === 'open'; toggling flips between open/draft.
+  const league = await db.league.findUnique({ where: { id: leagueId }, select: { status: true } })
+  if (league) {
+    await db.league.update({
+      where: { id: leagueId },
+      data: { status: league.status === 'open' ? 'draft' : 'open' },
+    }).catch((error) => console.error('Failed to toggle registration:', error))
   }
 
   invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
@@ -259,35 +157,16 @@ export async function quickToggleLeagueRegistrationAction(formData: FormData) {
 }
 
 export async function quickToggleLeagueFeaturedAction(formData: FormData) {
-  const session = await guardPlatformAdmin()
+  await guardPlatformAdmin()
   const leagueId = String(formData.get('leagueId') || '')
 
   if (!leagueId) redirect('/admin?error=missing-fields')
 
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const docRef = db.collection('leagues').doc(leagueId)
-        const doc = await docRef.get()
-        if (doc.exists) {
-          const current = Boolean(doc.data()?.is_featured)
-          await docRef.update({ is_featured: !current })
-        }
-      } catch (error) {
-        console.error('Failed to toggle featured in Firestore:', error)
-      }
-    }
-  } else {
-    // Mock Mode
-    try {
-      const { cookies } = await import('next/headers')
-      const cookieStore = await cookies()
-      const existing = cookieStore.get('mock_leagues')?.value
-      let current = existing ? JSON.parse(existing) : []
-      current = current.map((l: any) => l.id === leagueId ? { ...l, featured: !l.featured } : l)
-      cookieStore.set('mock_leagues', JSON.stringify(current), { path: '/', maxAge: 60 * 60 * 24 * 30 })
-    } catch {}
+  const league = await db.league.findUnique({ where: { id: leagueId }, select: { isFeatured: true } })
+  if (league) {
+    await db.league.update({ where: { id: leagueId }, data: { isFeatured: !league.isFeatured } }).catch((error) =>
+      console.error('Failed to toggle featured:', error)
+    )
   }
 
   invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
@@ -298,74 +177,15 @@ export async function quickToggleLeagueFeaturedAction(formData: FormData) {
 }
 
 export async function deleteLeagueAction(formData: FormData) {
-  const session = await guardPlatformAdmin()
+  await guardPlatformAdmin()
   const leagueId = String(formData.get('leagueId') || '')
 
   if (!leagueId) redirect('/admin?error=missing-fields')
 
-  if (hasFirebase) {
-    const db = getFirestoreDb()
-    if (db) {
-      try {
-        const batch = db.batch()
-
-        // 1. Delete league members
-        const membersSnap = await db.collection('league_members').where('league_id', '==', leagueId).get()
-        membersSnap.docs.forEach((doc: any) => batch.delete(doc.ref))
-
-        // 2. Delete league events
-        const eventsSnap = await db.collection('league_events').where('league_id', '==', leagueId).get()
-        eventsSnap.docs.forEach((doc: any) => batch.delete(doc.ref))
-
-        // 3. Delete registrations
-        const registrationsSnap = await db.collection('league_registrations').where('league_id', '==', leagueId).get()
-        registrationsSnap.docs.forEach((doc: any) => batch.delete(doc.ref))
-
-        // 4. Delete team registrations if any exist
-        const teamRegsSnap = await db.collection('league_team_registrations').where('league_id', '==', leagueId).get()
-        teamRegsSnap.docs.forEach((doc: any) => batch.delete(doc.ref))
-
-        // 5. Delete results
-        const resultsSnap = await db.collection('league_results').where('league_id', '==', leagueId).get()
-        resultsSnap.docs.forEach((doc: any) => batch.delete(doc.ref))
-
-        // 6. Delete result imports
-        const importsSnap = await db.collection('league_result_imports').where('league_id', '==', leagueId).get()
-        importsSnap.docs.forEach((doc: any) => batch.delete(doc.ref))
-
-        // 7. Delete cars
-        const carsSnap = await db.collection('league_cars').where('league_id', '==', leagueId).get()
-        carsSnap.docs.forEach((doc: any) => batch.delete(doc.ref))
-
-        // 8. Delete league itself
-        batch.delete(db.collection('leagues').doc(leagueId))
-
-        await batch.commit()
-      } catch (error) {
-        console.error('Failed to delete league in Firestore:', error)
-      }
-    }
-  }
-
-  // ALWAYS filter and update the mock_leagues cookie so that the league is removed even if we combine with mock fallback
-  try {
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const existing = cookieStore.get('mock_leagues')?.value
-    
-    let current = []
-    if (existing) {
-      current = JSON.parse(existing)
-    } else {
-      const { leagues: defaultLeagues } = await import('@/data/mock')
-      current = [...defaultLeagues]
-    }
-
-    current = current.filter((l: any) => l.id !== leagueId)
-    cookieStore.set('mock_leagues', JSON.stringify(current), { path: '/', maxAge: 60 * 60 * 24 * 30 })
-  } catch (e) {
-    console.error('Failed to update mock_leagues cookie on admin deletion:', e)
-  }
+  // Every child table cascades from leagues via FK — one delete is enough.
+  await db.league.delete({ where: { id: leagueId } }).catch((error) => {
+    console.error('Failed to delete league:', error)
+  })
 
   invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
   revalidatePath('/admin')

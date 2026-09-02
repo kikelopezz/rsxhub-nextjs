@@ -4,7 +4,7 @@ import { CenterModal } from '@/components/center-modal'
 import { ImagePicker } from '@/components/image-picker'
 import { DeleteTeamButton } from '@/components/delete-team-button'
 import { FormattedDate } from '@/components/formatted-date'
-import { Sparkles, Youtube, MessageSquare, Trophy, Radio, CalendarClock } from 'lucide-react'
+import { Sparkles, Youtube, MessageSquare, Trophy, Radio, CalendarClock, Instagram, Twitter, Twitch, Music2 } from 'lucide-react'
 import { updateTeam, deleteTeamAction } from '@/app/equipos/actions/team-crud'
 import type { TeamStats, TeamPilot } from '../team-utils'
 import { getLocale } from '@/lib/i18n/get-locale'
@@ -163,31 +163,35 @@ export async function TeamBannerStats({
                   </div>
                 </div>
 
-                {/* Social Community Links */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-355 uppercase tracking-wider font-semibold text-left font-sans">
-                      {t.discordLink}
-                    </label>
-                    <input
-                      type="url"
-                      name="discordUrl"
-                      defaultValue={team.discordUrl || ''}
-                      placeholder={t.discordPlaceholder}
-                      className="w-full border border-shell-line bg-black/40 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-white/30 rounded-lg transition-colors text-left"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-355 uppercase tracking-wider font-semibold text-left font-sans">
-                      {t.youtubeLink}
-                    </label>
-                    <input
-                      type="url"
-                      name="youtubeUrl"
-                      defaultValue={team.youtubeUrl || ''}
-                      placeholder={t.youtubePlaceholder}
-                      className="w-full border border-shell-line bg-black/40 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-white/30 rounded-lg transition-colors text-left"
-                    />
+                {/* Social Community Links — each is independently optional, so the
+                    team effectively "chooses" which networks to show by filling
+                    only the ones they care about. */}
+                <div>
+                  <label className="mb-2 block text-xs text-slate-355 uppercase tracking-wider font-semibold text-left font-sans">
+                    {t.socialLinksTitle}
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[
+                      { name: 'discordUrl', value: team.discordUrl, label: t.discordLink, placeholder: t.discordPlaceholder },
+                      { name: 'youtubeUrl', value: team.youtubeUrl, label: t.youtubeLink, placeholder: t.youtubePlaceholder },
+                      { name: 'instagramUrl', value: team.instagramUrl, label: t.instagramLink, placeholder: t.instagramPlaceholder },
+                      { name: 'twitterUrl', value: team.twitterUrl, label: t.twitterLink, placeholder: t.twitterPlaceholder },
+                      { name: 'twitchUrl', value: team.twitchUrl, label: t.twitchLink, placeholder: t.twitchPlaceholder },
+                      { name: 'tiktokUrl', value: team.tiktokUrl, label: t.tiktokLink, placeholder: t.tiktokPlaceholder },
+                    ].map((field) => (
+                      <div key={field.name}>
+                        <label className="mb-1 block text-xs text-slate-355 uppercase tracking-wider font-semibold text-left font-sans">
+                          {field.label}
+                        </label>
+                        <input
+                          type="url"
+                          name={field.name}
+                          defaultValue={field.value || ''}
+                          placeholder={field.placeholder}
+                          className="w-full border border-shell-line bg-black/40 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-white/30 rounded-lg transition-colors text-left"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -291,6 +295,50 @@ export async function TeamBannerStats({
               >
                 <Youtube className="h-3.5 w-3.5" />
                 {t.youtube}
+              </a>
+            )}
+            {team.instagramUrl && (
+              <a
+                href={team.instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 border border-[#E1306C]/40 bg-[#E1306C]/10 hover:bg-[#E1306C]/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#E1306C] hover:text-white rounded-lg transition-all cursor-pointer"
+              >
+                <Instagram className="h-3.5 w-3.5" />
+                {t.instagram}
+              </a>
+            )}
+            {team.twitterUrl && (
+              <a
+                href={team.twitterUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 border border-white/30 bg-white/10 hover:bg-white/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white rounded-lg transition-all cursor-pointer"
+              >
+                <Twitter className="h-3.5 w-3.5" />
+                {t.twitter}
+              </a>
+            )}
+            {team.twitchUrl && (
+              <a
+                href={team.twitchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 border border-[#9146FF]/40 bg-[#9146FF]/10 hover:bg-[#9146FF]/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#9146FF] hover:text-white rounded-lg transition-all cursor-pointer"
+              >
+                <Twitch className="h-3.5 w-3.5" />
+                {t.twitch}
+              </a>
+            )}
+            {team.tiktokUrl && (
+              <a
+                href={team.tiktokUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 border border-cyan-400/40 bg-cyan-400/10 hover:bg-cyan-400/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-cyan-300 hover:text-white rounded-lg transition-all cursor-pointer"
+              >
+                <Music2 className="h-3.5 w-3.5" />
+                {t.tiktok}
               </a>
             )}
           </div>

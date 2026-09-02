@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
+import { db } from '@/lib/db'
 import { guardLeaguePermission } from './admin-league'
 
 function addMinutesToIso(startsAt: string, durationMinutes: number) {
@@ -12,12 +12,21 @@ function addMinutesToIso(startsAt: string, durationMinutes: number) {
   return end.toISOString()
 }
 
+function parseClassLimits(formData: FormData) {
+  const classLimits: Record<string, number> = {}
+  for (const [key, val] of formData.entries()) {
+    if (key.startsWith('max_cars_') && val) {
+      const cat = key.slice('max_cars_'.length)
+      const num = Number(val)
+      if (Number.isFinite(num) && num > 0) classLimits[cat] = num
+    }
+  }
+  return classLimits
+}
+
 export async function createEvent(formData: FormData) {
   const leagueId = String(formData.get('leagueId') || '')
   const { session } = await guardLeaguePermission(leagueId, 'manage')
-  if (!hasFirebase) redirect('/admin?mode=mock')
-  const db = getFirestoreDb()
-  if (!db) redirect('/admin?mode=mock')
 
   const title = String(formData.get('title') || '').trim()
   const startsAt = String(formData.get('startsAt') || '').trim()
@@ -45,25 +54,20 @@ export async function createEvent(formData: FormData) {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '')
 
-      circuitId = `custom_${slug}`
-      await db.collection('circuits').doc(circuitId).set({
-        name: customCircuitName,
-        slug,
-        image_url: customCircuitImageUrl,
-        is_system: false,
-        created_by: session.userId,
-        created_at: new Date(),
-      }, { merge: true })
-
+      const circuit = await db.circuit.upsert({
+        where: { slug },
+        create: { name: customCircuitName, slug, imageUrl: customCircuitImageUrl, isSystem: false, createdBy: session.userId },
+        update: { name: customCircuitName, imageUrl: customCircuitImageUrl },
+      })
+      circuitId = circuit.id
       circuitName = customCircuitName
     } else if (selectedCircuitId) {
-      const circuitDoc = await db.collection('circuits').doc(selectedCircuitId).get()
-      if (!circuitDoc.exists) {
+      const circuit = await db.circuit.findUnique({ where: { id: selectedCircuitId } })
+      if (!circuit) {
         redirect(`/admin/ligas/${leagueId}?eventError=circuit-not-found`)
       }
-
-      circuitId = circuitDoc.id
-      circuitName = circuitDoc.data()?.name || ''
+      circuitId = circuit.id
+      circuitName = circuit.name
     } else {
       circuitName = String(formData.get('circuitName') || '').trim()
     }
@@ -74,30 +78,29 @@ export async function createEvent(formData: FormData) {
 
     const maxDriversRaw = formData.get('maxDrivers')
     const maxDrivers = maxDriversRaw ? Number(maxDriversRaw) : null
+    const classLimits = parseClassLimits(formData)
 
-    const classLimits: Record<string, number> = {}
-    for (const [key, val] of formData.entries()) {
-      if (key.startsWith('max_cars_') && val) {
-        const cat = key.slice('max_cars_'.length)
-        const num = Number(val)
-        if (Number.isFinite(num) && num > 0) classLimits[cat] = num
-      }
-    }
-
-    await db.collection('league_events').add({
-      league_id: leagueId,
-      title,
-      circuit_id: circuitId,
-      circuit_name: circuitName,
-      starts_at: startsAt,
-      ends_at: endsAt,
-      max_drivers: maxDrivers,
-      class_limits: classLimits,
-      status: String(formData.get('status') || 'scheduled'),
-      created_at: new Date(),
+    const event = await db.leagueEvent.create({
+      data: {
+        leagueId,
+        title,
+        circuitId,
+        circuitName,
+        startsAt: new Date(startsAt),
+        endsAt: new Date(endsAt),
+        maxDrivers,
+        status: (String(formData.get('status') || 'scheduled')) as any,
+      },
     })
+
+    const limitEntries = Object.entries(classLimits)
+    if (limitEntries.length > 0) {
+      await db.leagueClassLimit.createMany({
+        data: limitEntries.map(([classTag, maxCars]) => ({ leagueId, eventId: event.id, classTag, maxCars })),
+      })
+    }
   } catch (error) {
-    console.error('Failed to create event in Firestore:', error)
+    console.error('Failed to create event:', error)
     redirect(`/admin/ligas/${leagueId}?eventError=create-failed`)
   }
 
@@ -112,10 +115,6 @@ export async function updateEvent(formData: FormData) {
   const eventId = String(formData.get('eventId') || '')
   await guardLeaguePermission(leagueId, 'manage')
 
-  if (!hasFirebase) redirect('/admin?mode=mock')
-  const db = getFirestoreDb()
-  if (!db) redirect('/admin?mode=mock')
-
   const title = String(formData.get('title') || '').trim()
   const circuitName = String(formData.get('circuitName') || '').trim()
   const startsAt = String(formData.get('startsAt') || '').trim()
@@ -129,29 +128,30 @@ export async function updateEvent(formData: FormData) {
 
   const maxDriversRaw = formData.get('maxDrivers')
   const maxDrivers = maxDriversRaw ? Number(maxDriversRaw) : null
-
-  const classLimits: Record<string, number> = {}
-  for (const [key, val] of formData.entries()) {
-    if (key.startsWith('max_cars_') && val) {
-      const cat = key.slice('max_cars_'.length)
-      const num = Number(val)
-      if (Number.isFinite(num) && num > 0) classLimits[cat] = num
-    }
-  }
+  const classLimits = parseClassLimits(formData)
 
   try {
-    await db.collection('league_events').doc(eventId).update({
-      title,
-      circuit_name: circuitName,
-      starts_at: startsAt,
-      ends_at: endsAt,
-      max_drivers: maxDrivers,
-      class_limits: classLimits,
-      status,
-      circuit_id: null,
+    await db.leagueEvent.update({
+      where: { id: eventId },
+      data: {
+        title,
+        circuitName,
+        startsAt: new Date(startsAt),
+        endsAt: new Date(endsAt),
+        maxDrivers,
+        status: status as any,
+      },
     })
+
+    await db.leagueClassLimit.deleteMany({ where: { eventId } })
+    const limitEntries = Object.entries(classLimits)
+    if (limitEntries.length > 0) {
+      await db.leagueClassLimit.createMany({
+        data: limitEntries.map(([classTag, maxCars]) => ({ leagueId, eventId, classTag, maxCars })),
+      })
+    }
   } catch (error) {
-    console.error('Failed to update event in Firestore:', error)
+    console.error('Failed to update event:', error)
     redirect(`/admin/ligas/${leagueId}?eventError=update-failed`)
   }
 
