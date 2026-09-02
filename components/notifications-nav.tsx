@@ -101,10 +101,10 @@ export function NotificationsNav({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`relative flex items-center justify-center h-10 w-10 rounded-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-90 cursor-pointer ${
+        className={`relative flex items-center justify-center h-10 w-10 rounded-lg transition-all duration-200 hover:-translate-y-1 hover:scale-110 active:scale-90 cursor-pointer ${
           hasUnread
             ? 'bg-[#1274de]/25 border-2 border-[#1274de] text-[#1274de] animate-rsx-breath shadow-[0_0_18px_rgba(18,116,222,0.8)]'
-            : 'border border-white/20 bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white'
+            : 'border border-white/20 bg-white/5 hover:bg-white/10 hover:border-[#4ea1ff] hover:shadow-[0_0_18px_rgba(78,161,255,0.65)] text-slate-200 hover:text-white'
         }`}
         title="Notification Center"
         aria-label="Notification Center"

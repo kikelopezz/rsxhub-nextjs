@@ -20,9 +20,9 @@ export function LanguageSwitcher() {
   }
 
   return (
-    <div className="relative flex items-center border border-white/10 bg-black/60 text-[11px] font-bold uppercase tracking-wider overflow-hidden">
+    <div className="relative flex items-center border border-white/10 bg-black/60 text-[11px] font-bold uppercase tracking-wider overflow-hidden transition-all duration-200 hover:border-[#4ea1ff] hover:shadow-[0_0_16px_rgba(78,161,255,0.6)]">
       <span
-        className="absolute inset-y-0 left-0 bg-[#1274de] transition-transform duration-300 ease-out"
+        className="absolute inset-y-0 left-0 bg-[#1274de] shadow-[0_0_14px_rgba(78,161,255,0.8)] transition-transform duration-300 ease-out"
         style={{ width: `${100 / locales.length}%`, transform: `translateX(${activeIndex * 100}%)` }}
         aria-hidden="true"
       />
