@@ -3,18 +3,18 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Calendar, Clock, MapPin, Plus, Trash2, Edit2, X, Play, ChevronLeft, ChevronRight, Grid, ListFilter } from 'lucide-react'
+import { Calendar, Clock, Plus, Trash2, Edit2, X, Play, ChevronLeft, ChevronRight, Grid, ListFilter } from 'lucide-react'
 import { saveCalendarEvent, deleteCalendarEvent } from './actions'
 import { ImagePicker } from '@/components/image-picker'
 import { getCountryFlag } from '@/lib/countries'
 
 function hexToRgba(hex: string, alpha: number) {
-  if (!hex || typeof hex !== 'string') return `rgba(18, 116, 222, ${alpha})`
+  if (!hex || typeof hex !== 'string') return `rgba(78, 161, 255, ${alpha})`
   let c = hex.trim().replace('#', '')
   if (c.length === 3) {
     c = c.split('').map((char) => char + char).join('')
   }
-  if (c.length !== 6) return `rgba(18, 116, 222, ${alpha})`
+  if (c.length !== 6) return `rgba(78, 161, 255, ${alpha})`
   const r = parseInt(c.substring(0, 2), 16)
   const g = parseInt(c.substring(2, 4), 16)
   const b = parseInt(c.substring(4, 6), 16)
@@ -54,12 +54,18 @@ type Props = {
   anchorDateStr: string
   viewMode: 'month' | 'programme'
   isAdmin: boolean
-  monthDaysStr: string[] // ISO strings for serialization
-  weekDaysStr: string[]  // ISO strings for serialization
+  monthDaysStr: string[]
+  weekDaysStr: string[]
   prevMonthStr: string
   nextMonthStr: string
   prevWeekStr: string
   nextWeekStr: string
+}
+
+const EVENT_TYPE_COLOR: Record<string, string> = {
+  RACE: '#ef4444',
+  QUALIFYING: '#38bdf8',
+  'TIME ATTACK': '#f59e0b',
 }
 
 export default function CalendarContent({
@@ -69,37 +75,17 @@ export default function CalendarContent({
   viewMode,
   isAdmin,
   monthDaysStr,
-  weekDaysStr,
   prevMonthStr,
   nextMonthStr,
-  prevWeekStr,
-  nextWeekStr,
 }: Props) {
   const router = useRouter()
   const anchorDate = new Date(anchorDateStr)
-  const monthDays = monthDaysStr.map(s => new Date(s))
-  const weekDays = weekDaysStr.map(s => new Date(s))
+  const monthDays = monthDaysStr.map((s) => new Date(s))
 
   const leagueById = new Map(leagues.map((league) => [league.id, league]))
 
-  function getLeagueGradient(leagueTitle?: string, leagueSlug?: string, accentColor?: string | null, sessionType?: string) {
-    if (accentColor && accentColor.startsWith('#')) {
-      return `linear-gradient(to right, ${accentColor} 0%, ${accentColor}dd 55%, ${accentColor}bb 100%)`
-    }
-
-    const title = String(leagueTitle || '').toUpperCase()
-    const slug = String(leagueSlug || '').toLowerCase()
-    
-    if (slug.includes('erc-ng') || slug.includes('nextgen') || title.includes('NEXT GEN') || title.includes('NG')) {
-      // Next Gen: Smooth Coral-Red to Warm Orange Horizontal Fade (matching sample screenshot)
-      return 'linear-gradient(to right, #ea384d 0%, #f96332 55%, #ff8c42 100%)'
-    }
-    if (slug.includes('erc') || title.includes('ERC') || title.includes('ENDURANCE REAL')) {
-      // ERC: Smooth Motorsport Blue to Soft Cyan Horizontal Fade
-      return 'linear-gradient(to right, #1d4ed8 0%, #2563eb 55%, #38bdf8 100%)'
-    }
-    // General fallback: Smooth Teal to Soft Cyan Horizontal Fade
-    return 'linear-gradient(to right, #0f766e 0%, #0d9488 55%, #2dd4bf 100%)'
+  function getEventColor(event: LeagueEvent, league?: League) {
+    return (event as any).color || league?.accentColor || '#4ea1ff'
   }
 
   const [events, setEvents] = useState<LeagueEvent[]>(initialEvents)
@@ -113,7 +99,6 @@ export default function CalendarContent({
     events.forEach((ev) => {
       const isQualyEnabled = ev.hasQualy === true || String(ev.hasQualy) === 'true' || Boolean(ev.hasQualy)
 
-      // Add Qualy session if enabled
       if (isQualyEnabled && (ev.qualyStartsAt || ev.startsAt)) {
         list.push({
           ...ev,
@@ -125,7 +110,6 @@ export default function CalendarContent({
         })
       }
 
-      // Add Main Race / Session
       list.push({
         ...ev,
         eventType: ev.eventType || 'race',
@@ -166,14 +150,10 @@ export default function CalendarContent({
   const [formServerLink, setFormServerLink] = useState('')
   const [formEventType, setFormEventType] = useState<'race' | 'qualifying' | 'time_attack'>('race')
   const [formCountryCode, setFormCountryCode] = useState('ESP')
-  const [formColor, setFormColor] = useState('#00f2fe')
+  const [formColor, setFormColor] = useState('#4ea1ff')
 
   // Programme filter state
-  const [programmeFilter, setProgrammeFilter] = useState<'all' | 'race' | 'qualifying' | 'time_attack'>('all')
-
-  // Tracks sim-logo thumbnails that failed to load, so we can show a placeholder instead of a broken image icon
-  const [brokenLogoIds, setBrokenLogoIds] = useState<Set<string>>(new Set())
-  const markLogoBroken = (id: string) => setBrokenLogoIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)))
+  const [programmeFilter, setProgrammeFilter] = useState<'all' | 'race' | 'time_attack'>('all')
 
   function pad(value: number) {
     return String(value).padStart(2, '0')
@@ -182,6 +162,15 @@ export default function CalendarContent({
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  // Live countdown clock for the "next session" spotlight — only ticks after mount
+  // so the server render (no clock) always matches the client's first paint.
+  const [now, setNow] = useState<number | null>(null)
+  useEffect(() => {
+    setNow(Date.now())
+    const id = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(id)
   }, [])
 
   function formatTime(startsAt: string) {
@@ -217,7 +206,7 @@ export default function CalendarContent({
     return { code: 'ES', abbr: 'ESP' }
   }
 
-  function getEventType(event: LeagueEvent, league?: League): 'RACE' | 'QUALIFYING' | 'TIME ATTACK' {
+  function getEventType(event: LeagueEvent): 'RACE' | 'QUALIFYING' | 'TIME ATTACK' {
     if (event.eventType === 'qualifying') return 'QUALIFYING'
     if (event.eventType === 'time_attack') return 'TIME ATTACK'
     if (event.eventType === 'race') return 'RACE'
@@ -225,24 +214,10 @@ export default function CalendarContent({
     const title = String(event.title || '').toUpperCase()
     const circuit = String(event.circuitName || '').toUpperCase()
 
-    if (
-      title.includes('QUALIFYING') ||
-      title.includes('QUALY') ||
-      circuit.includes('QUALIFYING') ||
-      circuit.includes('QUALY')
-    ) {
+    if (title.includes('QUALIFYING') || title.includes('QUALY') || circuit.includes('QUALIFYING') || circuit.includes('QUALY')) {
       return 'QUALIFYING'
     }
-
-    if (
-      title.includes('TIME ATTACK') ||
-      title.includes('HOTLAP') ||
-      title.includes('TIME TRIAL') ||
-      title.includes('TA ') ||
-      title.includes('TA-') ||
-      circuit.includes('TIME ATTACK') ||
-      circuit.includes('HOTLAP')
-    ) {
+    if (title.includes('TIME ATTACK') || title.includes('HOTLAP') || title.includes('TIME TRIAL') || title.includes('TA ') || title.includes('TA-') || circuit.includes('TIME ATTACK') || circuit.includes('HOTLAP')) {
       return 'TIME ATTACK'
     }
     return 'RACE'
@@ -253,28 +228,14 @@ export default function CalendarContent({
   }
 
   function monthLabel(date: Date) {
-    return date.toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'UTC',
-    })
-  }
-
-  function dayLabel(date: Date) {
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      timeZone: 'UTC',
-    })
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
   }
 
   const handleCellClick = (date: Date) => {
-    if (!isAdmin) return // Only admins can click to manage
+    if (!isAdmin) return
     setSelectedDate(date)
     setEditingEvent(null)
     setErrorMessage('')
-    // Reset form
     setFormLeagueId(leagues[0]?.id || '')
     setFormTitle('')
     setFormCircuit('')
@@ -284,7 +245,7 @@ export default function CalendarContent({
     setFormServerLink('')
     setFormEventType('race')
     setFormCountryCode('ESP')
-    setFormColor('#00f2fe')
+    setFormColor('#4ea1ff')
   }
 
   const handleEditClick = (event: LeagueEvent) => {
@@ -294,9 +255,8 @@ export default function CalendarContent({
     setFormCircuit(event.circuitName)
     setFormEventType((event.eventType as 'race' | 'qualifying' | 'time_attack') || 'race')
     setFormCountryCode(event.countryCode || 'ESP')
-    setFormColor((event as any).color || '#00f2fe')
-    
-    // Parse time in local timezone
+    setFormColor((event as any).color || '#4ea1ff')
+
     const startsDate = new Date(event.startsAt)
     const endsDate = new Date(event.endsAt)
     setSelectedDate(startsDate)
@@ -317,7 +277,7 @@ export default function CalendarContent({
     setFormServerLink('')
     setFormEventType('race')
     setFormCountryCode('ESP')
-    setFormColor('#00f2fe')
+    setFormColor('#4ea1ff')
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -373,14 +333,12 @@ export default function CalendarContent({
         setIsSubmitting(false)
         return
       }
-      // Reset form states
       setEditingEvent(null)
       setFormTitle('')
       setFormCircuit('')
       setFormImageUrl('')
       setFormServerLink('')
       router.refresh()
-      // Keep modal open so they can see / add multiple events
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to save event.')
     } finally {
@@ -409,475 +367,263 @@ export default function CalendarContent({
   const activeDayKey = selectedDate ? dateKeyUTC(selectedDate) : ''
   const activeDayEvents = selectedDate ? (eventsByDay.get(activeDayKey) || []) : []
 
+  // Next upcoming session, for the spotlight strip
+  const nextSession = useMemo(() => {
+    const nowMs = Date.now()
+    const future = expandedSessions
+      .filter((s) => new Date(s.startsAt).getTime() > nowMs)
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+    return future[0] || null
+  }, [expandedSessions])
+
+  const nextLeague = nextSession ? leagueById.get(nextSession.leagueId) : undefined
+
+  const countdown = useMemo(() => {
+    if (!nextSession || now === null) return null
+    const diff = Math.max(0, new Date(nextSession.startsAt).getTime() - now)
+    return {
+      days: Math.floor(diff / 86_400_000),
+      hours: Math.floor((diff % 86_400_000) / 3_600_000),
+      mins: Math.floor((diff % 3_600_000) / 60_000),
+    }
+  }, [nextSession, now])
+
   return (
-    <div className="space-y-4 text-white">
+    <div className="space-y-6 text-white">
       <style>{`
-        @keyframes calendar-today-breath {
-          0% {
-            border-color: #1274de;
-            box-shadow: 0 0 6px rgba(18, 116, 222, 0.45), inset 0 0 10px rgba(18, 116, 222, 0.25);
-          }
-          50% {
-            border-color: #3b82f6;
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.95), inset 0 0 16px rgba(59, 130, 246, 0.5);
-          }
-          100% {
-            border-color: #1274de;
-            box-shadow: 0 0 6px rgba(18, 116, 222, 0.45), inset 0 0 10px rgba(18, 116, 222, 0.25);
-          }
+        @keyframes today-ring-pulse {
+          0%, 100% { opacity: .55; box-shadow: 0 0 8px rgba(78,161,255,.6); transform: translate(-50%, -50%) scale(.92); }
+          50% { opacity: 1; box-shadow: 0 0 16px rgba(78,161,255,.9); transform: translate(-50%, -50%) scale(1.06); }
         }
-        .today-breath-active {
-          animation: calendar-today-breath 2s infinite ease-in-out;
-          border: 2px solid #1274de !important;
+        .today-ring::after {
+          content: '';
+          position: absolute;
+          left: 50%; top: 15px;
+          width: 24px; height: 24px;
+          transform: translate(-50%, -50%);
+          border: 1.5px solid #4ea1ff;
+          border-radius: 999px;
+          pointer-events: none;
+          animation: today-ring-pulse 2.2s ease-in-out infinite;
         }
       `}</style>
-      {/* Main Page Title Header */}
-      <div className="border-b border-shell-line pb-4">
-        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white italic flex items-center gap-3">
-          <Calendar className="h-7 w-7 text-cyan-400" />
+
+      {/* Page title */}
+      <div className="border-b border-shell-line pb-5">
+        <span className="font-mono-data text-[11px] font-medium tracking-[0.35em] text-[#4ea1ff]">
+          TEMPORADA {anchorDate.getUTCFullYear()}
+        </span>
+        <h1 className="font-display-condensed mt-1 flex items-center gap-3 text-4xl font-extrabold uppercase tracking-tight text-white md:text-5xl">
+          <Calendar className="h-7 w-7 text-[#4ea1ff]" />
           Race Calendar
         </h1>
-        <p className="text-xs md:text-sm text-slate-400 mt-1">
+        <p className="mt-2 max-w-xl text-xs text-slate-400 md:text-sm">
           Schedule of upcoming races, endurance events, and official championship sessions.
         </p>
       </div>
 
-      {/* 1. Header controls */}
-      <section className="shell-panel p-3.5 md:p-4 rounded-none bg-gradient-to-r from-[#090d16] via-[#0d1322] to-[#090d16] border border-cyan-500/20 shadow-lg">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Toggle View Mode: Month Grid vs Official Programme */}
-          <div className="inline-flex p-1 bg-black/60 border border-white/10 rounded-none shadow-inner">
-            <Link
-              href={buildCalendarUrl('month', anchorDate)}
-              className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-none transition-all flex items-center gap-2 cursor-pointer ${
-                viewMode === 'month'
-                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.4)] border border-cyan-400/50'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Grid className="h-3.5 w-3.5" />
-              MONTH GRID
-            </Link>
-            <Link
-              href={buildCalendarUrl('programme', anchorDate)}
-              className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-none transition-all flex items-center gap-2 cursor-pointer ${
-                viewMode === 'programme'
-                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.4)] border border-cyan-400/50'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <ListFilter className="h-3.5 w-3.5" />
-              PROGRAMME
-            </Link>
-          </div>
+      {/* Spotlight: next session */}
+      {nextSession && (() => {
+        const country = getCircuitCountry(nextSession)
+        const flag = getCountryFlag(country.abbr)
+        const type = getEventType(nextSession)
+        const typeColor = EVENT_TYPE_COLOR[type]
+        const raceTitle = nextSession.title?.trim() || nextSession.circuitName
 
-          {/* Date Navigation Controls */}
-          {viewMode === 'month' && (
-            <div className="flex items-center gap-1.5 bg-black/60 p-1 border border-white/10 rounded-none">
-              <Link
-                href={buildCalendarUrl('month', new Date(prevMonthStr))}
-                title="Previous Month"
-                className="border border-white/10 bg-white/5 hover:bg-cyan-500/20 hover:border-cyan-500/50 text-slate-300 hover:text-cyan-300 px-3 py-2 text-xs font-bold uppercase tracking-wider rounded-none transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Prev</span>
-              </Link>
-              <div className="border border-cyan-500/30 bg-cyan-950/40 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-white rounded-none flex items-center gap-2 shadow-inner">
-                <Calendar className="h-3.5 w-3.5 text-cyan-400" />
-                <span>{monthLabel(anchorDate)}</span>
-              </div>
-              <Link
-                href={buildCalendarUrl('month', new Date(nextMonthStr))}
-                title="Next Month"
-                className="border border-white/10 bg-white/5 hover:bg-cyan-500/20 hover:border-cyan-500/50 text-slate-300 hover:text-cyan-300 px-3 py-2 text-xs font-bold uppercase tracking-wider rounded-none transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* 2. Official Programme View or Month Grid View */}
-      {viewMode === 'programme' ? (
-        <section className="shell-panel p-6 md:p-10 rounded-none bg-gradient-to-b from-[#0a0f1d] via-[#090d18] to-[#04060b] border border-white/10 space-y-8">
-          {/* Official Programme Title Banner & Filters */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/10 pb-6">
-            <div className="space-y-1">
-              <p className="text-xs font-black uppercase tracking-[0.35em] text-[#1274de] italic">OFFICIAL</p>
-              <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tight text-white drop-shadow-md">
-                PROGRAMME
-              </h2>
-            </div>
-
-            {/* Event Format Filter Tabs: ALL, RACES, TIME ATTACK */}
-            <div className="flex items-center gap-1 bg-black/40 p-1 border border-white/10 self-start md:self-auto flex-wrap">
-              <button
-                type="button"
-                onClick={() => setProgrammeFilter('all')}
-                className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-colors rounded-none ${
-                  programmeFilter === 'all' ? 'bg-[#1274de] text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                ALL ({expandedSessions.filter(s => getEventType(s, leagueById.get(s.leagueId)) !== 'QUALIFYING').length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setProgrammeFilter('race')}
-                className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-colors rounded-none flex items-center gap-1.5 ${
-                  programmeFilter === 'race' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                🏁 RACES ({expandedSessions.filter(s => getEventType(s, leagueById.get(s.leagueId)) === 'RACE').length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setProgrammeFilter('time_attack')}
-                className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-colors rounded-none flex items-center gap-1.5 ${
-                  programmeFilter === 'time_attack' ? 'bg-amber-500 text-black font-black' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                ⏱️ TIME ATTACK ({expandedSessions.filter(s => getEventType(s, leagueById.get(s.leagueId)) === 'TIME ATTACK').length})
-              </button>
-            </div>
-          </div>
-
-          {/* List of Sessions in Programme Format */}
-          <div className="space-y-4 max-w-4xl mx-auto">
-            {(() => {
-              const filteredEvents = [...expandedSessions]
-                .filter((event) => {
-                  const type = getEventType(event, leagueById.get(event.leagueId))
-                  if (type === 'QUALIFYING') return false // El programme solo muestra RACES y TIME ATTACK
-                  if (programmeFilter === 'race') return type === 'RACE'
-                  if (programmeFilter === 'time_attack') return type === 'TIME ATTACK'
-                  return true
-                })
-                .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
-
-              if (filteredEvents.length === 0) {
-                return (
-                  <div className="p-12 text-center text-slate-500 italic text-sm border border-dashed border-white/10">
-                    No scheduled {programmeFilter === 'all' ? 'events' : programmeFilter === 'race' ? 'races' : 'time attack sessions'} in the programme.
-                  </div>
-                )
-              }
-
-              return filteredEvents.map((event) => {
-                const country = getCircuitCountry(event)
-                const flag = getCountryFlag(country.code)
-                const league = leagueById.get(event.leagueId)
-                const eventType = getEventType(event, league)
-                const eventDate = new Date(event.startsAt)
-                const monthName = eventDate.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' }).toUpperCase()
-                const dayNumber = eventDate.getUTCDate()
-                const eventColor = (event as any).color || league?.accentColor || '#1274de'
-
-                return (
-                  <div
-                    key={event.id}
-                    className="border border-white/10 hover:border-white/25 border-l-4 bg-gradient-to-r from-[#121929]/95 via-[#18233a]/90 to-[#121929]/95 p-4 md:p-5 rounded-none transition-all duration-200 hover:brightness-110 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg group"
-                    style={{ borderLeftColor: eventColor }}
+        return (
+          <section className="grid overflow-hidden rounded-2xl border border-white/10 bg-[#0d1420] shadow-lg md:grid-cols-[1.1fr_0.9fr]">
+            <div
+              className="relative hidden min-h-[190px] overflow-hidden md:block"
+              style={{
+                backgroundImage: nextSession.circuitImageUrl
+                  ? `linear-gradient(90deg, #0d1420 0%, rgba(13,20,32,.55) 55%, rgba(13,20,32,.15) 100%), url(${nextSession.circuitImageUrl})`
+                  : `radial-gradient(600px 300px at 80% 20%, ${hexToRgba(typeColor, 0.35)}, transparent 60%), linear-gradient(160deg, #0d2038 0%, #071120 60%, #050a14 100%)`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+            <div className="flex flex-col justify-between gap-4 p-6 md:p-8">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[#4ea1ff]" style={{ borderColor: 'rgba(78,161,255,.5)', backgroundColor: 'rgba(78,161,255,.14)' }}>
+                    Próxima Sesión
+                  </span>
+                  <span
+                    className="rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest"
+                    style={{ borderColor: `${typeColor}66`, backgroundColor: `${typeColor}26`, color: typeColor }}
                   >
-                    {/* Left: Flag + Country Abbreviation */}
-                    <div className="flex items-center gap-3 shrink-0">
-                      {flag ? (
-                        <span className="text-3xl filter drop-shadow">{flag}</span>
-                      ) : null}
-                      <span className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-white font-mono">
-                        {country.abbr}
-                      </span>
-                    </div>
+                    {type === 'RACE' ? '🏁 Race' : type === 'QUALIFYING' ? '⚡ Qualifying' : '⏱ Time Attack'}
+                  </span>
+                </div>
+                <p className="font-mono-data mt-3 text-[11px] tracking-[0.1em] text-slate-400">
+                  {flag ? `${flag} ` : ''}{nextLeague ? nextLeague.title.toUpperCase() : 'RSX LEAGUE'}
+                </p>
+                <h2 className="font-display-condensed text-3xl font-extrabold uppercase leading-none text-white md:text-4xl">
+                  {nextSession.circuitName}
+                </h2>
+                {raceTitle && raceTitle !== nextSession.circuitName && (
+                  <p className="mt-1 text-xs text-slate-400">{raceTitle}</p>
+                )}
+              </div>
 
-                    {/* Middle: Circuit, Event Type Badge, Date */}
-                    <div className="flex-1 space-y-1 sm:px-4">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Event Format Badge: RACE vs QUALIFYING vs TIME ATTACK */}
-                        {eventType === 'TIME ATTACK' ? (
-                          <span className="border border-amber-500/40 bg-amber-500/15 text-amber-300 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-none flex items-center gap-1 shadow-[0_0_8px_rgba(245,158,11,0.2)]">
-                            ⏱️ TIME ATTACK
-                          </span>
-                        ) : eventType === 'QUALIFYING' ? (
-                          <span className="border border-cyan-500/40 bg-cyan-500/15 text-cyan-300 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-none flex items-center gap-1 shadow-[0_0_8px_rgba(6,182,212,0.2)]">
-                            ⚡ QUALIFYING
-                          </span>
-                        ) : (
-                          <span className="border border-red-500/40 bg-red-500/15 text-red-300 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-none flex items-center gap-1 shadow-[0_0_8px_rgba(239,68,68,0.2)]">
-                            🏁 RACE
-                          </span>
-                        )}
-                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                          {event.circuitName} {league ? `· ${league.title}` : ''}
-                        </p>
-                      </div>
-
-                      <h3 className="text-lg md:text-2xl font-black uppercase italic tracking-tight text-white group-hover:text-cyan-300 transition-colors">
-                        {monthName} <span className="text-slate-300 font-bold text-base md:text-xl">{dayNumber}</span>
-                      </h3>
-                      <p className="text-xxs text-slate-400 font-mono font-semibold flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-cyan-400" />
-                        {formatTime(event.startsAt)} GMT-4
-                      </p>
+              <div className="flex flex-wrap items-center justify-between gap-5">
+                <div className="flex gap-2">
+                  {[
+                    { v: countdown ? pad(countdown.days) : '--', l: 'Días' },
+                    { v: countdown ? pad(countdown.hours) : '--', l: 'Horas' },
+                    { v: countdown ? pad(countdown.mins) : '--', l: 'Min' },
+                  ].map((box) => (
+                    <div key={box.l} className="min-w-[52px] rounded-lg border border-white/10 bg-[#0a0f18] px-3 py-1.5 text-center">
+                      <b className="font-mono-data block text-lg text-[#4ea1ff]">{box.v}</b>
+                      <span className="text-[8px] font-bold uppercase tracking-widest text-slate-500">{box.l}</span>
                     </div>
+                  ))}
+                </div>
+                <Link
+                  href={nextLeague ? `/ligas/${nextLeague.slug}` : '/ligas'}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#4ea1ff] bg-[#1274de] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-[0_0_18px_rgba(78,161,255,0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#1f82ee] hover:shadow-[0_0_24px_rgba(78,161,255,0.7)]"
+                >
+                  Ver Detalles →
+                </Link>
+              </div>
+            </div>
+          </section>
+        )
+      })()}
 
-                    {/* Right: Action Button */}
-                    <div className="shrink-0 flex items-center gap-2">
-                      {event.serverLink ? (
-                        <a
-                          href={event.serverLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="border px-6 py-2.5 text-xs font-black uppercase tracking-wider text-white transition-[filter] hover:brightness-125 rounded-none inline-flex items-center gap-1.5 cursor-pointer"
-                          style={{ backgroundColor: '#09152b', borderColor: eventColor, boxShadow: `0 0 12px ${eventColor}4D` }}
-                        >
-                          <Play className="h-3 w-3 fill-current" />
-                          AVAILABLE
-                        </a>
-                      ) : (
-                        <Link
-                          href={league ? `/ligas/${league.slug}` : '/ligas'}
-                          className="bg-[#080d16] border px-6 py-2.5 text-xs font-black uppercase tracking-wider text-white transition-[filter] hover:brightness-125 rounded-none inline-flex items-center gap-1.5"
-                          style={{ borderColor: `${eventColor}66` }}
-                        >
-                          {league?.registrationOpen ? 'AVAILABLE' : 'NOTIFY ME'}
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                )
-              })
-            })()}
+      {/* Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="inline-flex gap-0.5 rounded-lg border border-white/10 bg-black/40 p-1">
+          <Link
+            href={buildCalendarUrl('month', anchorDate)}
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-[11px] font-black uppercase tracking-wider transition-all ${
+              viewMode === 'month' ? 'bg-[#1274de] text-white shadow-[0_0_14px_rgba(78,161,255,0.55)]' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <Grid className="h-3.5 w-3.5" />
+            Month Grid
+          </Link>
+          <Link
+            href={buildCalendarUrl('programme', anchorDate)}
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-[11px] font-black uppercase tracking-wider transition-all ${
+              viewMode === 'programme' ? 'bg-[#1274de] text-white shadow-[0_0_14px_rgba(78,161,255,0.55)]' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <ListFilter className="h-3.5 w-3.5" />
+            Programme
+          </Link>
+        </div>
+
+        {viewMode === 'month' ? (
+          <div className="flex items-center gap-3">
+            <Link
+              href={buildCalendarUrl('month', new Date(prevMonthStr))}
+              title="Previous Month"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/40 text-slate-300 transition-all hover:border-[#4ea1ff] hover:text-[#4ea1ff] hover:shadow-[0_0_14px_rgba(78,161,255,0.5)]"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+            <div className="font-display-condensed min-w-[150px] text-center text-lg font-bold uppercase tracking-wide text-white">
+              {monthLabel(anchorDate)}
+            </div>
+            <Link
+              href={buildCalendarUrl('month', new Date(nextMonthStr))}
+              title="Next Month"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/40 text-slate-300 transition-all hover:border-[#4ea1ff] hover:text-[#4ea1ff] hover:shadow-[0_0_14px_rgba(78,161,255,0.5)]"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Link>
           </div>
-        </section>
-      ) : (
-        <section className="shell-panel overflow-hidden rounded-none">
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'race', label: '🏁 Races' },
+              { key: 'time_attack', label: '⏱ Time Attack' },
+            ] as const).map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setProgrammeFilter(f.key)}
+                className={`rounded-full border px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+                  programmeFilter === f.key
+                    ? 'border-[#4ea1ff] bg-[rgba(78,161,255,.16)] text-[#4ea1ff]'
+                    : 'border-white/10 bg-black/40 text-slate-400 hover:text-white'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Month Grid or Programme */}
+      {viewMode === 'month' ? (
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0a0f18]">
           <div className="overflow-x-auto">
-            <div className="min-w-[980px]">
-              {/* Month Days Header */}
-              <div className="grid grid-cols-7 border-b border-shell-line bg-black/40 text-center text-xs font-black uppercase tracking-wider text-slate-300 py-2.5">
+            <div className="min-w-[900px]">
+              <div className="grid grid-cols-7 border-b border-white/10">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                  <div key={day} className="border-r border-shell-line/50 px-2 last:border-r-0 text-slate-300 font-black">
-                    <span className="hidden md:inline">{day.toUpperCase()}</span>
-                    <span className="md:hidden">{day.slice(0, 3).toUpperCase()}</span>
+                  <div key={day} className="px-2 py-2.5 text-center text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    {day.slice(0, 3)}
                   </div>
                 ))}
               </div>
 
-              {/* Month Days Grid Cells */}
               <div className="grid grid-cols-7">
                 {monthDays.map((date) => {
                   const key = dateKeyUTC(date)
                   const dayEvents = eventsByDay.get(key) || []
                   const inCurrentMonth = date.getUTCMonth() === anchorDate.getUTCMonth()
-                  const primaryEvent = dayEvents[0]
                   const today = new Date()
                   const isToday = key === dateKeyUTC(today)
+                  const shownEvents = dayEvents.slice(0, 2)
+                  const extraCount = dayEvents.length - shownEvents.length
 
                   return (
                     <div
                       key={key}
                       onClick={() => handleCellClick(date)}
-                      className={`relative h-44 border-r border-b border-shell-line last:border-r-0 select-none group/cell transition-colors ${
-                        inCurrentMonth ? 'bg-[#0f1521]' : 'bg-[#0b1019]'
-                      } ${isToday ? 'today-breath-active z-20' : ''} ${
-                        isAdmin ? 'cursor-pointer hover:bg-cyan-950/20' : ''
-                      }`}
+                      className={`group/cell relative min-h-[112px] border-b border-r border-white/10 p-2 transition-colors last:border-r-0 ${
+                        isAdmin ? 'cursor-pointer hover:bg-[rgba(78,161,255,.05)]' : ''
+                      } ${isToday ? 'today-ring bg-[rgba(78,161,255,.07)]' : ''}`}
                     >
-                      {/* Plus icon on hover for admin empty cells */}
                       {isAdmin && (
-                        <div className="absolute right-2 top-2 z-30 opacity-0 group-hover/cell:opacity-100 transition-opacity">
-                          <Plus className="h-4 w-4 text-cyan-400 bg-black/60 p-0.5 border border-cyan-400/30" />
+                        <div className="absolute right-2 top-2 z-10 opacity-0 transition-opacity group-hover/cell:opacity-100">
+                          <Plus className="h-3.5 w-3.5 rounded border border-[#4ea1ff]/40 bg-black/60 p-0.5 text-[#4ea1ff]" />
                         </div>
                       )}
 
-                      {primaryEvent ? (
-                        dayEvents.length > 1 ? (
-                          <div className={`absolute z-10 pointer-events-auto ${isToday ? 'inset-[2px]' : 'inset-0'}`}>
-                            {dayEvents.slice(0, 2).map((event, idx) => {
-                              const league = leagueById.get(event.leagueId)
-                              const raceTitle = event.title?.trim() || event.circuitName
-                              const eventColor = (event as any).color || league?.accentColor || '#00f2fe'
-                              const simLogo = league?.simulator === 'ac'
-                                ? '/branding/ACLogo.png'
-                                : league?.simulator === 'lmu'
-                                  ? '/branding/LMULogo.png'
-                                  : null
-                              return (
-                                <div
-                                  key={event.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    router.push(league ? `/ligas/${league.slug}` : '/ligas')
-                                  }}
-                                  className={`absolute inset-x-0 block cursor-pointer bg-[#090d16] group/card overflow-hidden border border-shell-line/60 hover:border-cyan-400 transition-colors ${
-                                    idx === 0 ? 'top-0 h-1/2 border-b border-shell-line' : 'bottom-0 h-1/2'
-                                  }`}
-                                  style={{
-                                    borderLeftWidth: '3px',
-                                    borderLeftColor: eventColor,
-                                  }}
-                                >
-                                  <div
-                                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover/card:scale-105"
-                                    style={{
-                                      backgroundImage: event.circuitImageUrl
-                                        ? `linear-gradient(to top, rgba(9, 13, 22, 0.92) 0%, ${hexToRgba(eventColor, 0.4)} 50%, ${hexToRgba(eventColor, 0.75)} 100%), url(${event.circuitImageUrl})`
-                                        : `linear-gradient(135deg, ${hexToRgba(eventColor, 0.85)} 0%, ${hexToRgba(eventColor, 0.35)} 60%, #090d16 100%)`,
-                                    }}
-                                  />
-                                  {/* Top Bar: Time & Sim logo */}
-                                  <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between z-10 pointer-events-none">
-                                    <div className="flex items-center gap-1">
-                                      {idx === 0 && <span className="text-xs font-black text-white font-mono">{date.getUTCDate()}</span>}
-                                      <span className="text-[10px] font-mono font-bold bg-black/90 px-1 py-0.5 border border-white/20 text-white flex items-center gap-1">
-                                        <Clock className="h-2.5 w-2.5 text-cyan-300" />
-                                        {formatTime(event.startsAt)}
-                                      </span>
-                                    </div>
-                                    {simLogo && (
-                                      <div className="bg-white p-0.5 shadow-md border border-black/40 rounded-none shrink-0 flex items-center justify-center h-4.5 w-4.5">
-                                        {brokenLogoIds.has(event.id) ? (
-                                          <Plus className="h-3.5 w-3.5 text-slate-500" strokeWidth={3} />
-                                        ) : (
-                                          <img
-                                            src={simLogo}
-                                            alt={league?.simulator}
-                                            className="h-4.5 w-auto object-contain max-w-[40px]"
-                                            onError={() => markLogoBroken(event.id)}
-                                          />
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
+                      <span className={`font-mono-data text-[11px] ${isToday ? 'font-bold text-[#4ea1ff]' : inCurrentMonth ? 'text-slate-400' : 'text-slate-700'}`}>
+                        {date.getUTCDate()}
+                      </span>
 
-                                  {/* Bottom Details */}
-                                  <div className="absolute inset-x-1.5 bottom-1 z-10 space-y-0.5">
-                                    <div className="flex flex-col gap-0.5">
-                                      <div>
-                                        <span className="px-1 py-0.2 text-[8px] font-mono font-black uppercase bg-black/95 text-white border border-white/40 shadow-sm inline-block">
-                                          {getEventType(event, league)}
-                                        </span>
-                                      </div>
-                                      <span className="text-[9px] font-black text-white uppercase tracking-wider truncate drop-shadow block">
-                                        {event.circuitName}
-                                      </span>
-                                    </div>
-                                    <p className="line-clamp-1 text-xs font-black uppercase italic leading-tight text-white drop-shadow-md">
-                                      {raceTitle}
-                                    </p>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                            {dayEvents.length > 2 ? (
-                              <div className="absolute right-2 top-2 z-20 border border-white/25 bg-black/80 px-1.5 py-0.5 text-[10px] font-bold text-cyan-400 rounded-none shadow-md">
-                                +{dayEvents.length - 2}
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <div className={`absolute z-10 pointer-events-auto ${isToday ? 'inset-[2px]' : 'inset-0'}`}>
-                            {(() => {
-                              const league = leagueById.get(primaryEvent.leagueId)
-                              const raceTitle = primaryEvent.title?.trim() || primaryEvent.circuitName
-                              const eventColor = (primaryEvent as any).color || league?.accentColor || '#00f2fe'
-                              const simLogo = league?.simulator === 'ac'
-                                ? '/branding/ACLogo.png'
-                                : league?.simulator === 'lmu'
-                                  ? '/branding/LMULogo.png'
-                                  : null
-                              return (
-                                <div
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    router.push(league ? `/ligas/${league.slug}` : '/ligas')
-                                  }}
-                                  className="absolute inset-0 block cursor-pointer bg-[#090d16] group/card overflow-hidden border border-shell-line/60 hover:border-cyan-400 transition-colors"
-                                  style={{
-                                    borderLeftWidth: '4px',
-                                    borderLeftColor: eventColor,
-                                  }}
-                                >
-                                  <div
-                                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover/card:scale-105"
-                                    style={{
-                                      backgroundImage: primaryEvent.circuitImageUrl
-                                        ? `linear-gradient(to top, rgba(9, 13, 22, 0.92) 0%, ${hexToRgba(eventColor, 0.4)} 50%, ${hexToRgba(eventColor, 0.75)} 100%), url(${primaryEvent.circuitImageUrl})`
-                                        : `linear-gradient(135deg, ${hexToRgba(eventColor, 0.85)} 0%, ${hexToRgba(eventColor, 0.35)} 60%, #090d16 100%)`,
-                                    }}
-                                  />
-                                  {/* Top Bar: Date + Time + Sim Logo */}
-                                  <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-10 pointer-events-none">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-xs font-black text-white font-mono">{date.getUTCDate()}</span>
-                                      <span className="text-[10px] font-mono font-bold bg-black/90 px-1.5 py-0.5 border border-white/20 text-white flex items-center gap-1">
-                                        <Clock className="h-3 w-3 text-cyan-300" />
-                                        {formatTime(primaryEvent.startsAt)}
-                                      </span>
-                                    </div>
-
-                                    {simLogo && (
-                                      <div className="bg-white p-1 shadow-md border border-black/40 rounded-none shrink-0 flex items-center justify-center h-5 w-5">
-                                        {brokenLogoIds.has(primaryEvent.id) ? (
-                                          <Plus className="h-4 w-4 text-slate-500" strokeWidth={3} />
-                                        ) : (
-                                          <img
-                                            src={simLogo}
-                                            alt={league?.simulator}
-                                            className="h-5 w-auto object-contain max-w-[48px]"
-                                            onError={() => markLogoBroken(primaryEvent.id)}
-                                          />
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Bottom Details */}
-                                  <div className="absolute inset-x-2.5 bottom-2 space-y-1 z-10">
-                                    <div className="flex flex-col gap-0.5">
-                                      <div>
-                                        <span className="px-1.5 py-0.5 text-[9px] font-mono font-black uppercase bg-black/95 text-white border border-white/40 shadow-md inline-block">
-                                          {getEventType(primaryEvent, league)}
-                                        </span>
-                                      </div>
-                                      <span className="text-[10px] font-black text-white uppercase tracking-wider truncate drop-shadow block leading-tight">
-                                        {primaryEvent.circuitName}
-                                      </span>
-                                    </div>
-
-                                    <h4 className="text-sm font-extrabold text-white uppercase italic tracking-tight drop-shadow-md line-clamp-1">
-                                      {raceTitle}
-                                    </h4>
-
-                                    {league && (
-                                      <p className="text-[10px] font-bold text-white/90 truncate drop-shadow">
-                                        {league.title}
-                                      </p>
-                                    )}
-
-                                    {primaryEvent.serverLink && (
-                                      <a
-                                        href={primaryEvent.serverLink}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-1 bg-emerald-950/90 hover:bg-emerald-600 border border-emerald-400/60 text-white hover:text-white px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider transition-colors rounded-none mt-0.5 shadow-md"
-                                      >
-                                        <Play className="h-2.5 w-2.5 fill-current text-emerald-400" />
-                                        JOIN SERVER
-                                      </a>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            })()}
+                      {shownEvents.map((event) => {
+                        const league = leagueById.get(event.leagueId)
+                        const raceTitle = event.title?.trim() || event.circuitName
+                        const color = getEventColor(event, league)
+                        return (
+                          <div
+                            key={event.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(league ? `/ligas/${league.slug}` : '/ligas')
+                            }}
+                            className="mt-1.5 flex items-center gap-1.5 overflow-hidden rounded-md border px-1.5 py-1 text-[9.5px] font-bold transition-all hover:-translate-y-px"
+                            style={{
+                              borderColor: 'rgba(255,255,255,.12)',
+                              borderLeft: `2px solid ${color}`,
+                              backgroundColor: hexToRgba(color, 0.08),
+                            }}
+                          >
+                            <span className="font-mono-data shrink-0 text-[#4ea1ff]">{formatTime(event.startsAt)}</span>
+                            <span className="truncate text-white">{raceTitle}</span>
                           </div>
                         )
-                      ) : (
-                        <p className={`p-2 text-xs font-semibold ${inCurrentMonth ? 'text-white' : 'text-slate-500'}`}>
-                          {date.getUTCDate()}
-                        </p>
+                      })}
+                      {extraCount > 0 && (
+                        <div className="mt-1 pl-1 text-[9px] text-slate-500">+{extraCount} more</div>
                       )}
                     </div>
                   )
@@ -885,79 +631,171 @@ export default function CalendarContent({
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      ) : (
+        <div className="relative mx-auto max-w-3xl pl-7">
+          <div className="absolute bottom-1.5 left-[5px] top-1.5 w-px bg-white/10" aria-hidden="true" />
+          {(() => {
+            const filteredEvents = [...expandedSessions]
+              .filter((event) => {
+                const type = getEventType(event)
+                if (type === 'QUALIFYING') return false
+                if (programmeFilter === 'race') return type === 'RACE'
+                if (programmeFilter === 'time_attack') return type === 'TIME ATTACK'
+                return true
+              })
+              .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+
+            if (filteredEvents.length === 0) {
+              return (
+                <div className="rounded-xl border border-dashed border-white/10 p-12 text-center text-sm italic text-slate-500">
+                  No scheduled {programmeFilter === 'all' ? 'events' : programmeFilter === 'race' ? 'races' : 'time attack sessions'} in the programme.
+                </div>
+              )
+            }
+
+            const nowMs = Date.now()
+
+            return filteredEvents.map((event) => {
+              const country = getCircuitCountry(event)
+              const flag = getCountryFlag(country.abbr)
+              const league = leagueById.get(event.leagueId)
+              const type = getEventType(event)
+              const typeColor = EVENT_TYPE_COLOR[type]
+              const eventDate = new Date(event.startsAt)
+              const isPast = eventDate.getTime() < nowMs
+              const dayNumber = eventDate.getUTCDate()
+              const monthShort = eventDate.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
+
+              return (
+                <div key={event.id} className={`relative pb-6 last:pb-0 ${isPast ? 'opacity-50' : ''}`}>
+                  <span
+                    className="absolute -left-7 top-4 h-2.5 w-2.5 rounded-full border-2"
+                    style={{
+                      borderColor: isPast ? '#5c6577' : '#4ea1ff',
+                      backgroundColor: '#05070c',
+                      boxShadow: isPast ? 'none' : '0 0 10px rgba(78,161,255,.6)',
+                    }}
+                  />
+                  <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#0d1420] p-4 transition-all duration-200 hover:-translate-x-0.5 hover:border-[#4ea1ff]/70 hover:shadow-[0_0_18px_rgba(78,161,255,0.3)] sm:flex-row sm:items-center md:p-5">
+                    <div className="flex w-14 shrink-0 flex-col items-center text-center sm:items-start">
+                      <span className="font-display-condensed text-3xl font-extrabold leading-none text-white">{dayNumber}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{monthShort}</span>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className="mb-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest"
+                        style={{ borderColor: `${typeColor}66`, backgroundColor: `${typeColor}26`, color: typeColor }}
+                      >
+                        {type === 'RACE' ? '🏁 Race' : type === 'QUALIFYING' ? '⚡ Qualifying' : '⏱ Time Attack'}
+                      </span>
+                      <h3 className="font-display-condensed text-xl font-extrabold uppercase leading-tight text-white">
+                        {flag ? `${flag} ` : ''}{event.circuitName}
+                      </h3>
+                      <p className="text-[11px] text-slate-400">
+                        {league ? league.title : 'RSX League'} · <span className="font-mono-data">{formatTime(event.startsAt)}</span>
+                      </p>
+                    </div>
+
+                    <div className="shrink-0">
+                      {event.serverLink ? (
+                        <a
+                          href={event.serverLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#4ea1ff] bg-[rgba(78,161,255,.14)] px-4 py-2 text-[10px] font-black uppercase tracking-wider text-[#4ea1ff] transition-all hover:bg-[#1274de] hover:text-white hover:shadow-[0_0_16px_rgba(78,161,255,0.6)]"
+                        >
+                          <Play className="h-3 w-3 fill-current" />
+                          Available
+                        </a>
+                      ) : (
+                        <Link
+                          href={league ? `/ligas/${league.slug}` : '/ligas'}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-black/30 px-4 py-2 text-[10px] font-black uppercase tracking-wider text-white transition-all hover:border-[#4ea1ff] hover:shadow-[0_0_14px_rgba(78,161,255,0.4)]"
+                        >
+                          {league?.registrationOpen ? 'Available' : 'Notify Me'}
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          })()}
+        </div>
       )}
 
-      {/* 4. "Manage Events" Modal (Only for Admins) */}
+      {/* Manage Events Modal (Admins only) */}
       {isAdmin && selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 animate-fade-in">
-          <div className="shell-panel border border-shell-line bg-zinc-950 max-w-4xl w-full p-5 md:p-6 text-white rounded-none shadow-[0_0_50px_rgba(0,0,0,0.8)] relative grid md:grid-cols-[1.1fr_0.9fr] gap-6">
-            
-            {/* Left side: Form for Add / Edit */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="relative grid w-full max-w-4xl gap-6 rounded-2xl border border-white/10 bg-[#0a0f18] p-6 text-white shadow-[0_0_60px_rgba(0,0,0,0.8)] md:grid-cols-[1.1fr_0.9fr] md:p-7">
+            <button
+              onClick={() => setSelectedDate(null)}
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-[#4ea1ff] hover:text-[#4ea1ff]"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
             <div>
-              <h2 className="text-xl font-bold uppercase tracking-tight text-white mb-1">
+              <h2 className="font-display-condensed text-2xl font-bold uppercase tracking-tight text-white">
                 {editingEvent ? 'Edit Event' : 'Add Event'}
               </h2>
-              <p className="text-xs text-slate-400 mb-4">
+              <p className="mb-4 font-mono-data text-xs text-[#4ea1ff]">
                 {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
                 {errorMessage && (
-                  <div className="border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-300 rounded-none">
+                  <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-300">
                     {errorMessage}
                   </div>
                 )}
 
-                {/* League Selection */}
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">Select League</label>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Select League</label>
                   <select
                     value={formLeagueId}
                     onChange={(e) => setFormLeagueId(e.target.value)}
                     required
-                    className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-none focus:border-cyan-400"
+                    className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none transition-colors focus:border-[#4ea1ff]"
                   >
                     {leagues.map((lg) => (
-                      <option key={lg.id} value={lg.id}>
-                        {lg.title}
-                      </option>
+                      <option key={lg.id} value={lg.id}>{lg.title}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Event Title */}
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">Event Title / Session</label>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Event Title / Session</label>
                   <input
                     type="text"
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     placeholder="e.g. Round 1, Incident Review, Briefing (Optional)"
-                    className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-none focus:border-cyan-400"
+                    className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none transition-colors focus:border-[#4ea1ff]"
                   />
                 </div>
 
-                {/* Circuit Name Text Input */}
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">Circuit Name (Nombre del Circuito)</label>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Circuit Name</label>
                   <input
                     type="text"
                     value={formCircuit}
                     onChange={(e) => setFormCircuit(e.target.value)}
                     placeholder="e.g. Spa-Francorchamps, Monza, Imola, Nürburgring..."
                     required
-                    className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-none focus:border-cyan-400 font-semibold"
+                    className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs font-semibold text-white outline-none transition-colors focus:border-[#4ea1ff]"
                   />
                 </div>
 
-                {/* Country Flag Selection */}
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">Country Flag (País / Bandera)</label>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Country Flag</label>
                   <select
                     value={formCountryCode}
                     onChange={(e) => setFormCountryCode(e.target.value)}
-                    className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-none focus:border-cyan-400 font-mono"
+                    className="font-mono-data w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none transition-colors focus:border-[#4ea1ff]"
                   >
                     <option value="ESP">🇪🇸 España (ESP)</option>
                     <option value="ITA">🇮🇹 Italia (ITA)</option>
@@ -983,13 +821,12 @@ export default function CalendarContent({
                   </select>
                 </div>
 
-                {/* Event Format: Race vs Qualifying vs Time Attack */}
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">Event Format</label>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Event Format</label>
                   <select
                     value={formEventType}
                     onChange={(e) => setFormEventType(e.target.value as 'race' | 'qualifying' | 'time_attack')}
-                    className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-none focus:border-cyan-400"
+                    className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none transition-colors focus:border-[#4ea1ff]"
                   >
                     <option value="race">🏁 Race (Carrera)</option>
                     <option value="qualifying">⚡ Qualifying (Clasificación)</option>
@@ -997,28 +834,27 @@ export default function CalendarContent({
                   </select>
                 </div>
 
-                {/* Round Visual Color Palette Selection */}
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">Round Visual Color (Color Palette)</label>
-                  <div className="space-y-2 bg-black/40 p-2.5 border border-shell-line">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Round Visual Color</label>
+                  <div className="space-y-2 rounded-lg border border-white/10 bg-black/40 p-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
                       {[
-                        { name: 'Neon Cyan', hex: '#00f2fe' },
-                        { name: 'Racing Red', hex: '#ff3b30' },
+                        { name: 'Light Blue', hex: '#4ea1ff' },
+                        { name: 'Racing Red', hex: '#ef4444' },
                         { name: 'Electric Blue', hex: '#1274de' },
                         { name: 'Emerald Green', hex: '#10b981' },
-                        { name: 'Hyper Orange', hex: '#ff6b00' },
+                        { name: 'Hyper Orange', hex: '#f59e0b' },
                         { name: 'Neon Purple', hex: '#a855f7' },
-                        { name: 'Gold Amber', hex: '#f59e0b' },
+                        { name: 'Cyan', hex: '#38bdf8' },
                       ].map((color) => (
                         <button
                           key={color.hex}
                           type="button"
                           onClick={() => setFormColor(color.hex)}
                           title={color.name}
-                          className={`h-6 w-6 rounded-none transition-transform border cursor-pointer ${
+                          className={`h-6 w-6 rounded-md border transition-transform ${
                             formColor.toLowerCase() === color.hex.toLowerCase()
-                              ? 'scale-125 border-white ring-2 ring-cyan-400 shadow-[0_0_10px_rgba(0,242,254,0.6)] z-10'
+                              ? 'z-10 scale-125 border-white shadow-[0_0_10px_rgba(78,161,255,0.7)] ring-2 ring-[#4ea1ff]'
                               : 'border-white/20 hover:scale-110'
                           }`}
                           style={{ backgroundColor: color.hex }}
@@ -1026,44 +862,41 @@ export default function CalendarContent({
                       ))}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400 font-mono">Custom:</span>
+                      <span className="font-mono-data text-[10px] text-slate-400">Custom:</span>
                       <input
                         type="text"
                         name="color"
                         value={formColor}
                         onChange={(e) => setFormColor(e.target.value)}
-                        className="w-28 border border-shell-line bg-black/60 px-2 py-0.5 text-xs text-white font-mono outline-none rounded-none focus:border-cyan-400"
+                        className="font-mono-data w-28 rounded-md border border-white/10 bg-black/60 px-2 py-0.5 text-xs text-white outline-none focus:border-[#4ea1ff]"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Time range */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">Starts At (Local Time)</label>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Starts At (Local Time)</label>
                     <input
                       type="time"
                       value={formStartsAtTime}
                       onChange={(e) => setFormStartsAtTime(e.target.value)}
                       required
-                      className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-none focus:border-cyan-400"
+                      className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-[#4ea1ff]"
                     />
                   </div>
-
                   <div>
-                    <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">Ends At (Local Time)</label>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Ends At (Local Time)</label>
                     <input
                       type="time"
                       value={formEndsAtTime}
                       onChange={(e) => setFormEndsAtTime(e.target.value)}
                       required
-                      className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-none focus:border-cyan-400"
+                      className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-[#4ea1ff]"
                     />
                   </div>
                 </div>
 
-                {/* Circuit Image Upload */}
                 <div>
                   <ImagePicker
                     name="circuitImageUrl"
@@ -1072,26 +905,24 @@ export default function CalendarContent({
                   />
                 </div>
 
-                {/* Server Entry Link */}
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">Server Entry Link (Direct Connection)</label>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-300">Server Entry Link</label>
                   <input
                     type="text"
                     name="serverLink"
                     value={formServerLink}
                     onChange={(e) => setFormServerLink(e.target.value)}
                     placeholder="e.g. steam://connect/12.34.56.78:27015 or direct web link"
-                    className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-none focus:border-white/30"
+                    className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-white/30"
                   />
                 </div>
 
-                {/* Form Actions */}
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-1">
                   {editingEvent && (
                     <button
                       type="button"
                       onClick={handleCancelEdit}
-                      className="border border-shell-line bg-transparent hover:bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-none"
+                      className="rounded-lg border border-white/10 bg-transparent px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors hover:bg-white/5"
                     >
                       Cancel Edit
                     </button>
@@ -1099,7 +930,7 @@ export default function CalendarContent({
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 bg-shell-accent hover:bg-red-700 disabled:opacity-50 py-2 text-xs font-bold uppercase tracking-wider rounded-none transition-colors"
+                    className="flex-1 rounded-lg bg-[#1274de] py-2 text-xs font-bold uppercase tracking-wider text-white transition-all hover:bg-[#1f82ee] hover:shadow-[0_0_16px_rgba(78,161,255,0.5)] disabled:opacity-50"
                   >
                     {isSubmitting ? 'Saving...' : editingEvent ? 'Update Event' : 'Add Event'}
                   </button>
@@ -1107,45 +938,41 @@ export default function CalendarContent({
               </form>
             </div>
 
-            {/* Right side: List of Current Events on selected date */}
-            <div className="flex flex-col border-l border-shell-line/50 pl-6 h-full justify-between">
+            <div className="flex h-full flex-col justify-between border-l border-white/10 pl-6">
               <div>
-                <h3 className="text-sm font-black uppercase tracking-wider text-slate-300 mb-3 pb-1.5 border-b border-shell-line/40">
+                <h3 className="mb-3 border-b border-white/10 pb-2 text-sm font-black uppercase tracking-wider text-slate-300">
                   Scheduled Events ({activeDayEvents.length})
                 </h3>
-
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                <div className="max-h-[300px] space-y-2.5 overflow-y-auto pr-1">
                   {activeDayEvents.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic">No events scheduled for this day.</p>
+                    <p className="text-xs italic text-slate-400">No events scheduled for this day.</p>
                   ) : (
                     activeDayEvents.map((ev) => {
                       const lg = leagueById.get(ev.leagueId)
-                      const startsTime = new Date(ev.startsAt)
                       return (
-                        <div key={ev.id} className="border border-shell-line bg-black/30 p-2.5 rounded-none flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xxs uppercase tracking-wider text-cyan-400 font-extrabold leading-tight">
+                        <div key={ev.id} className="flex items-start justify-between gap-3 rounded-lg border border-white/10 bg-black/30 p-2.5">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-extrabold uppercase leading-tight tracking-wider text-[#4ea1ff]">
                               {lg?.title || 'League Event'}
                             </p>
-                            <p className="text-xs font-bold text-white truncate mt-0.5">{ev.title || ev.circuitName}</p>
-                            <p className="text-[10px] text-slate-400 mt-1 font-mono flex items-center gap-1">
-                              <Clock className="h-3 w-3 text-cyan-400" />
+                            <p className="mt-0.5 truncate text-xs font-bold text-white">{ev.title || ev.circuitName}</p>
+                            <p className="font-mono-data mt-1 flex items-center gap-1 text-[10px] text-slate-400">
+                              <Clock className="h-3 w-3 text-[#4ea1ff]" />
                               {formatTime(ev.startsAt)} (Local)
                             </p>
                           </div>
-
                           <div className="flex gap-1.5">
                             <button
                               onClick={() => handleEditClick(ev)}
                               title="Edit Event"
-                              className="border border-slate-600 hover:border-cyan-400 p-1 text-slate-400 hover:text-cyan-400 transition-colors rounded-none"
+                              className="rounded-md border border-white/10 p-1 text-slate-400 transition-colors hover:border-[#4ea1ff] hover:text-[#4ea1ff]"
                             >
                               <Edit2 className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleDelete(ev.id)}
                               title="Delete Event"
-                              className="border border-slate-600 hover:border-rose-500 p-1 text-slate-400 hover:text-rose-500 transition-colors rounded-none"
+                              className="rounded-md border border-white/10 p-1 text-slate-400 transition-colors hover:border-rose-500 hover:text-rose-500"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -1157,15 +984,13 @@ export default function CalendarContent({
                 </div>
               </div>
 
-              {/* Close Modal button */}
               <button
                 onClick={() => setSelectedDate(null)}
-                className="mt-6 border border-slate-600 hover:bg-white/5 py-2 text-xs font-bold uppercase tracking-wider rounded-none text-center w-full"
+                className="mt-6 w-full rounded-lg border border-white/10 py-2 text-center text-xs font-bold uppercase tracking-wider transition-colors hover:bg-white/5"
               >
                 Close Manager
               </button>
             </div>
-
           </div>
         </div>
       )}

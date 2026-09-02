@@ -36,6 +36,14 @@ body {
   font-family: var(--font-roboto), ui-sans-serif, system-ui, sans-serif;
 }
 
+.font-display-condensed {
+  font-family: var(--font-barlow-condensed), ui-sans-serif, sans-serif;
+}
+
+.font-mono-data {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
 .font-display,
 h1,
 h2,
