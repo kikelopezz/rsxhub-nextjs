@@ -5,7 +5,6 @@ import { getFirestoreDb, hasFirebase } from '@/lib/firebase'
 
 import { TopLoadingBar } from '@/components/top-loading-bar'
 import { DevRoleSimulator } from '@/components/dev-role-simulator'
-import { HeaderBottomLine } from '@/components/header-bottom-line'
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser()
@@ -48,7 +47,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       <TopLoadingBar />
       <div className="flex flex-1 flex-col">
         <header className="bg-transparent fixed inset-x-0 top-0 z-40 h-[76px] flex items-center animate-header-in">
-          <HeaderBottomLine />
           <div className="w-full px-6 md:px-12">
             <TopNav
               signedIn={Boolean(user)}
