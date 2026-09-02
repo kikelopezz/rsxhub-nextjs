@@ -96,6 +96,7 @@ export default async function TeamProfilePage({
   const {
     teamPilots,
     pendingApplications,
+    inviteCandidates,
     recentResults,
     leagueParticipation,
     stats,
@@ -179,6 +180,7 @@ export default async function TeamProfilePage({
           canManage={canManage}
           teamPilots={teamPilots}
           pendingApplications={pendingApplications}
+          inviteCandidates={inviteCandidates}
           accentSoft={accentSoft}
         />
         <TeamVehiclesSection

@@ -366,6 +366,10 @@ export async function updateTeam(formData: FormData) {
   const slogan = formData.has('slogan') ? String(formData.get('slogan') || '').trim() : (existingTeam?.slogan || null)
   const discordUrl = formData.has('discordUrl') ? String(formData.get('discordUrl') || '').trim() : (existingTeam?.discordUrl || existingTeam?.discord_url || null)
   const youtubeUrl = formData.has('youtubeUrl') ? String(formData.get('youtubeUrl') || '').trim() : (existingTeam?.youtubeUrl || existingTeam?.youtube_url || null)
+  const instagramUrl = formData.has('instagramUrl') ? String(formData.get('instagramUrl') || '').trim() : (existingTeam?.instagramUrl || existingTeam?.instagram_url || null)
+  const twitterUrl = formData.has('twitterUrl') ? String(formData.get('twitterUrl') || '').trim() : (existingTeam?.twitterUrl || existingTeam?.twitter_url || null)
+  const twitchUrl = formData.has('twitchUrl') ? String(formData.get('twitchUrl') || '').trim() : (existingTeam?.twitchUrl || existingTeam?.twitch_url || null)
+  const tiktokUrl = formData.has('tiktokUrl') ? String(formData.get('tiktokUrl') || '').trim() : (existingTeam?.tiktokUrl || existingTeam?.tiktok_url || null)
 
   if (hasFirebase) {
     const db = getFirestoreDb()
@@ -382,6 +386,10 @@ export async function updateTeam(formData: FormData) {
           slogan: slogan || null,
           discord_url: discordUrl || null,
           youtube_url: youtubeUrl || null,
+          instagram_url: instagramUrl || null,
+          twitter_url: twitterUrl || null,
+          twitch_url: twitchUrl || null,
+          tiktok_url: tiktokUrl || null,
         }))
 
         // Auto Sync: Find all leagues where this team or its cars belong
@@ -426,6 +434,10 @@ export async function updateTeam(formData: FormData) {
           slogan: slogan || null,
           discordUrl: discordUrl || null,
           youtubeUrl: youtubeUrl || null,
+          instagramUrl: instagramUrl || null,
+          twitterUrl: twitterUrl || null,
+          twitchUrl: twitchUrl || null,
+          tiktokUrl: tiktokUrl || null,
         }
       }
       return t

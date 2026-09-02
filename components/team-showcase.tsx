@@ -84,25 +84,27 @@ export function TeamShowcase({
             <ArrowRight className="h-4 w-4" />
           </button>
         )}
+      </div>
 
-        {/* Logo badge, overlapping banner and body */}
-        <div
-          className="absolute -bottom-6 left-4 flex h-16 w-16 shrink-0 items-center justify-center bg-[#090d16] border-2 shadow-lg p-1"
-          style={{ borderColor: barColor }}
-        >
-          {teamLogoUrl ? (
-            <Image
-              src={teamLogoUrl}
-              alt={teamName}
-              width={56}
-              height={56}
-              unoptimized={!isOptimizable(teamLogoUrl)}
-              className="h-full w-full object-contain"
-            />
-          ) : (
-            <Users className="h-6 w-6 text-slate-500" />
-          )}
-        </div>
+      {/* Logo badge, overlapping the banner/body seam — deliberately a sibling of the
+          banner div (not nested inside it) so the banner's own overflow-hidden (needed
+          to clip/scale the banner image) doesn't clip the logo along with it. */}
+      <div
+        className="absolute left-4 top-[88px] z-10 flex h-16 w-16 shrink-0 items-center justify-center bg-[#090d16] border-2 shadow-lg p-1"
+        style={{ borderColor: barColor }}
+      >
+        {teamLogoUrl ? (
+          <Image
+            src={teamLogoUrl}
+            alt={teamName}
+            width={56}
+            height={56}
+            unoptimized={!isOptimizable(teamLogoUrl)}
+            className="h-full w-full object-contain"
+          />
+        ) : (
+          <Users className="h-6 w-6 text-slate-500" />
+        )}
       </div>
 
       {/* Body */}

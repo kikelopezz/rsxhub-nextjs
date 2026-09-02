@@ -56,7 +56,7 @@ export function LeagueBanner({
           style={{ width: '64px', height: '64px', borderLeft: `3px solid ${accentHex}` }}
         >
           <Image
-            src={(league as any).logoUrl || (league.simulator === 'ac' ? '/branding/ACLogo.png' : '/branding/LMULogo.png')}
+            src={league.simulator === 'ac' ? '/branding/ACLogo.png' : '/branding/LMULogo.png'}
             alt={league.simulator}
             fill
             sizes="64px"
