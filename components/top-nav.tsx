@@ -166,7 +166,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
 
       {/* Mobile dropdown panel */}
       {isMenuOpen && (
-        <div className="md:hidden absolute left-0 right-0 top-full mt-2 rounded-lg border border-white/10 bg-[#090d16] shadow-[0_16px_40px_rgba(0,0,0,0.6)] p-3 space-y-3 z-50 origin-top animate-dropdown-in">
+        <div className="md:hidden fixed left-6 right-6 top-[84px] rounded-lg border border-white/10 bg-[#090d16] shadow-[0_16px_40px_rgba(0,0,0,0.6)] p-3 space-y-3 z-50 origin-top animate-dropdown-in">
           <nav className="flex flex-col gap-1 text-[13px] font-bold uppercase tracking-wider">
             {links.map((item) => (
               <Link

@@ -122,7 +122,7 @@ export function NotificationsNav({
 
       {/* Notifications Dropdown Panel */}
       {open && (
-        <div className="absolute right-0 mt-2 w-[min(380px,90vw)] bg-[#0c1220] border border-slate-800 rounded-lg shadow-2xl z-50 overflow-hidden space-y-0 text-left origin-top-right animate-dropdown-in">
+        <div className="absolute right-0 top-[66px] w-[min(380px,90vw)] bg-[#0c1220] border border-slate-800 rounded-lg shadow-2xl z-50 overflow-hidden space-y-0 text-left origin-top-right animate-dropdown-in">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/80 bg-[#0f172a]/90">
             <div className="flex items-center gap-2">
