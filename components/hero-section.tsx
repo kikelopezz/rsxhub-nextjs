@@ -28,7 +28,7 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
   }, [slides.length])
 
   return (
-    <div className="-mx-10 -mt-[76px] md:-mx-20 w-auto overflow-hidden">
+    <div className="-mx-10 -mt-[76px] -mb-16 md:-mx-20 md:-mb-24 w-auto overflow-hidden">
       {/* Banner de Hero Carousel - Altura completa y ancho de pantalla, por detrás del header */}
       <section className="relative h-screen min-h-[600px] w-full overflow-hidden">
         {/* Contenedor de las Slides (Cross-fade) */}

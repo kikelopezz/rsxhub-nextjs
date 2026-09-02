@@ -21,7 +21,7 @@ export default async function HomePage() {
   const teamsCount = teamsDashboard.teams.length
 
   return (
-    <div className="text-white pb-12">
+    <div className="text-white">
       <HeroSection
         driversCount={driversCount}
         leaguesCount={leaguesCount}
