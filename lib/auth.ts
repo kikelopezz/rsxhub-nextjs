@@ -283,27 +283,57 @@ export async function upsertUserFromSteam(user: SessionUser) {
   }
 
   try {
-    const steamSnapshot = await db
-      .collection('steam_accounts')
-      .where('steam_id', '==', user.steamId)
-      .limit(1)
-      .get()
-
+    // Resolving "does this Steam ID already have an account?" via a collection
+    // query (where steam_id == ...) is vulnerable to the data source's own
+    // eventual consistency: two logins for the same brand-new Steam ID landing
+    // close together could both see "no match" and each create a separate
+    // user/profile — a duplicate profile for the same person. A transaction
+    // keyed by a direct document lookup (steam_id as the doc ID) doesn't have
+    // that gap, so it's used as the source of truth for existence, with the
+    // old query kept only as a one-time fallback for accounts created before
+    // this index existed (so they get backfilled into it instead of
+    // duplicated).
+    const steamIdIndexRef = db.collection('steam_id_index').doc(user.steamId)
     let userId = ''
     let isNew = false
 
-    if (steamSnapshot.empty) {
+    await db.runTransaction(async (tx: any) => {
+      const indexDoc = await tx.get(steamIdIndexRef)
+
+      if (indexDoc.exists) {
+        userId = indexDoc.data()?.user_id || ''
+        tx.update(db.collection('steam_accounts').doc(userId), {
+          steam_display_name: user.steamDisplayName,
+          steam_avatar_url: user.avatarUrl || null,
+        })
+        return
+      }
+
+      // No index entry yet — check the legacy query in case this account was
+      // created before the index existed, so it gets linked instead of duplicated.
+      const legacySnapshot = await tx.get(
+        db.collection('steam_accounts').where('steam_id', '==', user.steamId).limit(1),
+      )
+
+      if (!legacySnapshot.empty) {
+        const doc = legacySnapshot.docs[0]
+        userId = doc.data().user_id || doc.id
+        tx.set(steamIdIndexRef, { user_id: userId, created_at: new Date() })
+        tx.update(db.collection('steam_accounts').doc(userId), {
+          steam_display_name: user.steamDisplayName,
+          steam_avatar_url: user.avatarUrl || null,
+        })
+        return
+      }
+
+      // Genuinely new Steam ID: create the user, profile, role, and index entry together.
       isNew = true
-      // Create a new user ID
       const userRef = db.collection('users').doc()
       userId = userRef.id
 
-      await userRef.set({
-        created_at: new Date(),
-      })
+      tx.set(userRef, { created_at: new Date() })
 
-      // Link steam account (using userId as the document ID)
-      await db.collection('steam_accounts').doc(userId).set({
+      tx.set(db.collection('steam_accounts').doc(userId), {
         user_id: userId,
         steam_id: user.steamId,
         steam_display_name: user.steamDisplayName,
@@ -312,8 +342,7 @@ export async function upsertUserFromSteam(user: SessionUser) {
         created_at: new Date(),
       })
 
-      // Create pilot profile
-      await db.collection('profiles').doc(userId).set({
+      tx.set(db.collection('profiles').doc(userId), {
         user_id: userId,
         display_name: user.steamDisplayName,
         main_sim: 'ac',
@@ -324,16 +353,16 @@ export async function upsertUserFromSteam(user: SessionUser) {
         created_at: new Date(),
       })
 
-      // Assign default platform role
-      await db.collection('platform_roles').doc(userId).set({
+      tx.set(db.collection('platform_roles').doc(userId), {
         user_id: userId,
         role: 'user',
         created_at: new Date(),
       })
-    } else {
-      const doc = steamSnapshot.docs[0]
-      userId = doc.data().user_id || doc.id
 
+      tx.set(steamIdIndexRef, { user_id: userId, created_at: new Date() })
+    })
+
+    if (!isNew) {
       // Check if they are actually onboarded
       try {
         const profileDoc = await db.collection('profiles').doc(userId).get()
@@ -348,11 +377,6 @@ export async function upsertUserFromSteam(user: SessionUser) {
       } catch (err) {
         console.error('Failed to read profile status during Steam callback:', err)
       }
-
-      await db.collection('steam_accounts').doc(userId).update({
-        steam_display_name: user.steamDisplayName,
-        steam_avatar_url: user.avatarUrl || null,
-      })
     }
 
     await createSession({ ...user, userId })
