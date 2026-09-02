@@ -73,7 +73,7 @@ export function TeamShowcase({
             className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
           />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#090d16] via-[#090d16]/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#090d16] from-15% via-[#090d16]/75 via-45% to-transparent" />
         <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: `linear-gradient(90deg, transparent, ${barColor}, transparent)` }} />
 
         {profileHref && (
@@ -107,8 +107,11 @@ export function TeamShowcase({
         )}
       </div>
 
-      {/* Body */}
-      <div className="flex flex-1 flex-col justify-between px-4 pb-4 pt-8 space-y-4">
+      {/* Body — pt-11 (44px) clears the logo badge's own bottom edge (top-[88px] +
+          h-16/64px = 152px from the banner's top, vs. the 112px-tall banner box),
+          so the name never sits under the logo regardless of how busy the
+          banner image is. */}
+      <div className="flex flex-1 flex-col justify-between px-4 pb-4 pt-11 space-y-4">
         <div className="space-y-2">
           <div>
             <h3 className="truncate text-lg font-black uppercase italic tracking-wider text-white transition-colors" style={{ '--tw-text-opacity': 1 } as any}>
