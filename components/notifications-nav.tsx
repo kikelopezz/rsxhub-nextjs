@@ -101,7 +101,7 @@ export function NotificationsNav({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`relative flex items-center justify-center h-10 w-10 rounded-lg transition-all cursor-pointer ${
+        className={`relative flex items-center justify-center h-10 w-10 rounded-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-90 cursor-pointer ${
           hasUnread
             ? 'bg-[#1274de]/25 border-2 border-[#1274de] text-[#1274de] animate-rsx-breath shadow-[0_0_18px_rgba(18,116,222,0.8)]'
             : 'border border-white/20 bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white'
@@ -122,7 +122,7 @@ export function NotificationsNav({
 
       {/* Notifications Dropdown Panel */}
       {open && (
-        <div className="absolute right-0 mt-2 w-[min(380px,90vw)] bg-[#0c1220] border border-slate-800 rounded-lg shadow-2xl z-50 overflow-hidden space-y-0 text-left animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 mt-2 w-[min(380px,90vw)] bg-[#0c1220] border border-slate-800 rounded-lg shadow-2xl z-50 overflow-hidden space-y-0 text-left origin-top-right animate-dropdown-in">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/80 bg-[#0f172a]/90">
             <div className="flex items-center gap-2">

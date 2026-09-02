@@ -46,7 +46,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-shell flex flex-col">
       <TopLoadingBar />
       <div className="flex flex-1 flex-col">
-        <header className="bg-transparent fixed inset-x-0 top-0 z-40 h-[76px] flex items-center">
+        <header className="bg-transparent fixed inset-x-0 top-0 z-40 h-[76px] flex items-center animate-header-in">
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#1274de]/60 to-transparent" />
           <div className="w-full px-6 md:px-12">
             <TopNav

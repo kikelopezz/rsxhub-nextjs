@@ -79,10 +79,10 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
             <Link
               key={item.label}
               href={item.href}
-              className={`relative rounded-md px-4 py-2 transition-all duration-200 ${
+              className={`relative rounded-md px-4 py-2 transition-all duration-200 active:scale-95 ${
                 isActive(pathname, item.href)
                   ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
-                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  : 'text-slate-300 hover:-translate-y-0.5 hover:bg-white/10 hover:text-white'
               }`}
             >
               {item.label}
@@ -100,7 +100,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
               {/* User Profile Button */}
               <Link
                 href="/perfil"
-                className="flex items-center gap-2.5 border border-white/20 bg-white/5 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-colors"
+                className="group flex items-center gap-2.5 border border-white/20 bg-white/5 px-4 py-2.5 rounded-lg hover:bg-white/10 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
               >
                 {avatarUrl ? (
                   <Image
@@ -108,10 +108,10 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
                     alt={displayName ?? 'Avatar'}
                     width={24}
                     height={24}
-                    className="rounded-full object-cover ring-1 ring-white/20 flex-shrink-0"
+                    className="rounded-full object-cover ring-1 ring-white/20 flex-shrink-0 transition-transform duration-200 group-hover:scale-110"
                   />
                 ) : (
-                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-800/40 border border-emerald-500/30 text-[11px] font-bold text-emerald-400">
+                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-800/40 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 transition-transform duration-200 group-hover:scale-110">
                     {(displayName?.[0] ?? 'U').toUpperCase()}
                   </span>
                 )}
@@ -124,7 +124,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
               <a
                 href="/api/auth/logout"
                 title={dict.nav.signOut}
-                className="flex items-center justify-center h-10 w-10 border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 rounded-lg text-rose-400 hover:text-rose-300 transition-colors"
+                className="flex items-center justify-center h-10 w-10 border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 hover:-translate-y-0.5 active:scale-95 rounded-lg text-rose-400 hover:text-rose-300 transition-all duration-200"
                 aria-label={dict.nav.signOut}
               >
                 <LogoutIcon />
@@ -132,7 +132,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
             </div>
           ) : (
             <SteamLoginButton
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#1274de] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#1274de] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-all duration-200 hover:bg-[#1f82ee] hover:-translate-y-0.5 hover:shadow-[0_0_16px_rgba(18,116,222,0.5)] active:scale-95 cursor-pointer"
             >
               <SteamIcon />
               {dict.nav.signIn}
@@ -155,25 +155,27 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
             onClick={() => setIsMenuOpen((open) => !open)}
             aria-label={isMenuOpen ? dict.nav.closeMenu : dict.nav.openMenu}
             aria-expanded={isMenuOpen}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-white hover:bg-white/10 active:scale-90 transition-all duration-200 cursor-pointer"
           >
-            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            <span className={`flex transition-transform duration-300 ${isMenuOpen ? 'rotate-90' : 'rotate-0'}`}>
+              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </span>
           </button>
         </div>
       </div>
 
       {/* Mobile dropdown panel */}
       {isMenuOpen && (
-        <div className="md:hidden absolute left-0 right-0 top-full mt-2 rounded-lg border border-white/10 bg-[#090d16] shadow-[0_16px_40px_rgba(0,0,0,0.6)] p-3 space-y-3 z-50">
+        <div className="md:hidden absolute left-0 right-0 top-full mt-2 rounded-lg border border-white/10 bg-[#090d16] shadow-[0_16px_40px_rgba(0,0,0,0.6)] p-3 space-y-3 z-50 origin-top animate-dropdown-in">
           <nav className="flex flex-col gap-1 text-[13px] font-bold uppercase tracking-wider">
             {links.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className={`rounded-md px-4 py-2.5 transition-colors ${
+                className={`rounded-md px-4 py-2.5 transition-all duration-200 active:scale-95 ${
                   isActive(pathname, item.href)
                     ? 'bg-[#1274de] text-white'
-                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-1'
                 }`}
               >
                 {item.label}
@@ -186,7 +188,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
               <>
                 <Link
                   href="/perfil"
-                  className="flex min-w-0 flex-1 items-center gap-2.5 border border-white/20 bg-white/5 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
+                  className="flex min-w-0 flex-1 items-center gap-2.5 border border-white/20 bg-white/5 px-3 py-2 rounded-lg hover:bg-white/10 active:scale-95 transition-all duration-200"
                 >
                   {avatarUrl ? (
                     <Image
@@ -209,14 +211,14 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
                   href="/api/auth/logout"
                   title={dict.nav.signOut}
                   aria-label={dict.nav.signOut}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 rounded-lg text-rose-400 hover:text-rose-300 transition-colors"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 active:scale-90 rounded-lg text-rose-400 hover:text-rose-300 transition-all duration-200"
                 >
                   <LogoutIcon />
                 </a>
               </>
             ) : (
               <SteamLoginButton
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#1274de] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#1274de] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-all duration-200 hover:bg-[#1f82ee] active:scale-95 cursor-pointer"
               >
                 <SteamIcon />
                 {dict.nav.signIn}

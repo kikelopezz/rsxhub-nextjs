@@ -9,6 +9,7 @@ export function LanguageSwitcher() {
   const locale = useLocale()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const activeIndex = locales.indexOf(locale)
 
   function switchTo(next: Locale) {
     if (next === locale) return
@@ -19,7 +20,12 @@ export function LanguageSwitcher() {
   }
 
   return (
-    <div className="flex items-center border border-white/10 bg-black/60 text-[11px] font-bold uppercase tracking-wider">
+    <div className="relative flex items-center border border-white/10 bg-black/60 text-[11px] font-bold uppercase tracking-wider overflow-hidden">
+      <span
+        className="absolute inset-y-0 left-0 bg-[#1274de] transition-transform duration-300 ease-out"
+        style={{ width: `${100 / locales.length}%`, transform: `translateX(${activeIndex * 100}%)` }}
+        aria-hidden="true"
+      />
       {locales.map((code) => (
         <button
           key={code}
@@ -27,8 +33,8 @@ export function LanguageSwitcher() {
           onClick={() => switchTo(code)}
           disabled={isPending}
           aria-pressed={locale === code}
-          className={`px-2.5 py-2 transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-60 ${
-            locale === code ? 'bg-[#1274de] text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+          className={`relative z-10 px-2.5 py-2 transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-60 ${
+            locale === code ? 'text-white' : 'text-slate-300 hover:text-white'
           }`}
         >
           {code}
