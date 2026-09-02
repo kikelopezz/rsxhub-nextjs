@@ -58,7 +58,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="w-full flex-1 px-10 pt-[76px] py-4 pb-16 md:px-20 md:py-6 md:pb-24">{children}</main>
+        <main className="w-full flex-1 px-10 pt-[92px] pb-16 md:px-20 md:pt-[100px] md:pb-24">{children}</main>
       </div>
 
       <Footer />
