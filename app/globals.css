@@ -157,7 +157,6 @@ a {
 
 .page-transition {
   animation: page-enter 180ms ease-out;
-  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
