@@ -17,9 +17,16 @@ export type TeamPilot = {
   userId: string
   name: string
   role: string
+  roleTags: string[]
   avatarUrl: string | null
   steamId?: string
 }
+
+// Specialty badges a team member can hold, independent of and in addition to `role`
+// (owner/manager/driver, which only gates team-management permissions) — any combination is
+// allowed, e.g. a member can be tagged both "engineer" and "HYPERCAR" and "GT3" at once.
+export const TEAM_ROLE_TAGS = ['leader', 'team_boss', 'engineer', 'HYPERCAR', 'GT3', 'LMP2'] as const
+export type TeamRoleTag = (typeof TEAM_ROLE_TAGS)[number]
 
 export type CategoryStat = {
   classTag: string
@@ -63,6 +70,7 @@ export type PendingApplication = {
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
 import type { Dictionary } from '@/lib/i18n/dictionaries/es'
+import type { StatusMessage } from '@/components/status-banner'
 
 export function profileStatusMessage(
   params: {
@@ -73,7 +81,7 @@ export function profileStatusMessage(
     error?: string
   },
   m: Dictionary['equipos']['profileMessages']
-) {
+): StatusMessage {
   if (params.updated === '1') return { kind: 'ok', text: m.teamUpdated }
   if (params.invite === '1') return { kind: 'ok', text: m.inviteSent }
   if (params.memberRemoved === '1') return { kind: 'ok', text: m.driverRemoved }

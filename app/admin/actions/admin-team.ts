@@ -4,7 +4,15 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { markLineupChangeNotificationsSeen } from '@/lib/admin-lineup-log'
 import { guardPlatformAdmin } from './admin-league'
+
+export async function markLineupChangeNotificationsSeenAction() {
+  const session = await guardPlatformAdmin()
+  await markLineupChangeNotificationsSeen(session.userId)
+  invalidateCache([`user_notifications_${session.userId}`])
+  revalidatePath('/admin')
+}
 
 export async function updateTeamStatusAction(formData: FormData) {
   await guardPlatformAdmin()

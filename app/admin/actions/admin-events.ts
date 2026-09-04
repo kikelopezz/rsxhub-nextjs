@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
+import { invalidateCache } from '@/lib/ttl-cache'
 import { guardLeaguePermission } from './admin-league'
 
 function addMinutesToIso(startsAt: string, durationMinutes: number) {
@@ -104,6 +105,7 @@ export async function createEvent(formData: FormData) {
     redirect(`/admin/ligas/${leagueId}?eventError=create-failed`)
   }
 
+  invalidateCache(['league_events_', 'circuits'])
   revalidatePath('/admin')
   revalidatePath('/calendario')
   revalidatePath(`/admin/ligas/${leagueId}`)
@@ -155,6 +157,7 @@ export async function updateEvent(formData: FormData) {
     redirect(`/admin/ligas/${leagueId}?eventError=update-failed`)
   }
 
+  invalidateCache(['league_events_'])
   revalidatePath('/calendario')
   revalidatePath(`/admin/ligas/${leagueId}`)
   redirect(`/admin/ligas/${leagueId}?eventUpdated=1`)

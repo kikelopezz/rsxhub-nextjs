@@ -25,115 +25,112 @@ export function LeagueBanner({
   registrationElement,
 }: LeagueBannerProps) {
   const t = useDictionary().ligas.banner
+  const statusLabel = league.registrationOpen
+    ? 'Inscripciones abiertas'
+    : league.status === 'finished' || league.status === 'completed'
+      ? 'Finalizada'
+      : 'En curso'
+  const statusColor = league.registrationOpen ? '#22c55e' : league.status === 'finished' ? '#8b96a8' : '#4ea1ff'
+
   return (
-    <section className="overflow-hidden border border-shell-line bg-[#0f1521] rounded-lg relative">
-      <div
-        className="h-52 border-b border-shell-line bg-cover bg-center relative"
-        style={{
-          backgroundImage: league.bannerUrl
-            ? `linear-gradient(to top, rgba(8,11,18,0.92), rgba(8,11,18,0.25)), url(${league.bannerUrl})`
-            : 'linear-gradient(135deg, rgba(14,20,30,0.95), rgba(38,55,84,0.85))',
-        }}
-      >
-        {/* Status Badge - Top Left */}
-        <div
-          className="absolute left-4 top-4 z-20 text-white font-black uppercase text-xs flex flex-col items-center justify-center p-2 rounded-lg"
-          style={{
-            width: '64px',
-            height: '64px',
-            backgroundColor: accentHex,
-            borderRight: `3px solid ${accentHex}`,
-            boxShadow: `0 0 20px ${accentHex}80`,
-          }}
-        >
-          <span className="text-[9px] text-white/90 font-bold uppercase tracking-wider leading-none mb-1">{t.status}</span>
-          <span className="text-xs font-black tracking-wider leading-none text-white">{league.status.toUpperCase()}</span>
-        </div>
-
-        {/* Simulator Logo Badge - Top Right */}
-        <div
-          className="absolute right-4 top-4 z-20 bg-white border-t border-r border-b border-black/10 shadow-[0_4px_16px_rgba(0,0,0,0.45)] flex items-center justify-center"
-          style={{ width: '64px', height: '64px', borderLeft: `3px solid ${accentHex}` }}
-        >
-          <Image
-            src={league.simulator === 'ac' ? '/branding/ACLogo.png' : '/branding/LMULogo.png'}
-            alt={league.simulator}
-            fill
-            sizes="64px"
-            className="object-contain p-2"
+    <section
+      className="overflow-hidden rounded-xl border border-white/10 bg-[#0d1420]"
+      style={{ borderLeftWidth: 4, borderLeftColor: accentHex }}
+    >
+      <div className="relative">
+        {league.bannerUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={league.bannerUrl}
+            alt=""
+            className="block max-h-72 w-full object-cover"
+            style={{ height: 'auto' }}
           />
-        </div>
-      </div>
+        ) : (
+          <div
+            className="h-24"
+            style={{ background: `radial-gradient(520px 180px at 88% 0%, ${accentHex}26, transparent 70%)` }}
+          />
+        )}
+        {league.bannerUrl && (
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{ background: 'linear-gradient(100deg, rgba(6,8,13,.92) 0%, rgba(6,8,13,.55) 45%, rgba(6,8,13,.8) 100%)' }}
+          />
+        )}
 
-      <div className="space-y-4 p-4 md:p-5">
-        {/* Top Bar: Simulator/Format Pills & Admin Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
-          <div className="flex flex-wrap items-center gap-2 text-[11px]">
-            <span className="border border-rose-500/60 bg-rose-950/80 text-rose-300 font-black uppercase px-2.5 py-1 rounded-lg tracking-wide shadow-sm">
-              {simulatorLabel(league.simulator)}
-            </span>
-            <span className="border border-blue-500/60 bg-blue-950/80 text-blue-300 font-black uppercase px-2.5 py-1 rounded-lg tracking-wide shadow-sm">
-              {league.format}
-            </span>
+        <div className="absolute inset-0 flex min-h-[92px] flex-wrap items-center justify-between gap-4 p-4 md:px-6 md:py-5">
+        <div className="flex min-w-0 items-center gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#0a0f18]">
+            <Image
+              src={league.simulator === 'ac' ? '/branding/ACLogo.png' : '/branding/LMULogo.png'}
+              alt={league.simulator}
+              width={30}
+              height={30}
+              className="h-full w-full object-contain p-1"
+            />
+          </span>
+
+          <div className="min-w-0">
+            <h1 className="font-display-league truncate text-3xl uppercase leading-none text-white md:text-4xl">
+              {league.title}
+            </h1>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 gap-y-1.5">
+              <span
+                className="font-mono-data flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                style={{ color: statusColor, borderColor: `${statusColor}55`, backgroundColor: `${statusColor}14` }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: statusColor, boxShadow: `0 0 6px ${statusColor}` }} />
+                {statusLabel}
+              </span>
+              <span className="font-mono-data rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                {simulatorLabel(league.simulator)}
+              </span>
+              <span className="font-mono-data rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                {league.format}
+              </span>
+              <span className="font-mono-data flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] text-slate-300">
+                <Calendar className="h-3 w-3 text-[#4ea1ff]" />
+                <FormattedDate date={league.startsAt} mode="date" /> — <FormattedDate date={league.endsAt} mode="date" />
+              </span>
+            </div>
+            {league.slogan && (
+              <p className="mt-1.5 truncate text-xs font-bold italic" style={{ color: accentHex }}>
+                &quot;{league.slogan}&quot;
+              </p>
+            )}
           </div>
+        </div>
 
+        <div className="flex shrink-0 items-center gap-3">
           {isAdmin && (
             <div className="flex items-center gap-2">
               <button
                 onClick={onEditSettings}
-                className="border border-cyan-500/40 hover:bg-cyan-500/10 px-3 py-1.5 text-xs font-bold uppercase text-cyan-400 rounded-lg transition-colors flex items-center gap-1.5"
+                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-300 transition-colors hover:border-[#4ea1ff] hover:text-[#4ea1ff]"
               >
                 <Settings className="h-3.5 w-3.5" />
                 {t.editSettings}
               </button>
               <button
                 onClick={onDeleteLeague}
-                className="border border-rose-500/40 hover:bg-rose-500/10 px-3 py-1.5 text-xs font-bold uppercase text-rose-400 rounded-lg transition-colors flex items-center gap-1.5"
+                className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-black/30 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-400 transition-colors hover:bg-rose-500/15"
               >
                 <Trash className="h-3.5 w-3.5" />
                 {t.delete}
               </button>
             </div>
           )}
+          {registrationElement}
         </div>
+      </div>
+      </div>
 
-        {/* Title, Dates & Right-Side Centered Team Widget */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-1">
-          <div>
-            <h1 className="text-3xl font-black uppercase italic tracking-tighter text-white md:text-4xl">
-              {league.title}
-            </h1>
-            {league.slogan && (
-              <p className="text-xs font-extrabold uppercase tracking-widest mt-0.5 italic" style={{ color: accentHex }}>
-                {league.slogan}
-              </p>
-            )}
-
-            {/* Static Date Bar */}
-            <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
-              <div className="flex items-center gap-2 border border-shell-line bg-black/40 px-3 py-1.5 rounded-lg font-semibold text-slate-200">
-                <Calendar className="h-4 w-4 text-cyan-400 shrink-0" />
-                <span className="text-slate-400 uppercase text-[10px] font-bold">{t.startDate}</span>
-                <span className="text-white font-bold"><FormattedDate date={league.startsAt} mode="date" /></span>
-              </div>
-              <div className="flex items-center gap-2 border border-shell-line bg-black/40 px-3 py-1.5 rounded-lg font-semibold text-slate-200">
-                <Calendar className="h-4 w-4 text-cyan-400 shrink-0" />
-                <span className="text-slate-400 uppercase text-[10px] font-bold">{t.endDate}</span>
-                <span className="text-white font-bold"><FormattedDate date={league.endsAt} mode="date" /></span>
-              </div>
-            </div>
-          </div>
-
-          {/* Registered Team Card - Right Side Vertically Centered */}
-          <div className="flex items-center justify-end shrink-0">
-            {registrationElement}
-          </div>
-        </div>
-
-        <p className="mt-3 max-w-4xl text-sm leading-relaxed text-slate-300">
+      {league.fullDescription && (
+        <p className="relative border-t border-white/5 px-4 py-2.5 text-xs leading-relaxed text-slate-400 md:px-6">
           {league.fullDescription}
         </p>
-      </div>
+      )}
     </section>
   )
 }

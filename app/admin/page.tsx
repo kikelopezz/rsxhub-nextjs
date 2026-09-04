@@ -4,16 +4,18 @@ import { redirect } from 'next/navigation'
 import { getAdminAccessContext, getCurrentUser, getConfiguredAdminSteamIds } from '@/lib/auth'
 import { getLeagueEvents, getLeagues, getRegistrations, getAllRegisteredDrivers } from '@/lib/platform-data'
 import { getTeamsDashboard } from '@/lib/team-data'
+import { getUnseenLineupChangeTeamIds, getRecentLineupChanges } from '@/lib/admin-lineup-log'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
 import { db } from '@/lib/db'
 import { simulatorLabel } from '@/lib/utils'
 import { SubmitButton } from '@/components/submit-button'
 import { ConfirmForm } from '@/components/confirm-form'
+import { TripleConfirmForm } from '@/components/triple-confirm-form'
 import { DeleteLeagueButton } from '@/components/delete-league-button'
 import { DeleteTeamButtonDouble } from '@/components/delete-team-button-double'
 import { DeleteUserButtonDouble } from '@/components/delete-user-button-double'
 import { AdminGallery } from '@/components/admin-gallery'
-import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive } from 'lucide-react'
 import {
   adminDeleteMarketListing,
   quickUpdateLeagueStatusAction,
@@ -26,7 +28,10 @@ import {
 import { deleteTeamAction } from '@/app/equipos/actions'
 import { AdminLeaguesTab } from './components/admin-leagues-tab'
 import { AdminTeamsTab } from './components/admin-teams-tab'
+import { AdminCatalogTab } from './components/admin-catalog-tab'
 import { AdminAdminsTab } from './components/admin-admins-tab'
+import { AdminNewsTab } from './components/admin-news-tab'
+import { getNewsPosts } from '@/lib/news-data'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
@@ -119,7 +124,7 @@ export default async function AdminPage({
   // Load all baseline data in parallel — these reads are independent of each other
   const fixedAdminSteamIds = getConfiguredAdminSteamIds()
 
-  const [leagues, events, registrations, { teams }, drivers, listings, grants] = await Promise.all([
+  const [leagues, events, registrations, { teams }, drivers, listings, grants, newsPosts, unseenLineupChangeTeamIds, recentLineupChanges] = await Promise.all([
     getLeagues(),
     getLeagueEvents(),
     getRegistrations(),
@@ -127,7 +132,11 @@ export default async function AdminPage({
     getAllRegisteredDrivers(),
     fetchAdminMarketListings(),
     fetchAdminGrants(),
+    getNewsPosts(),
+    getUnseenLineupChangeTeamIds(session.userId),
+    getRecentLineupChanges(),
   ])
+  const hasUnseenLineupChanges = unseenLineupChangeTeamIds.size > 0
 
   const visibleLeagues = access.canAccessPlatformAdmin
     ? leagues
@@ -153,12 +162,12 @@ export default async function AdminPage({
   return (
     <div className="space-y-6 text-white">
       {/* Main Page Title Header */}
-      <div className="border-b border-shell-line pb-4">
-        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white italic flex items-center gap-3">
+      <div className="border-b border-white/10 pb-4">
+        <h1 className="font-display-league flex items-center gap-3 text-3xl uppercase text-white md:text-4xl">
           <ShieldAlert className="h-7 w-7 text-cyan-400 shrink-0" />
           {t.title}
         </h1>
-        <p className="text-xs md:text-sm text-slate-400 mt-1">
+        <p className="mt-1 font-mono-data text-xs text-slate-400 md:text-sm">
           {t.subtitle}
         </p>
       </div>
@@ -222,11 +231,14 @@ export default async function AdminPage({
           className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
             activeTab === 'teams'
               ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              : hasUnseenLineupChanges
+                ? 'animate-pulse bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <Shield className="h-3.5 w-3.5 text-cyan-400" />
           {t.tabTeams} ({teams.length})
+          {hasUnseenLineupChanges && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
         </Link>
         <Link
           href="/admin?tab=drivers"
@@ -262,6 +274,17 @@ export default async function AdminPage({
           {t.tabGallery}
         </Link>
         <Link
+          href="/admin?tab=catalog"
+          className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
+            activeTab === 'catalog'
+              ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <FileArchive className="h-3.5 w-3.5 text-cyan-400" />
+          Catálogo
+        </Link>
+        <Link
           href="/admin?tab=admins"
           className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
             activeTab === 'admins'
@@ -271,6 +294,17 @@ export default async function AdminPage({
         >
           <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />
           {t.tabAdmins} ({grants.length})
+        </Link>
+        <Link
+          href="/admin?tab=news"
+          className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
+            activeTab === 'news'
+              ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Newspaper className="h-3.5 w-3.5 text-cyan-400" />
+          Noticias ({newsPosts.length})
         </Link>
         <Link
           href="/admin?tab=system"
@@ -296,14 +330,19 @@ export default async function AdminPage({
 
       {/* TAB CONTENT: TEAMS */}
       {activeTab === 'teams' && (
-        <AdminTeamsTab teams={teams} />
+        <AdminTeamsTab
+          teams={teams}
+          leagues={visibleLeagues}
+          unseenLineupChangeTeamIds={Array.from(unseenLineupChangeTeamIds)}
+          recentLineupChanges={recentLineupChanges}
+        />
       )}
 
       {/* TAB CONTENT: DRIVERS */}
       {activeTab === 'drivers' && (
-        <section className="shell-panel p-4 md:p-5 rounded-lg space-y-4">
+        <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4">
           <div className="border-b border-shell-line pb-3">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-white italic">{t.driversTitle}</h2>
+            <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">{t.driversTitle}</h2>
             <p className="text-xs text-slate-400">{t.driversSubtitle}</p>
           </div>
 
@@ -419,10 +458,10 @@ export default async function AdminPage({
 
       {/* TAB CONTENT: DRIVER MARKET */}
       {activeTab === 'market' && (
-        <section className="shell-panel p-4 md:p-5 rounded-lg space-y-4">
+        <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-shell-line pb-3">
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-wide text-white italic">{t.marketTitle}</h2>
+              <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">{t.marketTitle}</h2>
               <p className="text-xs text-slate-400">{t.marketSubtitle}</p>
             </div>
 
@@ -541,10 +580,13 @@ export default async function AdminPage({
 
       {/* TAB CONTENT: GALLERY & FILES */}
       {activeTab === 'gallery' && (
-        <section className="shell-panel p-4 md:p-5 rounded-lg space-y-6">
+        <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-6">
           <AdminGallery />
         </section>
       )}
+
+      {/* TAB CONTENT: CATALOG (car/circuit content) */}
+      {activeTab === 'catalog' && <AdminCatalogTab />}
 
       {/* TAB CONTENT: ADMINS */}
       {activeTab === 'admins' && (
@@ -555,11 +597,14 @@ export default async function AdminPage({
         />
       )}
 
+      {/* TAB CONTENT: NEWS */}
+      {activeTab === 'news' && <AdminNewsTab posts={newsPosts} />}
+
       {/* TAB CONTENT: DATA CLEANUP */}
       {activeTab === 'system' && (
-        <section className="shell-panel p-4 md:p-5 rounded-lg space-y-6">
+        <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-6">
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-wide text-rose-400 italic">{t.dataCleanupTitle}</h2>
+            <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-rose-400">{t.dataCleanupTitle}</h2>
             <p className="mt-1 text-xs text-slate-400">{t.dataCleanupSubtitle}</p>
           </div>
 
@@ -583,13 +628,15 @@ export default async function AdminPage({
               {t.confirmCleanup}
             </p>
 
-            <ConfirmForm action={resetDatabaseAction} confirmMessage={t.confirmCleanup}>
-              <SubmitButton
-                label={t.confirmCleanupButton}
-                pendingLabel={t.cleaningDatabase}
-                className="border border-rose-500/40 bg-rose-600/20 hover:bg-rose-700 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-rose-100 hover:text-white transition-colors cursor-pointer"
-              />
-            </ConfirmForm>
+            <TripleConfirmForm
+              action={resetDatabaseAction}
+              label={t.confirmCleanupButton}
+              pendingLabel={t.cleaningDatabase}
+              confirmStep1Label={t.confirmCleanupStep1}
+              typePromptLabel={t.confirmCleanupTypePrompt}
+              requiredPhrase={t.confirmCleanupPhrase}
+              className="border border-rose-500/40 bg-rose-600/20 hover:bg-rose-700 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-rose-100 hover:text-white transition-colors cursor-pointer"
+            />
           </div>
         </section>
       )}

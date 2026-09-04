@@ -50,9 +50,12 @@ export async function respondTeamInvite(formData: FormData) {
 
 export async function updateProfile(formData: FormData) {
   const session = await getCurrentUser()
-  if (!session) redirect('/perfil')
+  if (!session) return { success: false, error: 'Unauthorized: No active session found.' }
 
   const preferredCategories = formData.getAll('preferredCategories').map((value) => String(value).trim().toUpperCase())
+  const isPublic = formData.get('isPublic') === 'true'
+  const bannerUrl = String(formData.get('bannerUrl') || '').trim() || null
+  const accentColor = String(formData.get('accentColor') || '').trim() || null
 
   try {
     await db.profile.upsert({
@@ -65,6 +68,9 @@ export async function updateProfile(formData: FormData) {
         mainSim: String(formData.get('mainSim') || 'ac') as any,
         preferredCategories,
         avatarUrl: session.avatarUrl || null,
+        isPublic,
+        bannerUrl,
+        accentColor,
       },
       update: {
         displayName: String(formData.get('displayName') || '').trim() || session.steamDisplayName,
@@ -73,13 +79,18 @@ export async function updateProfile(formData: FormData) {
         mainSim: String(formData.get('mainSim') || 'ac') as any,
         preferredCategories,
         avatarUrl: session.avatarUrl || null,
+        isPublic,
+        bannerUrl,
+        accentColor,
       },
     })
   } catch (error) {
     console.error('Failed to update profile:', error)
+    return { success: false, error: 'Failed to save the profile.' }
   }
 
   revalidatePath('/perfil')
   revalidatePath('/perfil/editar')
-  redirect('/perfil')
+  revalidatePath(`/perfil/${session.userId}`)
+  return { success: true }
 }

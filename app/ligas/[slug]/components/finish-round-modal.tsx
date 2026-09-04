@@ -257,44 +257,41 @@ export function FinishRoundModal({
       : [selectedCategoryFilter]
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-sm p-4 md:p-6 flex justify-center items-start sm:items-center animate-fade-in">
-      <div className="shell-panel border border-shell-line bg-[#090d16] max-w-4xl w-full p-5 md:p-6 text-white rounded-lg shadow-[0_0_60px_rgba(0,0,0,0.9)] relative flex flex-col my-auto">
-        {/* Modal Header */}
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/85 p-4 backdrop-blur-sm sm:items-center md:p-6">
+      <div className="relative my-auto flex w-full max-w-4xl flex-col rounded-2xl border border-white/10 bg-[#0a0f18] p-5 text-white shadow-[0_0_60px_rgba(0,0,0,0.8)] md:p-6">
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-[#4ea1ff] hover:text-[#4ea1ff]"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </button>
 
-        <div className="border-b border-shell-line pb-3 mb-4">
+        <div className="mb-4 border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
-            <span className="bg-cyan-950 text-cyan-400 border border-cyan-800/50 px-2 py-0.5 text-[10px] font-mono font-bold uppercase">
+            <span className="font-mono-data rounded border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.12)] px-2 py-0.5 text-[10px] font-bold uppercase text-[#4ea1ff]">
               {tr.roundManagement}
             </span>
-            <h2 className="text-xl font-bold uppercase text-white tracking-tight">
-              {tr.finalizeRound.replace('{round}', event.title || event.circuitName)}
-            </h2>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            {tr.uploadHint}
-          </p>
+          <h2 className="font-display-league mt-1.5 text-2xl uppercase text-white">
+            {tr.finalizeRound.replace('{round}', event.title || event.circuitName)}
+          </h2>
+          <p className="mt-1 text-xs text-slate-400">{tr.uploadHint}</p>
         </div>
 
-        {/* Top Session Type Selector (Qualifying vs Race) - Only shown when round has Qualy */}
+        {/* Session Type Selector */}
         {hasQualy && (
-          <div className="grid grid-cols-2 gap-2 bg-black/60 p-1.5 border border-shell-line/60 rounded-lg mb-4">
+          <div className="mb-4 grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-black/40 p-1.5">
             <button
               type="button"
               onClick={() => {
                 setSessionType('qualifying')
                 setParsedRows((prev) => prev.map((r) => ({ ...r, points: 0 })))
               }}
-              className={`py-2 text-xs font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-2 ${
+              className={`flex items-center justify-center gap-2 rounded-md py-2 text-xs font-black uppercase tracking-wider transition-colors ${
                 sessionType === 'qualifying'
-                  ? 'bg-cyan-500 text-black shadow-md border border-cyan-400'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  ? 'border border-[#4ea1ff] bg-[#1274de] text-white shadow-md'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
               }`}
             >
               <Timer className="h-4 w-4" />
@@ -306,12 +303,12 @@ export function FinishRoundModal({
               onClick={() => {
                 if (isQualyCompleted) setSessionType('race')
               }}
-              className={`py-2 text-xs font-black uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${
+              className={`flex items-center justify-center gap-2 rounded-md py-2 text-xs font-black uppercase tracking-wider transition-colors ${
                 !isQualyCompleted
-                  ? 'text-slate-600 bg-black/40 border border-white/5 cursor-not-allowed'
+                  ? 'cursor-not-allowed border border-white/5 bg-black/40 text-slate-600'
                   : sessionType === 'race'
-                  ? 'bg-amber-500 text-black shadow-md border border-amber-400 cursor-pointer'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer'
+                  ? 'cursor-pointer border border-amber-400 bg-amber-500 text-black shadow-md'
+                  : 'cursor-pointer text-slate-400 hover:bg-white/5 hover:text-white'
               }`}
               title={!isQualyCompleted ? tr.finalizeQualyFirst : tr.manageRaceResults}
             >
@@ -322,14 +319,14 @@ export function FinishRoundModal({
         )}
 
         {/* Main Tab Selector */}
-        <div className="flex items-center justify-between border-b border-white/10 mb-4 gap-2">
+        <div className="mb-4 flex items-center justify-between gap-2 border-b border-white/10">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setActiveTab('upload')}
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+              className={`flex items-center gap-2 border-b-2 px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
                 activeTab === 'upload'
-                  ? 'border-cyan-400 text-cyan-300 bg-cyan-950/20'
+                  ? 'border-[#4ea1ff] bg-[rgba(78,161,255,.1)] text-[#4ea1ff]'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -343,9 +340,9 @@ export function FinishRoundModal({
               type="button"
               onClick={() => setActiveTab('preview')}
               disabled={parsedRows.length === 0}
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-colors cursor-pointer disabled:opacity-40 ${
+              className={`flex items-center gap-2 border-b-2 px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-40 ${
                 activeTab === 'preview'
-                  ? 'border-cyan-400 text-cyan-300 bg-cyan-950/20'
+                  ? 'border-[#4ea1ff] bg-[rgba(78,161,255,.1)] text-[#4ea1ff]'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -358,46 +355,46 @@ export function FinishRoundModal({
               <button
                 type="button"
                 onClick={handleClearPoints}
-                className="text-[11px] text-rose-400 hover:text-rose-300 font-bold uppercase flex items-center gap-1 bg-rose-950/40 border border-rose-800/40 px-2.5 py-1 transition-colors cursor-pointer"
+                className="flex items-center gap-1 rounded-md border border-rose-800/40 bg-rose-950/40 px-2.5 py-1 text-[11px] font-bold uppercase text-rose-400 transition-colors hover:text-rose-300"
                 title={tr.clearPointsTitle}
               >
-                <Eraser className="h-3 w-3 text-rose-400" /> {tr.clearPoints}
+                <Eraser className="h-3 w-3" /> {tr.clearPoints}
               </button>
               <button
                 type="button"
                 onClick={handleRecalculatePoints}
-                className="text-[11px] text-cyan-400 hover:text-cyan-300 font-bold uppercase flex items-center gap-1 bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-1 transition-colors cursor-pointer"
+                className="flex items-center gap-1 rounded-md border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.1)] px-2.5 py-1 text-[11px] font-bold uppercase text-[#4ea1ff] transition-colors hover:text-white"
                 title={tr.recalculateTitle}
               >
-                <RefreshCw className="h-3 w-3 text-cyan-400" /> {tr.recalculate}
+                <RefreshCw className="h-3 w-3" /> {tr.recalculate}
               </button>
             </div>
           )}
         </div>
 
         {errorMsg && (
-          <div className="mb-4 border border-rose-500/40 bg-rose-950/30 p-3 text-xs text-rose-300 flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-xs text-rose-300">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {/* Modal Content Body */}
-        <div className="flex-1 overflow-y-auto pr-1 space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto pr-1">
           {activeTab === 'upload' ? (
             <div className="space-y-4">
-              <label className="border-2 border-dashed border-shell-line hover:border-cyan-400 bg-black/40 p-6 flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors text-center group">
+              <label className="group flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-white/10 bg-black/30 p-6 text-center transition-colors hover:border-[#4ea1ff]">
                 <input
                   type="file"
                   accept="application/json,.json"
                   onChange={handleFileChange}
                   className="hidden"
                 />
-                <div className="p-3 bg-cyan-950/60 border border-cyan-800/40 group-hover:scale-110 transition-transform">
-                  <FileText className="h-6 w-6 text-cyan-400" />
+                <div className="rounded-lg border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.12)] p-3 transition-transform group-hover:scale-110">
+                  <FileText className="h-6 w-6 text-[#4ea1ff]" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white uppercase">
+                  <p className="text-sm font-bold uppercase text-white">
                     {file
                       ? file.name
                       : tr.dropzoneSelect.replace(
@@ -405,37 +402,33 @@ export function FinishRoundModal({
                           sessionType === 'qualifying' ? tr.sessionQualifying : tr.sessionRace
                         )}
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {tr.dropzoneHint}
-                  </p>
+                  <p className="mt-1 text-xs text-slate-400">{tr.dropzoneHint}</p>
                 </div>
               </label>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold uppercase text-slate-300">
-                  {tr.pasteJson}
-                </label>
+                <label className="block text-xs font-bold uppercase text-slate-300">{tr.pasteJson}</label>
                 <textarea
                   value={jsonText}
                   onChange={handleTextChange}
                   rows={6}
                   placeholder='{"Result": [{"DriverGuid": "7656119...", "position": 1, "points": 25}]}'
-                  className="w-full border border-shell-line bg-black/50 p-3 text-xs font-mono text-cyan-200 outline-none rounded-lg focus:border-cyan-400"
+                  className="font-mono-data w-full rounded-lg border border-white/10 bg-black/40 p-3 text-xs text-[#4ea1ff] outline-none focus:border-[#4ea1ff]"
                 />
               </div>
             </div>
           ) : (
             <div className="space-y-6">
               {/* Category Filter Pills */}
-              <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto">
-                <span className="text-xs font-extrabold uppercase text-slate-400 mr-2 shrink-0">{tr.category}</span>
+              <div className="flex items-center gap-2 overflow-x-auto border-b border-white/10 pb-2">
+                <span className="mr-2 shrink-0 text-xs font-extrabold uppercase text-slate-400">{tr.category}</span>
                 <button
                   type="button"
                   onClick={() => setSelectedCategoryFilter('ALL')}
-                  className={`px-3 py-1 text-xs font-extrabold uppercase transition-all border cursor-pointer shrink-0 ${
+                  className={`shrink-0 rounded-full border px-3 py-1 text-xs font-extrabold uppercase transition-all ${
                     selectedCategoryFilter === 'ALL'
-                      ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.35)]'
-                      : 'bg-black/40 text-slate-400 border-slate-700 hover:text-white'
+                      ? 'border-[#4ea1ff] bg-[#1274de] text-white shadow-[0_0_12px_rgba(78,161,255,0.45)]'
+                      : 'border-white/10 bg-black/30 text-slate-400 hover:text-white'
                   }`}
                 >
                   {tr.all} ({parsedRows.length})
@@ -450,10 +443,7 @@ export function FinishRoundModal({
                       key={cat}
                       type="button"
                       onClick={() => setSelectedCategoryFilter(cat)}
-                      className={`px-3 py-1 text-xs font-extrabold uppercase transition-all border cursor-pointer shrink-0 ${getCategoryStyles(
-                        cat,
-                        isSelected
-                      )}`}
+                      className={`shrink-0 rounded-full border px-3 py-1 text-xs font-extrabold uppercase transition-all ${getCategoryStyles(cat, isSelected)}`}
                     >
                       {cat} ({count})
                     </button>
@@ -468,36 +458,35 @@ export function FinishRoundModal({
 
                 return (
                   <div key={tag} className="space-y-2">
-                    <div className="flex items-center justify-between border-b border-cyan-500/30 pb-2">
+                    <div className="flex items-center justify-between border-b border-[#4ea1ff]/30 pb-2">
                       <div className="flex items-center gap-2">
-                        <ClassBadge classTag={tag} className="text-xs font-black px-3 py-1" />
-                        <span className="text-xs text-slate-400 font-mono font-bold">
+                        <ClassBadge classTag={tag} className="px-3 py-1 text-xs font-black" />
+                        <span className="font-mono-data text-xs font-bold text-slate-400">
                           ({categoryRows.length} {tr.competitors})
                         </span>
                       </div>
-                      <span className="text-[10px] text-cyan-400 font-mono flex items-center gap-1">
+                      <span className="font-mono-data flex items-center gap-1 text-[10px] text-[#4ea1ff]">
                         <Edit3 className="h-3 w-3" /> {tr.editHint}
                       </span>
                     </div>
 
-                    <div className="border border-shell-line bg-black/40 overflow-hidden">
-                      <table className="w-full min-w-[560px] text-left border-collapse text-xs">
+                    <div className="overflow-hidden rounded-lg border border-white/10 bg-black/30">
+                      <table className="w-full min-w-[560px] border-collapse text-left text-xs">
                         <thead>
-                          <tr className="border-b border-shell-line bg-white/5 text-slate-400 uppercase font-mono text-[10px]">
-                            <th className="p-2.5 text-center w-16">{tr.catPos}</th>
+                          <tr className="font-mono-data border-b border-white/10 bg-white/5 text-[10px] uppercase text-slate-400">
+                            <th className="w-16 p-2.5 text-center">{tr.catPos}</th>
                             <th className="p-2.5">{tr.team}</th>
-                            <th className="p-2.5 text-center w-24">{tr.overallPos}</th>
-                             {sessionType === 'race' ? (
-                              <th className="p-2.5 text-right w-32">{tr.roundPoints}</th>
+                            <th className="w-24 p-2.5 text-center">{tr.overallPos}</th>
+                            {sessionType === 'race' ? (
+                              <th className="w-32 p-2.5 text-right">{tr.roundPoints}</th>
                             ) : (
-                              <th className="p-2.5 text-right w-32 text-slate-400 font-mono">{tr.gridPosOnly}</th>
+                              <th className="font-mono-data w-32 p-2.5 text-right text-slate-400">{tr.gridPosOnly}</th>
                             )}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
                           {categoryRows.map((row) => (
-                            <tr key={row.id} className="hover:bg-white/5 transition-colors">
-                              {/* 1. Editable Category Position */}
+                            <tr key={row.id} className="transition-colors hover:bg-white/5">
                               <td className="p-2 text-center">
                                 <input
                                   type="number"
@@ -505,48 +494,43 @@ export function FinishRoundModal({
                                   max={99}
                                   value={row.pos}
                                   onChange={(e) => handleUpdateRowPos(row.id, Number(e.target.value))}
-                                  className="w-12 bg-black/80 border border-slate-700 text-center font-mono font-black text-amber-400 text-xs py-1 outline-none focus:border-cyan-400"
+                                  className="font-mono-data w-12 rounded border border-white/10 bg-black/50 py-1 text-center text-xs font-black text-amber-400 outline-none focus:border-[#4ea1ff]"
                                 />
                               </td>
 
-                              {/* 2. Team Name with Dorsal on right */}
                               <td className="p-2.5">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-extrabold text-white uppercase text-xs tracking-wide">
+                                  <span className="text-xs font-extrabold uppercase tracking-wide text-white">
                                     {row.teamName}
                                   </span>
                                   {row.dorsal != null && (
-                                    <span className="text-xs font-mono font-black text-cyan-300">
-                                      #{row.dorsal}
-                                    </span>
+                                    <span className="font-mono-data text-xs font-black text-[#4ea1ff]">#{row.dorsal}</span>
                                   )}
                                 </div>
                               </td>
 
-                              {/* 3. Overall Position */}
-                              <td className="p-2.5 text-center font-mono text-slate-400 text-xs">
+                              <td className="font-mono-data p-2.5 text-center text-xs text-slate-400">
                                 P{row.overallPos}
                               </td>
 
-                              {/* 4. Points display depending on sessionType */}
                               {sessionType === 'race' ? (
                                 <td className="p-2 text-right">
                                   <div className="flex items-center justify-end gap-1">
-                                    <span className="text-cyan-400 font-bold text-xs">+</span>
+                                    <span className="text-xs font-bold text-[#4ea1ff]">+</span>
                                     <input
                                       type="number"
                                       min={0}
                                       max={500}
                                       value={row.points}
                                       onChange={(e) => handleUpdateRowPoints(row.id, Number(e.target.value))}
-                                      className="w-16 bg-black/80 border border-slate-700 text-right font-mono font-black text-cyan-300 text-xs py-1 px-1.5 outline-none focus:border-cyan-400"
+                                      className="font-mono-data w-16 rounded border border-white/10 bg-black/50 px-1.5 py-1 text-right text-xs font-black text-[#4ea1ff] outline-none focus:border-[#4ea1ff]"
                                     />
-                                    <span className="text-slate-400 text-[10px] font-mono">{tr.pts}</span>
+                                    <span className="font-mono-data text-[10px] text-slate-400">{tr.pts}</span>
                                   </div>
                                 </td>
                               ) : (
-                                <td className="p-2.5 text-right font-mono text-xs">
-                                  <span className="bg-cyan-950/60 border border-cyan-800/40 text-cyan-400 px-2 py-0.5 text-[10px] font-bold uppercase">
+                                <td className="font-mono-data p-2.5 text-right text-xs">
+                                  <span className="rounded-full border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.12)] px-2 py-0.5 text-[10px] font-bold uppercase text-[#4ea1ff]">
                                     {tr.gridPoints}
                                   </span>
                                 </td>
@@ -564,11 +548,11 @@ export function FinishRoundModal({
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-shell-line/50 mt-4">
+        <div className="mt-4 flex items-center justify-end gap-3 border-t border-white/10 pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="border border-shell-line bg-black/40 hover:bg-slate-800 px-4 py-2 text-xs font-bold uppercase text-slate-300 rounded-lg transition-colors cursor-pointer"
+            className="rounded-lg border border-white/10 bg-black/30 px-4 py-2 text-xs font-bold uppercase text-slate-300 transition-colors hover:bg-white/5"
           >
             {tr.cancel}
           </button>
@@ -576,7 +560,7 @@ export function FinishRoundModal({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting || parsedRows.length === 0}
-            className="bg-cyan-500 hover:bg-cyan-400 text-black disabled:opacity-40 px-5 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+            className="flex items-center gap-2 rounded-lg border border-[#4ea1ff] bg-[#1274de] px-5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-[0_0_15px_rgba(78,161,255,0.4)] transition-all hover:bg-[#1f82ee] disabled:opacity-40"
           >
             <CheckCircle2 className="h-4 w-4" />
             {isSubmitting

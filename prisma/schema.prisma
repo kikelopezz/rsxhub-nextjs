@@ -61,6 +61,9 @@ model Profile {
   onboarded           Boolean   @default(false)
   preferredCategories String[]  @map("preferred_categories")
   racingNumber        Int?      @map("racing_number")
+  isPublic            Boolean   @default(true) @map("is_public")
+  bannerUrl           String?   @map("banner_url")
+  accentColor         String?   @map("accent_color")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
@@ -431,6 +434,10 @@ model LeagueTeamPoints {
   leagueId  String   @map("league_id")
   classTag  String   @map("class_tag")
   teamId    String   @map("team_id")
+  // Points belong to a specific car, not the team as a whole — a team running two cars in
+  // the same class must be able to score them independently. Empty string covers rows from
+  // before this field existed / teams with no assigned car number.
+  carNumber String   @default("") @map("car_number")
   points    Int      @default(0)
   updatedAt DateTime @updatedAt @map("updated_at")
   updatedBy String?  @map("updated_by")
@@ -438,7 +445,7 @@ model LeagueTeamPoints {
   league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  @@unique([leagueId, classTag, teamId])
+  @@unique([leagueId, classTag, teamId, carNumber])
   @@map("league_team_points")
 }
 
@@ -523,15 +530,32 @@ model TeamCar {
 // leagueId = null -> lista de pilotos por defecto del coche (driverUserIds original).
 // leagueId set -> override especifico de esa liga (driverUserIdsByLeague original).
 model TeamCarDriver {
-  id       String  @id @default(cuid())
-  carId    String  @map("car_id")
-  userId   String  @map("user_id")
-  leagueId String? @map("league_id")
+  id        String  @id @default(cuid())
+  carId     String  @map("car_id")
+  userId    String  @map("user_id")
+  leagueId  String? @map("league_id")
+  // A reserve driver is part of the car's lineup but doesn't occupy one of the regular
+  // driving slots — kept as the same kind of row (car+league+user) as a regular driver,
+  // just flagged, rather than a separate table.
+  isReserve Boolean @default(false) @map("is_reserve")
 
   car TeamCar @relation(fields: [carId], references: [id], onDelete: Cascade)
 
-  @@unique([carId, userId, leagueId])
+  @@unique([carId, userId, leagueId, isReserve])
   @@map("team_car_league_drivers")
+}
+
+// Un registro por cada vez que se guarda una alineación de un coche — usado para
+// aplicar el límite de 3 cambios de alineación por coche y día.
+model LineupChangeLog {
+  id          String   @id @default(cuid())
+  carId       String   @map("car_id")
+  teamId      String   @map("team_id")
+  changedById String   @map("changed_by_id")
+  changedAt   DateTime @default(now()) @map("changed_at")
+
+  @@index([carId, changedAt])
+  @@map("lineup_change_logs")
 }
 
 model TeamSkinAssignment {
@@ -559,6 +583,10 @@ model TeamMember {
   teamId      String        @map("team_id")
   userId      String        @map("user_id")
   role        TeamRoleValue
+  // Free-form specialty badges (team leader, team boss, engineer, HYPERCAR/GT3/LMP2 driver…),
+  // separate from `role` above which only gates team-management permissions — a member can
+  // hold any combination of these at once.
+  roleTags    String[]      @default([]) @map("role_tags")
   displayName String?       @map("display_name")
   steamId     String?       @map("steam_id")
   avatarUrl   String?       @map("avatar_url")
@@ -671,4 +699,29 @@ model Setting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("settings")
+}
+
+// Etiquetas informativas que un admin añade a un día del calendario (fechas de
+// entrega de skins, eventos fuera de pista...), independientes de los eventos de liga.
+model CalendarNote {
+  id        String   @id @default(cuid())
+  date      DateTime
+  title     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("calendar_notes")
+}
+
+model NewsPost {
+  id          String   @id @default(cuid())
+  title       String
+  excerpt     String
+  body        String
+  imageUrl    String?  @map("image_url")
+  authorId    String?  @map("author_id")
+  publishedAt DateTime @default(now()) @map("published_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("news_posts")
 }

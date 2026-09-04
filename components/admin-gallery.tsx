@@ -178,7 +178,7 @@ export function AdminGallery() {
   return (
     <div className="space-y-6">
       {/* Storage Usage Progress Bar */}
-      <div className="shell-panel p-4 rounded-lg border border-shell-line bg-black/30 space-y-3">
+      <div className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
             <HardDrive className="h-4 w-4 text-accent" />

@@ -1,10 +1,10 @@
 const footer = {
-  description: 'Plataforma de competición de sim racing. Ligas, resultados y clasificaciones para la comunidad.',
+  description: 'Plataforma de competición de sim racing. Campeonatos, resultados y clasificaciones para la comunidad.',
   platform: 'Plataforma',
   links: {
     home: 'Inicio',
     calendar: 'Calendario',
-    leagues: 'Ligas',
+    leagues: 'Campeonatos',
     teams: 'Equipos',
     drivers: 'Pilotos',
     about: 'Sobre nosotros',

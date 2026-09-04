@@ -3,6 +3,54 @@
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser, getAdminAccessContext, getLeagueRole, canStewardLeague } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { invalidateCache } from '@/lib/ttl-cache'
+
+export async function createCalendarNoteAction(formData: FormData) {
+  const session = await getCurrentUser()
+  if (!session) return { success: false, error: 'Unauthorized: No active session found.' }
+
+  const access = await getAdminAccessContext(session.userId)
+  if (!access.canAccessPlatformAdmin) {
+    return { success: false, error: 'Forbidden: Only platform admins can add calendar notes.' }
+  }
+
+  const title = String(formData.get('title') || '').trim()
+  const dateStr = String(formData.get('date') || '').trim()
+  if (!title || !dateStr) return { success: false, error: 'Title and date are required.' }
+
+  try {
+    await db.calendarNote.create({ data: { title, date: new Date(`${dateStr}T00:00:00.000Z`) } })
+    invalidateCache(['calendar_notes'])
+    revalidatePath('/calendario')
+    return { success: true }
+  } catch (error: any) {
+    console.error('Failed to create calendar note:', error)
+    return { success: false, error: error.message || 'An unexpected database error occurred.' }
+  }
+}
+
+export async function deleteCalendarNoteAction(formData: FormData) {
+  const session = await getCurrentUser()
+  if (!session) return { success: false, error: 'Unauthorized: No active session found.' }
+
+  const access = await getAdminAccessContext(session.userId)
+  if (!access.canAccessPlatformAdmin) {
+    return { success: false, error: 'Forbidden: Only platform admins can delete calendar notes.' }
+  }
+
+  const id = String(formData.get('id') || '').trim()
+  if (!id) return { success: false, error: 'Missing note id.' }
+
+  try {
+    await db.calendarNote.delete({ where: { id } })
+    invalidateCache(['calendar_notes'])
+    revalidatePath('/calendario')
+    return { success: true }
+  } catch (error: any) {
+    console.error('Failed to delete calendar note:', error)
+    return { success: false, error: error.message || 'An unexpected database error occurred.' }
+  }
+}
 
 export async function saveCalendarEvent(formData: FormData) {
   try {
@@ -97,6 +145,7 @@ export async function saveCalendarEvent(formData: FormData) {
       })
     }
 
+    invalidateCache(['league_events_'])
     revalidatePath('/calendario')
     revalidatePath(`/ligas/${leagueId}`)
     return { success: true }
@@ -129,6 +178,7 @@ export async function deleteCalendarEvent(eventId: string) {
 
     await db.leagueEvent.delete({ where: { id: eventId } })
 
+    invalidateCache(['league_events_'])
     revalidatePath('/calendario')
     return { success: true }
   } catch (error: any) {

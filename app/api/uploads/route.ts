@@ -49,6 +49,14 @@ const removeGalleryUpload = (url: string) => removeUrlFromSetting('gallery_uploa
 
 export async function GET(req: Request) {
   try {
+    // The shared gallery browses every image ever uploaded across all teams/leagues/
+    // profiles — only admins get to browse it. Regular users can still upload their
+    // own images; they just don't see everyone else's via this list.
+    const role = await getPlatformRole()
+    if (role !== 'super_admin' && role !== 'platform_admin') {
+      return NextResponse.json({ images: [], restricted: true })
+    }
+
     const { searchParams } = new URL(req.url)
     const mode = searchParams.get('mode')
 
@@ -108,6 +116,7 @@ export async function POST(req: Request) {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     const type = formData.get('type') as string | null
+    const entityName = (formData.get('entityName') as string | null)?.trim() || ''
 
     const isGallery = formData.get('isGallery') === 'true' || type === 'gallery'
 
@@ -125,6 +134,17 @@ export async function POST(req: Request) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '')
+
+    // When we know which team/league this image belongs to, name it deterministically
+    // (e.g. "real-simracing-team-logo") instead of the uploaded file's own name, so two
+    // different teams/leagues uploading a same-named file (e.g. "logo.png") don't overwrite
+    // each other, and re-uploading for the same team correctly replaces its own image.
+    const slugifiedEntityName = entityName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '')
+    const entityBase =
+      slugifiedEntityName && (type === 'logo' || type === 'banner') ? `${slugifiedEntityName}-${type}` : null
 
     const isArchive = /\.(zip|rar|7z|tar|gz|tgz)$/i.test(file.name)
 
@@ -191,7 +211,7 @@ export async function POST(req: Request) {
     }
 
     // Save the original file as-is (no compression/resizing/format conversion)
-    const safeName = `${safeBase}${ext.toLowerCase()}`
+    const safeName = `${entityBase || safeBase}${ext.toLowerCase()}`
 
     if (hasR2) {
       try {
@@ -235,15 +255,24 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    // Security check: Only platform admins can delete assets
-    const role = await getPlatformRole()
-    if (role !== 'super_admin' && role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Unauthorized: Only platform admins can delete files' }, { status: 403 })
+    // Any logged-in user can delete an uploaded image (same policy as uploading one) —
+    // they're managing their own team/profile/league content. Shared platform branding
+    // assets are the exception and stay admin-only, checked once we know the path below.
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized: You must be logged in to delete files' }, { status: 401 })
     }
 
     const { url } = await req.json()
     if (!url || typeof url !== 'string') {
       return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
+    }
+
+    if (url.includes('/branding/')) {
+      const role = await getPlatformRole()
+      if (role !== 'super_admin' && role !== 'platform_admin') {
+        return NextResponse.json({ error: 'Unauthorized: Only platform admins can delete branding assets' }, { status: 403 })
+      }
     }
 
     // Cloudflare R2-hosted asset
@@ -259,8 +288,10 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: true })
     }
 
-    // Sanitize path to prevent directory traversal
-    const normalized = path.normalize(url).replace(/^(\.\.(\/|\\|$))+/, '')
+    // Sanitize path to prevent directory traversal. Use posix normalization since this
+    // is a URL path, not a filesystem path — plain path.normalize() would rewrite the
+    // forward slashes to backslashes on Windows and break the startsWith checks below.
+    const normalized = path.posix.normalize(url).replace(/^(\.\.\/)+/, '')
 
     let targetPath = ''
     if (normalized.startsWith('/uploads/') || normalized.startsWith('uploads/')) {

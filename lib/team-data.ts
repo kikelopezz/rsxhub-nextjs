@@ -11,9 +11,12 @@ type TeamDashboard = Team & {
   occupiedSlots: number
 }
 
+// The team list itself is identical for every viewer — only `myTeamIds` below
+// varies per user. Cache it under one shared key instead of once per user, so
+// concurrent visitors reuse the same cached fetch instead of each paying for
+// their own full copy.
 export const getTeamsDashboard = cache(async (currentUserId?: string) => {
-  const cacheKey = currentUserId ? `teams_dashboard_${currentUserId}` : 'teams_dashboard_anon'
-  return fetchWithTTLCache(cacheKey, async () => {
+  const { teams } = await fetchWithTTLCache('teams_dashboard_base', async () => {
     try {
       const teamRows = await db.team.findMany({
         include: {
@@ -25,7 +28,7 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
       })
 
       if (teamRows.length === 0) {
-        return { teams: [] as TeamDashboard[], myTeamIds: [] as string[], mode: 'ok' as const }
+        return { teams: [] as TeamDashboard[] }
       }
 
       const teamIds = teamRows.map((t) => t.id)
@@ -61,6 +64,7 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
             teamId: m.teamId,
             userId: m.userId,
             role: m.role,
+            roleTags: m.roleTags || [],
             createdAt: m.createdAt.toISOString(),
             displayName,
             avatarUrl: m.avatarUrl || profile?.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(displayName)}`,
@@ -84,12 +88,16 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
 
         const cars = t.cars.map((car) => {
           const driverUserIdsByLeague: Record<string, string[]> = {}
+          const reserveDriverUserIdsByLeague: Record<string, string[]> = {}
           const defaultDrivers: string[] = []
+          const defaultReserveDrivers: string[] = []
           for (const d of car.drivers) {
+            const byLeague = d.isReserve ? reserveDriverUserIdsByLeague : driverUserIdsByLeague
+            const defaultBucket = d.isReserve ? defaultReserveDrivers : defaultDrivers
             if (d.leagueId) {
-              ;(driverUserIdsByLeague[d.leagueId] ||= []).push(d.userId)
+              ;(byLeague[d.leagueId] ||= []).push(d.userId)
             } else {
-              defaultDrivers.push(d.userId)
+              defaultBucket.push(d.userId)
             }
           }
           return {
@@ -102,6 +110,8 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
             skinName: car.skinName || '',
             driverUserIds: defaultDrivers,
             driverUserIdsByLeague,
+            reserveDriverUserIds: defaultReserveDrivers,
+            reserveDriverUserIdsByLeague,
             leagueId: car.leagueId,
           }
         })
@@ -144,16 +154,18 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
         }
       })
 
-      const myTeamIds = currentUserId
-        ? teams
-            .filter((team) => team.ownerUserId === currentUserId || team.members.some((m) => m.userId === currentUserId && (m.role === 'owner' || m.role === 'manager')))
-            .map((team) => team.id)
-        : []
-
-      return { teams, myTeamIds, mode: 'ok' as const }
+      return { teams }
     } catch (error) {
       console.error('Failed to get teams dashboard:', error)
-      return { teams: [] as TeamDashboard[], myTeamIds: [] as string[], mode: 'ok' as const }
+      return { teams: [] as TeamDashboard[] }
     }
   }, 60)
+
+  const myTeamIds = currentUserId
+    ? teams
+        .filter((team) => team.ownerUserId === currentUserId || team.members.some((m) => m.userId === currentUserId && (m.role === 'owner' || m.role === 'manager')))
+        .map((team) => team.id)
+    : []
+
+  return { teams, myTeamIds, mode: 'ok' as const }
 })

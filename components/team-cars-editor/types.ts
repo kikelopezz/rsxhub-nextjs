@@ -8,6 +8,8 @@ export type CarEntry = {
   skinName?: string
   driverUserIds: string[] // All assigned drivers across all leagues
   driverUserIdsByLeague?: Record<string, string[]> // Mapping: leagueId -> driverUserIds[]
+  reserveDriverUserIds?: string[] // Reserve driver(s), same shape as driverUserIds but outside the regular slots
+  reserveDriverUserIdsByLeague?: Record<string, string[]> // Mapping: leagueId -> reserveDriverUserIds[]
   leagueId?: string | null
 }
 
@@ -17,6 +19,7 @@ export type VehicleModelOption = {
   acFolder: string // Assetto Corsa folder name
   category: 'GT3' | 'LMP2' | 'HYPERCAR'
   manufacturer?: string
+  imageUrl?: string // Real in-sim preview render, pulled from the car's own skin folder
 }
 
 export type TeamMemberOption = {
@@ -41,6 +44,7 @@ export type LeagueOption = {
 }
 
 export const MAX_DRIVERS_PER_CAR = 4
+export const MAX_RESERVE_DRIVERS_PER_CAR = 4
 
 export function getSkinFileName(url: string, skinName?: string): string {
   if (skinName && skinName.trim()) return skinName.trim()

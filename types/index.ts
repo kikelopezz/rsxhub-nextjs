@@ -170,6 +170,7 @@ export interface TeamMember {
   teamId: string
   userId: string
   role: TeamRole
+  roleTags: string[]
   createdAt: string
   steamId?: string
   steamDisplayName?: string

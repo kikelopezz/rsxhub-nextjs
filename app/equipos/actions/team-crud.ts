@@ -2,13 +2,21 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { getAdminAccessContext } from '@/lib/auth'
+import { getAdminAccessContext, getAdminUserIds } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getTeamsDashboard } from '@/lib/team-data'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { cleanupDriverMarketDataOnTeamJoin } from '@/lib/market-cleanup'
 import { guardSession, canManageTeam, cleanPilotName, parseSkinProfilesJson } from './team-parsers'
 import { syncLeagueRegistrations } from './team-league-sync'
+import {
+  MAX_LINEUP_CHANGES_PER_DAY,
+  carLineupKey,
+  countLineupChangesToday,
+  getNextLeagueEvent,
+  isLineupLockedForRace,
+  sameDriverSet,
+} from '@/lib/lineup-rules'
 
 export async function createTeam(formData: FormData) {
   const session = await guardSession()
@@ -135,6 +143,8 @@ export async function updateTeam(formData: FormData) {
     skinName: string
     driverUserIds: string[]
     driverUserIdsByLeague: Record<string, string[]>
+    reserveDriverUserIds: string[]
+    reserveDriverUserIdsByLeague: Record<string, string[]>
     leagueId: string | null
   }
 
@@ -158,6 +168,8 @@ export async function updateTeam(formData: FormData) {
               skinName: car.skinName || car.skin_name || '',
               driverUserIds: (car.driverUserIds || car.driver_user_ids || []).map((d: any) => String(d || '').trim()).filter(Boolean),
               driverUserIdsByLeague: car.driverUserIdsByLeague || car.driver_user_ids_by_league || {},
+              reserveDriverUserIds: (car.reserveDriverUserIds || car.reserve_driver_user_ids || []).map((d: any) => String(d || '').trim()).filter(Boolean),
+              reserveDriverUserIdsByLeague: car.reserveDriverUserIdsByLeague || car.reserve_driver_user_ids_by_league || {},
               leagueId: car.leagueId || car.league_id || null,
             }
           })
@@ -177,6 +189,58 @@ export async function updateTeam(formData: FormData) {
     }
   }
 
+  // Lineup-change rules: detect which cars actually changed drivers (vs. an
+  // unrelated team-details save), then enforce the Friday race-week lock and
+  // the 3-changes-per-day limit before writing anything.
+  const changedCarKeys: string[] = []
+  if (teamCars) {
+    const oldDriversByKey = new Map<string, string[]>()
+    for (const oldCar of existingTeam.cars) {
+      const key = `${oldCar.category}_${oldCar.leagueId || 'general'}_${oldCar.dorsal}`
+      oldDriversByKey.set(key, oldCar.drivers.map((d) => d.userId))
+    }
+
+    const nextEventByLeague = new Map<string, Awaited<ReturnType<typeof getNextLeagueEvent>>>()
+    const now = new Date()
+
+    for (const car of teamCars) {
+      const dorsal = car.dorsal.trim()
+      if (!dorsal) continue
+      const key = `${car.category}_${car.leagueId || 'general'}_${dorsal}`
+      const oldDrivers = oldDriversByKey.get(key)
+      if (!oldDrivers) continue // brand new car slot — not a "change" to an existing lineup
+
+      const newDrivers = Array.from(
+        new Set(
+          [
+            ...car.driverUserIds,
+            ...Object.values(car.driverUserIdsByLeague).flat(),
+            ...car.reserveDriverUserIds,
+            ...Object.values(car.reserveDriverUserIdsByLeague).flat(),
+          ].filter(Boolean),
+        ),
+      )
+      if (sameDriverSet(oldDrivers, newDrivers)) continue
+
+      if (car.leagueId) {
+        if (!nextEventByLeague.has(car.leagueId)) {
+          nextEventByLeague.set(car.leagueId, await getNextLeagueEvent(car.leagueId, now))
+        }
+        const nextEvent = nextEventByLeague.get(car.leagueId)
+        if (nextEvent && isLineupLockedForRace(nextEvent, now)) {
+          redirect(`${redirectTo}?error=lineup-locked-qualy-day`)
+        }
+      }
+
+      const carKey = carLineupKey(teamId, car.category, car.leagueId, dorsal)
+      const changesToday = await countLineupChangesToday(carKey, now)
+      if (changesToday >= MAX_LINEUP_CHANGES_PER_DAY) {
+        redirect(`${redirectTo}?error=lineup-rate-limited`)
+      }
+      changedCarKeys.push(carKey)
+    }
+  }
+
   const accentColor = formData.has('accentColor') ? String(formData.get('accentColor') || '').trim() : existingTeam.accentColor || '#3b82f6'
   const slogan = formData.has('slogan') ? String(formData.get('slogan') || '').trim() : existingTeam.slogan
   const discordUrl = formData.has('discordUrl') ? String(formData.get('discordUrl') || '').trim() : existingTeam.discordUrl
@@ -185,6 +249,8 @@ export async function updateTeam(formData: FormData) {
   const twitterUrl = formData.has('twitterUrl') ? String(formData.get('twitterUrl') || '').trim() : existingTeam.twitterUrl
   const twitchUrl = formData.has('twitchUrl') ? String(formData.get('twitchUrl') || '').trim() : existingTeam.twitchUrl
   const tiktokUrl = formData.has('tiktokUrl') ? String(formData.get('tiktokUrl') || '').trim() : existingTeam.tiktokUrl
+
+  let syncedLeagueSlugs: string[] = []
 
   try {
     await db.team.update({
@@ -221,9 +287,13 @@ export async function updateTeam(formData: FormData) {
             leagueId: car.leagueId,
             drivers: {
               create: [
-                ...car.driverUserIds.map((userId) => ({ userId, leagueId: null })),
+                ...car.driverUserIds.map((userId) => ({ userId, leagueId: null, isReserve: false })),
                 ...Object.entries(car.driverUserIdsByLeague).flatMap(([leagueId, userIds]) =>
-                  (userIds || []).filter(Boolean).map((userId) => ({ userId, leagueId })),
+                  (userIds || []).filter(Boolean).map((userId) => ({ userId, leagueId, isReserve: false })),
+                ),
+                ...car.reserveDriverUserIds.map((userId) => ({ userId, leagueId: null, isReserve: true })),
+                ...Object.entries(car.reserveDriverUserIdsByLeague).flatMap(([leagueId, userIds]) =>
+                  (userIds || []).filter(Boolean).map((userId) => ({ userId, leagueId, isReserve: true })),
                 ),
               ],
             },
@@ -232,7 +302,28 @@ export async function updateTeam(formData: FormData) {
       }
     }
 
-    await syncLeagueRegistrations(teamId).catch((err) => console.error('Failed auto-syncing league registrations on team update:', err))
+    syncedLeagueSlugs = await syncLeagueRegistrations(teamId).catch((err) => {
+      console.error('Failed auto-syncing league registrations on team update:', err)
+      return []
+    })
+
+    if (changedCarKeys.length > 0) {
+      await db.lineupChangeLog.createMany({
+        data: changedCarKeys.map((carKey) => ({ carId: carKey, teamId, changedById: session.userId })),
+      })
+
+      const adminUserIds = await getAdminUserIds()
+      if (adminUserIds.length > 0) {
+        await db.userNotification.createMany({
+          data: adminUserIds.map((userId) => ({
+            userId,
+            title: 'Cambio de alineación',
+            message: `${name} ha modificado la alineación de ${changedCarKeys.length === 1 ? 'un coche' : `${changedCarKeys.length} coches`}.`,
+            link: `/equipos/${teamId}`,
+          })),
+        })
+      }
+    }
   } catch (error) {
     console.error('Failed to update team:', error)
   }
@@ -241,6 +332,10 @@ export async function updateTeam(formData: FormData) {
   revalidatePath('/equipos')
   revalidatePath(`/equipos/${teamId}`)
   revalidatePath('/perfil')
+  revalidatePath('/ligas')
+  for (const slug of syncedLeagueSlugs) {
+    revalidatePath(`/ligas/${slug}`)
+  }
   redirect(`${redirectTo}?updated=1`)
 }
 

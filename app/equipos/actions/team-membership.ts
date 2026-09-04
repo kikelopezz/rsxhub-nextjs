@@ -7,6 +7,7 @@ import { getTeamsDashboard } from '@/lib/team-data'
 import { createNotification, notifyTeamInvitation } from '@/lib/notifications-data'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { guardSession, canManageTeam } from './team-parsers'
+import { TEAM_ROLE_TAGS } from '@/app/equipos/[id]/team-utils'
 
 export async function invitePilot(formData: FormData) {
   const session = await guardSession()
@@ -126,6 +127,33 @@ export async function updateTeamMemberRole(formData: FormData) {
     await db.teamMember.update({ where: { teamId_userId: { teamId, userId: memberUserId } }, data: { role: role as any } })
   } catch (error) {
     console.error('Failed to update member role:', error)
+    redirect(`${redirectTo}?error=role-update-failed`)
+  }
+
+  invalidateCache(['teams_dashboard', 'platform_leagues'])
+  revalidatePath('/equipos')
+  revalidatePath(`/equipos/${teamId}`)
+  redirect(`${redirectTo}?roleUpdated=1`)
+}
+
+export async function updateTeamMemberTags(formData: FormData) {
+  const session = await guardSession()
+  const redirectTo = String(formData.get('redirectTo') || '/equipos')
+  const teamId = String(formData.get('teamId') || '')
+  const memberUserId = String(formData.get('memberUserId') || '')
+  if (!teamId || !memberUserId) redirect(`${redirectTo}?error=member-required`)
+
+  const allowed = await canManageTeam(teamId, session.userId)
+  if (!allowed) redirect(`${redirectTo}?error=forbidden`)
+
+  // A member can hold any combination of these badges at once (e.g. engineer + HYPERCAR +
+  // GT3) — unlike `role`, this isn't a permission gate, so no single-value restriction here.
+  const roleTags = formData.getAll('roleTags').map(String).filter((tag) => (TEAM_ROLE_TAGS as readonly string[]).includes(tag))
+
+  try {
+    await db.teamMember.update({ where: { teamId_userId: { teamId, userId: memberUserId } }, data: { roleTags } })
+  } catch (error) {
+    console.error('Failed to update member role tags:', error)
     redirect(`${redirectTo}?error=role-update-failed`)
   }
 

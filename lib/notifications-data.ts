@@ -177,12 +177,14 @@ export async function notifyRaceEventScheduled({
   startsAt: string
   leagueSlug?: string
 }) {
-  for (const userId of userIds) {
-    await createNotification({
-      userId,
-      title: `Upcoming Round: ${eventTitle}`,
-      message: `The session at ${circuitName} is scheduled for ${startsAt}.`,
-      link: leagueSlug ? `/ligas/${leagueSlug}` : '/calendario',
-    })
-  }
+  await Promise.all(
+    userIds.map((userId) =>
+      createNotification({
+        userId,
+        title: `Upcoming Round: ${eventTitle}`,
+        message: `The session at ${circuitName} is scheduled for ${startsAt}.`,
+        link: leagueSlug ? `/ligas/${leagueSlug}` : '/calendario',
+      })
+    )
+  )
 }

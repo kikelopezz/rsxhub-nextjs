@@ -1,0 +1,48 @@
+import type es from '../es/live-timing'
+
+const liveTiming: typeof es = {
+  title: 'Live Timing',
+  subtitle: 'Live timing feed from RSX race servers.',
+  tabLive: 'Live',
+  tabResults: 'Results',
+  statusOnline: 'LIVE',
+  statusOffline: 'OFFLINE',
+  statusConnecting: 'CONNECTING...',
+  track: 'TRACK',
+  air: 'AIR',
+  trackTemp: 'TRACK',
+  sessionTime: 'TIME',
+  server: 'SERVER',
+  serverConnecting: 'Connecting...',
+  noDrivers: 'No drivers connected for this filter.',
+  noResults: 'No results recorded yet.',
+  filterAll: 'ALL',
+  col: {
+    pos: 'POS',
+    cls: 'CLS',
+    classPos: 'C.P',
+    number: '#',
+    driverCar: 'DRIVER / CAR',
+    team: 'TEAM',
+    tyre: 'TYRE',
+    gap: 'GAP',
+    interval: 'INT',
+    best: 'BEST',
+    last: 'LAST',
+    laps: 'LAPS',
+    longPits: 'LP',
+    normalPits: 'NP',
+    lastPit: 'LAST PIT',
+    stint: 'STINT',
+    state: 'STATE',
+    lastSeen: 'LAST SEEN',
+  },
+  pit: 'PIT',
+  onTrack: 'TRACK',
+  legend: {
+    sessionBest: 'Session best',
+    personalBest: 'Personal best',
+  },
+}
+
+export default liveTiming

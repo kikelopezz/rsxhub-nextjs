@@ -1,9 +1,10 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { CenterModal } from '@/components/center-modal'
 import { MessageSquare, Users, UserPlus } from 'lucide-react'
-import { updateTeamMemberRole, removeTeamMember, invitePilot } from '@/app/equipos/actions/team-membership'
+import { updateTeamMemberRole, updateTeamMemberTags, removeTeamMember, invitePilot } from '@/app/equipos/actions/team-membership'
 import { acceptDriverApplicationAction, declineDriverApplicationAction } from '@/app/equipos/actions/team-market'
-import type { TeamPilot, PendingApplication } from '../team-utils'
+import { TEAM_ROLE_TAGS, type TeamPilot, type PendingApplication } from '../team-utils'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
@@ -14,6 +15,7 @@ type TeamDriversSectionProps = {
   pendingApplications: PendingApplication[]
   inviteCandidates: Array<{ userId: string; label: string }>
   accentSoft: string
+  accentHard: string
 }
 
 export async function TeamDriversSection({
@@ -23,28 +25,39 @@ export async function TeamDriversSection({
   pendingApplications,
   inviteCandidates,
   accentSoft,
+  accentHard,
 }: TeamDriversSectionProps) {
   const t = getDictionary(await getLocale()).equipos.driversSection
+  const tagLabels: Record<string, string> = {
+    leader: t.tagLeader,
+    team_boss: t.tagTeamBoss,
+    engineer: t.tagEngineer,
+    HYPERCAR: t.tagHypercar,
+    GT3: t.tagGt3,
+    LMP2: t.tagLmp2,
+  }
   const displayPilots = teamPilots.length > 0
     ? teamPilots
     : team.members.map((member: any) => ({
         userId: member.userId,
         name: member.displayName || member.steamDisplayName || member.steamId || member.userId,
         role: member.role,
+        roleTags: member.roleTags || [],
         avatarUrl: (member as any).avatarUrl || null,
         steamId: member.steamId || null,
       }))
 
   return (
-    <article className="hud-corners shell-panel p-4 md:p-5 rounded-lg">
+    <article className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-black uppercase italic text-white">{t.title}</h2>
+        <h2 className="font-display-league text-2xl text-white">{t.title}</h2>
         {canManage ? (
           <div className="relative">
             <CenterModal
               title={t.driverManagementTitle}
               triggerLabel={t.manageDrivers}
-              triggerClassName="inline-flex items-center gap-1.5 border border-cyan-500 bg-cyan-950/40 hover:bg-cyan-500/20 px-4 py-2.5 text-xs font-bold uppercase italic text-cyan-300 rounded-lg transition-colors cursor-pointer shrink-0"
+              triggerClassName="inline-flex items-center gap-1.5 border bg-black/40 hover:bg-white/5 px-4 py-2.5 text-xs font-bold uppercase italic rounded-lg transition-colors cursor-pointer shrink-0"
+              triggerStyle={{ borderColor: accentHard, color: '#fff', boxShadow: `0 0 16px ${accentHard}` }}
               widthClassName="w-[min(920px,94vw)]"
             >
               <div className="space-y-6 text-left p-1 bg-[#090d16] text-white">
@@ -71,18 +84,24 @@ export async function TeamDriversSection({
                         return (
                           <div
                             key={member.id}
-                            className="bg-[#0f172a]/90 border border-slate-800 rounded-lg p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm hover:border-slate-700 transition-all"
+                            className="bg-[#0f172a]/90 border border-slate-800 rounded-lg p-3.5 space-y-3 shadow-sm hover:border-slate-700 transition-all"
                           >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
                               {avatar ? (
-                                <Image src={avatar} alt={memberName} width={40} height={40} className="w-10 h-10 object-cover rounded-lg border border-slate-700" />
+                                <Image src={avatar} alt={memberName} width={40} height={40} unoptimized className="w-10 h-10 object-cover rounded-lg border border-slate-700" />
                               ) : (
                                 <div className="w-10 h-10 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center text-xs font-bold text-slate-300">
                                   {memberName.slice(0, 2).toUpperCase()}
                                 </div>
                               )}
                               <div>
-                                <p className="text-sm font-bold text-white leading-tight">{memberName}</p>
+                                <Link
+                                  href={`/perfil/${member.userId}`}
+                                  className="text-sm font-bold text-white leading-tight hover:text-cyan-400 hover:underline transition-colors"
+                                >
+                                  {memberName}
+                                </Link>
                                 <p className="text-[10px] font-mono text-cyan-400/80 mt-0.5">
                                   {t.steamId} {member.steamId || member.userId.replace('steam_', '')}
                                 </p>
@@ -124,6 +143,29 @@ export async function TeamDriversSection({
                                 </form>
                               )}
                             </div>
+                          </div>
+
+                          <form action={updateTeamMemberTags} className="border-t border-slate-800/80 pt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                            <input type="hidden" name="teamId" value={team.id} />
+                            <input type="hidden" name="memberUserId" value={member.userId} />
+                            <input type="hidden" name="redirectTo" value={`/equipos/${team.id}`} />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 shrink-0">{t.roleTagsLabel}</span>
+                            {TEAM_ROLE_TAGS.map((tag) => (
+                              <label key={tag} className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-300 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  name="roleTags"
+                                  value={tag}
+                                  defaultChecked={((member as any).roleTags || []).includes(tag)}
+                                  className="h-3.5 w-3.5 rounded border-slate-600 bg-[#141d31] accent-cyan-500 cursor-pointer"
+                                />
+                                {tagLabels[tag]}
+                              </label>
+                            ))}
+                            <button className="ml-auto bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20 px-3 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer shrink-0">
+                              {t.saveTags}
+                            </button>
+                          </form>
                           </div>
                         )
                       })}
@@ -220,7 +262,7 @@ export async function TeamDriversSection({
                         <div key={app.id} className="bg-[#141d31]/90 border border-slate-700/60 p-3.5 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                           <div className="flex items-start gap-3">
                             {app.userAvatar ? (
-                              <Image src={app.userAvatar} width={40} height={40} className="w-10 h-10 object-cover border border-slate-700 rounded-lg shrink-0" alt="" />
+                              <Image src={app.userAvatar} width={40} height={40} unoptimized className="w-10 h-10 object-cover border border-slate-700 rounded-lg shrink-0" alt="" />
                             ) : (
                               <div className="w-10 h-10 bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 rounded-lg shrink-0">
                                 {app.userName.slice(0, 2).toUpperCase()}
@@ -289,7 +331,7 @@ export async function TeamDriversSection({
               <div key={app.id} className="bg-black/40 border border-shell-line p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg">
                 <div className="flex items-center gap-3">
                   {app.userAvatar ? (
-                    <Image src={app.userAvatar} width={36} height={36} className="w-9 h-9 object-cover border border-white/10 rounded-lg" alt="" />
+                    <Image src={app.userAvatar} width={36} height={36} unoptimized className="w-9 h-9 object-cover border border-white/10 rounded-lg" alt="" />
                   ) : (
                     <div className="w-9 h-9 bg-zinc-800 flex items-center justify-center text-[11px] font-bold text-slate-400 rounded-lg">D</div>
                   )}
@@ -326,41 +368,44 @@ export async function TeamDriversSection({
         </div>
       )}
 
-      {/* Drivers display list */}
-      <div className="mt-3 space-y-2">
+      {/* Drivers display list — poster cards in a horizontal strip */}
+      <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
         {displayPilots.length === 0 ? (
           <p className="text-sm text-slate-300">{t.noDriversRegistered}</p>
         ) : (
           displayPilots.map((pilot: any) => (
             <div
               key={pilot.userId}
-              className="flex items-center gap-3 border border-shell-line px-3 py-2 rounded-lg"
-              style={{ background: `linear-gradient(110deg, ${accentSoft} 0%, rgba(8,15,25,0.76) 50%, rgba(8,15,25,0.96) 100%)` }}
+              className="w-[150px] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#111114]"
             >
-              {pilot.avatarUrl ? (
-                <Image src={pilot.avatarUrl} alt={pilot.name} width={56} height={56} className="h-14 w-14 border border-white/25 object-cover rounded-lg font-sans" />
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center border border-white/20 bg-white/10 text-lg font-bold text-white rounded-lg font-sans">
-                  {pilot.name.slice(0, 1).toUpperCase()}
-                </div>
-              )}
-              <div>
-                <p className="text-lg font-black uppercase italic text-white leading-tight">{pilot.name}</p>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
-                    {pilot.role === 'owner'
-                      ? t.ownerLeader
-                      : pilot.role === 'manager'
-                      ? t.managerCoFounder
-                      : t.driverBadge}
-                  </span>
-                  {pilot.steamId && (
-                    <>
-                      <span className="text-slate-600 text-[10px]">•</span>
-                      <span className="text-slate-400 font-mono text-[10px]">{t.steamId} {pilot.steamId}</span>
-                    </>
-                  )}
-                </div>
+              <div
+                className="flex h-20 items-center justify-center"
+                style={{ background: `linear-gradient(135deg, ${accentSoft}, rgba(10,10,12,0.9))` }}
+              >
+                {pilot.avatarUrl ? (
+                  <Image src={pilot.avatarUrl} alt={pilot.name} width={56} height={56} unoptimized className="h-14 w-14 rounded-lg border border-white/25 object-cover" />
+                ) : (
+                  <span className="font-display-league text-3xl text-white">{pilot.name.slice(0, 1).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="p-2.5">
+                <p className="truncate font-display-condensed text-sm font-bold text-white">{pilot.name}</p>
+                <p className="mt-0.5 font-mono-data text-[9px] uppercase tracking-wider text-slate-500">
+                  {pilot.role === 'owner'
+                    ? t.ownerLeader
+                    : pilot.role === 'manager'
+                    ? t.managerCoFounder
+                    : t.driverBadge}
+                </p>
+                {(pilot.roleTags || []).length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {(pilot.roleTags as string[]).map((tag) => (
+                      <span key={tag} className="rounded border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 font-mono-data text-[8px] font-bold uppercase tracking-wider text-cyan-300">
+                        {tagLabels[tag] || tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))

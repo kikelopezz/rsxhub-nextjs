@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import type { CarEntry, LeagueOption, TakenDorsal } from './types'
-import { MAX_DRIVERS_PER_CAR } from './types'
+import { MAX_DRIVERS_PER_CAR, MAX_RESERVE_DRIVERS_PER_CAR } from './types'
 import { computeCarValidation } from './car-validation'
 import { uploadSkinFile } from './car-skin-upload'
 import { useDictionary } from '@/lib/i18n/locale-provider'
@@ -29,12 +29,17 @@ export function useCarEditor({
       return initialCars.map((car) => {
         const byLeague: Record<string, string[]> =
           car.driverUserIdsByLeague || (car as any).driver_user_ids_by_league || {}
+        const reserveByLeague: Record<string, string[]> =
+          car.reserveDriverUserIdsByLeague || (car as any).reserve_driver_user_ids_by_league || {}
         const rawLeagueId = car.leagueId || (car as any).league_id || null
         const matchedLeague = leaguesOptions.find((l) => l.id === rawLeagueId || l.slug === rawLeagueId)
         const carLeagueId = matchedLeague ? matchedLeague.id : rawLeagueId
 
         if (Object.keys(byLeague).length === 0 && Array.isArray(car.driverUserIds)) {
           if (carLeagueId) byLeague[carLeagueId] = [...car.driverUserIds]
+        }
+        if (Object.keys(reserveByLeague).length === 0 && Array.isArray(car.reserveDriverUserIds)) {
+          if (carLeagueId) reserveByLeague[carLeagueId] = [...car.reserveDriverUserIds]
         }
         return {
           id: car.id || ('car_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)),
@@ -46,6 +51,8 @@ export function useCarEditor({
           skinName: car.skinName || (car as any).skin_name || '',
           driverUserIds: Array.isArray(car.driverUserIds) ? car.driverUserIds.filter(Boolean) : [],
           driverUserIdsByLeague: byLeague,
+          reserveDriverUserIds: Array.isArray(car.reserveDriverUserIds) ? car.reserveDriverUserIds.filter(Boolean) : [],
+          reserveDriverUserIdsByLeague: reserveByLeague,
           leagueId: carLeagueId,
         }
       })
@@ -71,6 +78,20 @@ export function useCarEditor({
         byLeague[activeLeague?.slug || ''] ||
         []
       return [...list, '', '', '', ''].slice(0, MAX_DRIVERS_PER_CAR)
+    },
+    [activeLeague],
+  )
+
+  const getCarReserveDriversForLeague = useCallback(
+    (car: CarEntry, leagueKey: string): string[] => {
+      if (!leagueKey || leagueKey === 'all') return car.reserveDriverUserIds || []
+      const byLeague = car.reserveDriverUserIdsByLeague || {}
+      const list =
+        byLeague[leagueKey] ||
+        byLeague[activeLeague?.id || ''] ||
+        byLeague[activeLeague?.slug || ''] ||
+        []
+      return [...list, ...Array(MAX_RESERVE_DRIVERS_PER_CAR).fill('')].slice(0, MAX_RESERVE_DRIVERS_PER_CAR)
     },
     [activeLeague],
   )
@@ -103,6 +124,8 @@ export function useCarEditor({
       skinName: String(car.skinName || '').trim(),
       driverUserIds: (car.driverUserIds || []).map((id) => String(id || '').trim()).filter(Boolean),
       driverUserIdsByLeague: car.driverUserIdsByLeague || {},
+      reserveDriverUserIds: (car.reserveDriverUserIds || []).map((id) => String(id || '').trim()).filter(Boolean),
+      reserveDriverUserIdsByLeague: car.reserveDriverUserIdsByLeague || {},
       leagueId: car.leagueId || null,
     }))
     return JSON.stringify(cleaned)
@@ -120,6 +143,8 @@ export function useCarEditor({
         skinUrl: '',
         driverUserIds: [],
         driverUserIdsByLeague: {},
+        reserveDriverUserIds: [],
+        reserveDriverUserIdsByLeague: {},
         leagueId: defaultLeagueId || (activeTab === 'all' ? (leaguesOptions[0]?.id || null) : activeTab),
       },
     ])
@@ -195,10 +220,38 @@ export function useCarEditor({
     })
   }
 
+  // Simpler than updateCarDriver on purpose: a reserve isn't exclusive to one car the way a
+  // regular driver slot is (the same person can be the reserve for more than one car), so
+  // there's no need to clear them out of other cars' reserve slots when assigned here.
+  const updateCarReserveDriver = (id: string, leagueKey: string, driverIndex: number, userId: string) => {
+    const cleanUserId = userId ? userId.trim() : ''
+    setCars((prev) =>
+      prev.map((car) => {
+        if (car.id !== id) return car
+        const targetLeagueKey = leagueKey && leagueKey !== 'all' ? leagueKey : car.leagueId || 'general'
+        const currentByLeague = { ...(car.reserveDriverUserIdsByLeague || {}) }
+        const currentList = [...(currentByLeague[targetLeagueKey] || [])]
+        while (currentList.length < MAX_RESERVE_DRIVERS_PER_CAR) currentList.push('')
+        currentList[driverIndex] = cleanUserId
+        currentByLeague[targetLeagueKey] = currentList
+        const carLeagueKey = car.leagueId || targetLeagueKey
+        const primaryReserveList = currentByLeague[carLeagueKey] || currentList
+        return {
+          ...car,
+          reserveDriverUserIdsByLeague: currentByLeague,
+          reserveDriverUserIds: primaryReserveList.map((d) => String(d || '').trim()),
+        }
+      }),
+    )
+  }
+
   const handleSkinFileUpload = async (carId: string, file: File) => {
     setUploadingCarId(carId)
     try {
-      const finalSkinUrl = await uploadSkinFile(file)
+      const car = cars.find((c) => c.id === carId)
+      const league = car ? leaguesOptions.find((l) => l.id === car.leagueId || l.slug === car.leagueId) : undefined
+      const folder = car ? `skins/${car.category}/${league?.slug || 'general'}` : undefined
+      const finalSkinUrl = await uploadSkinFile(file, folder)
       if (finalSkinUrl) {
         setCars((prev) =>
           prev.map((c) => (c.id === carId ? { ...c, skinUrl: finalSkinUrl, skinName: file.name } : c)),
@@ -251,7 +304,9 @@ export function useCarEditor({
     removeCar,
     updateCarField,
     updateCarDriver,
+    updateCarReserveDriver,
     getCarDriversForLeague,
+    getCarReserveDriversForLeague,
     handleSkinFileUpload,
   }
 }

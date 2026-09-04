@@ -1,0 +1,32 @@
+- añadir redes sociales en los equipos que puedan elegir que redes sociales poner
+- mirar solapamiento de banner e imágenes entre equipos
+- revisar logo arriba a la derecha dentro de la liga y poner logo del juego en vez de la liga
+- el logo de los equipos que se vea por encima de la tarjeta del equipo
+- revisar la duplicación de mismos perfiles con distinto steamID
+- poner botón de invitar miembros
+- revisar actualización de pagina cuando llegan notificaciones u otras acciones
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+- en clasificación de equipos en la foto de subir la foto del coche si en el mismo equipo hay dos coches de distinta categoría se añaden la misma foto aunque añadas una distinta para cada uno, que se vea el coche mas grande, que se   	quite el recuadro.
+- a la hora de editar el contenido de las fechas en el calendario, al darle actualizar se duplica el evento
+- eliminar botón crear eventos en el calendario
+- arriba a la derecha cambiar es y en por las banderas de España y gran bretaña
+- añadir en panel de admin un apartado para añadir noticias en sobre nosotros
+- añadir apartado de noticias en el menú de navegación, que las noticias también aparecezcan en la portada que este debajo del carrousel.
+- si no ha iniciado sesión que salga un globo debajo de iniciar sesión, para que les diga a los visitantes de la pagina que inicien sesión con su cuenta de steam.
+- rediseñar botón de iniciar sesión.
+- agregar livetiming entre mercado y sobre nosotros
+- cada piloto tenga un perfil personalizable, que un piloto pueda ver el perfil de otro piloto, y a su vez pueda poner el perfil privado o publico.
+- quitar en perfil plataforma principal.
+- al iniciar sesión por primera vez también quita lo de plataforma principal.
+- renombrar ligas por campeonatos
+- Los equipos solo pueden hacer 3 cambios de alineación de pilotos por coche al día.
+- Para los usuarios con el rol "admin" de la pagina que salga una notificación de modificaciones en las alineaciones.
+- Cuando sea día viernes en la semana de carrera que no se puedan modificar las alineaciones de ningún coche apuntado a esa carrera.
+- En la pestaña calendario que los "admin" puedan añadir etiquetas informativas para los equipos, como fechas de entrega de skins o eventos fuera de pista importantes.
+- quitar loading page.
+- las carreras que sean de la ERC en el calendario ponlas de azul y las que sean de la ERC NEXT GEN en naranja.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

@@ -28,9 +28,9 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
   }, [slides.length])
 
   return (
-    <div className="-mx-10 -mt-4 md:-mx-20 md:-mt-6 w-auto overflow-hidden">
-      {/* Banner de Hero Carousel - Altura completa y ancho de pantalla */}
-      <section className="relative h-[calc(100vh-65px)] min-h-[600px] w-full overflow-hidden">
+    <div className="-mx-10 -mt-[92px] -mb-16 md:-mx-20 md:-mt-[100px] md:-mb-24 w-auto overflow-hidden">
+      {/* Banner de Hero Carousel - Altura completa y ancho de pantalla, por detrás del header */}
+      <section className="relative h-screen min-h-[600px] w-full overflow-hidden">
         {/* Contenedor de las Slides (Cross-fade) */}
         <div className="absolute inset-0">
           {slides.map((slide, index) => (
@@ -56,7 +56,7 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-[#030508]" style={{ zIndex: 2 }} />
 
         {/* Contenido Superpuesto */}
-        <div className="relative mx-auto flex flex-col justify-between h-full max-w-[1400px] px-6 md:px-12 pt-16 pb-12 md:pb-16" style={{ zIndex: 5 }}>
+        <div className="relative mx-auto flex flex-col justify-between h-full max-w-[1400px] px-6 md:px-12 pt-24 pb-12 md:pb-16" style={{ zIndex: 5 }}>
           {/* Sección de Textos y CTA */}
           <div className="my-auto max-w-2xl text-left space-y-6 md:space-y-8">
             <div className="w-fit">
@@ -94,24 +94,24 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
             {/* Columnas de Estadísticas */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
               <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
-                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{driversCount}</div>
-                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.drivers}</div>
+                <div className="font-display-league text-4xl text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{driversCount}</div>
+                <div className="font-mono-data text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.drivers}</div>
               </div>
               <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
-                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{teamsCount}</div>
-                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.teams}</div>
+                <div className="font-display-league text-4xl text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{teamsCount}</div>
+                <div className="font-mono-data text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.teams}</div>
               </div>
               <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
-                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{leaguesCount}</div>
-                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.leagues}</div>
+                <div className="font-display-league text-4xl text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{leaguesCount}</div>
+                <div className="font-mono-data text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.leagues}</div>
               </div>
               <div className="space-y-1 relative after:hidden md:after:block after:absolute after:right-0 after:top-1/4 after:h-1/2 after:w-[1px] after:bg-white/15">
-                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{simulatorsCount}</div>
-                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.simulators}</div>
+                <div className="font-display-league text-4xl text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{simulatorsCount}</div>
+                <div className="font-mono-data text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.simulators}</div>
               </div>
               <div className="space-y-1">
-                <div className="text-4xl font-extrabold tracking-tight text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{racesCount}</div>
-                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.races}</div>
+                <div className="font-display-league text-4xl text-white md:text-5xl [text-shadow:0_0_24px_rgba(18,116,222,0.5)]">{racesCount}</div>
+                <div className="font-mono-data text-[10px] font-black uppercase tracking-[0.25em] text-slate-350">{dict.home.hero.stats.races}</div>
               </div>
             </div>
           </div>

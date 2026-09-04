@@ -80,28 +80,28 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-sm p-4 md:p-6 flex justify-center items-start sm:items-center animate-fade-in">
-      <div className="shell-panel border border-shell-line bg-[#090d16] max-w-4xl w-full p-5 md:p-6 text-white rounded-lg shadow-[0_0_60px_rgba(0,0,0,0.9)] relative my-auto">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/85 p-4 backdrop-blur-sm sm:items-center md:p-6">
+      <div className="relative my-auto w-full max-w-4xl rounded-2xl border border-white/10 bg-[#0a0f18] p-5 text-white shadow-[0_0_60px_rgba(0,0,0,0.8)] md:p-6">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-[#4ea1ff] hover:text-[#4ea1ff]"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </button>
 
-        <div className="mb-4 pb-3 border-b border-shell-line/40">
-          <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
-            ⚙️ {tEdit.title}
+        <div className="mb-4 border-b border-white/10 pb-3">
+          <h2 className="font-display-league text-2xl uppercase text-white">
+            {tEdit.title}
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="mt-0.5 text-xs text-slate-400">
             {tEdit.subtitle}
           </p>
         </div>
 
         <form onSubmit={handleLeagueUpdate} className="space-y-6">
           {/* SECTION 1: General Info */}
-          <div className="space-y-4 bg-black/30 p-4 border border-shell-line/40">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-cyan-400 border-b border-cyan-500/20 pb-1.5">
+          <div className="space-y-4 rounded-lg border border-white/10 bg-black/20 p-4">
+            <h3 className="border-b border-white/10 pb-2 text-xs font-bold uppercase tracking-widest text-[#4ea1ff]">
               {t.section1}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -112,7 +112,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
                   required
-                  className="w-full border border-shell-line bg-black/60 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-cyan-400 font-bold"
+                  className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-bold"
                 />
               </div>
               <div>
@@ -122,15 +122,15 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                   value={formSlug}
                   onChange={(e) => setFormSlug(e.target.value)}
                   required
-                  className="w-full border border-shell-line bg-black/60 px-3 py-2 text-xs text-cyan-300 outline-none rounded-lg focus:border-cyan-400 font-mono"
+                  className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-[#4ea1ff] outline-none rounded-lg focus:border-[#4ea1ff] font-mono"
                 />
               </div>
             </div>
           </div>
 
           {/* SECTION 2: Rules, Simulator & Format */}
-          <div className="space-y-4 bg-black/30 p-4 border border-shell-line/40">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-cyan-400 border-b border-cyan-500/20 pb-1.5">
+          <div className="space-y-4 rounded-lg border border-white/10 bg-black/20 p-4">
+            <h3 className="border-b border-white/10 pb-2 text-xs font-bold uppercase tracking-widest text-[#4ea1ff]">
               {t.section2}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -139,7 +139,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                 <select
                   value={formSimulator}
                   onChange={(e) => setFormSimulator(e.target.value as any)}
-                  className="w-full border border-shell-line bg-black/60 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-cyan-400 font-semibold"
+                  className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-semibold"
                 >
                   <option value="ac">Assetto Corsa</option>
                 </select>
@@ -150,7 +150,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                 <select
                   value={formFormat}
                   onChange={(e) => setFormFormat(e.target.value as any)}
-                  className="w-full border border-shell-line bg-black/60 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-cyan-400 font-semibold"
+                  className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-semibold"
                 >
                   <option value="endurance">{t.formatEndurance}</option>
                   <option value="sprint">{t.formatSprint}</option>
@@ -167,7 +167,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                     setFormStatus(val as any)
                     setFormRegistrationOpen(val === 'open')
                   }}
-                  className="w-full border border-shell-line bg-black/60 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-cyan-400 font-semibold"
+                  className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-semibold"
                 >
                   <option value="open">{t.statusOpenOption}</option>
                   <option value="completed">{t.statusClosedOption}</option>
@@ -175,24 +175,63 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
               </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 space-y-4">
               <div>
                 <label className="mb-1 block text-xs text-slate-300 uppercase font-semibold">{t.registrationMode}</label>
                 <select
                   value={formRegistrationMode}
                   onChange={(e) => setFormRegistrationMode(e.target.value as any)}
-                  className="w-full border border-shell-line bg-black/60 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-cyan-400"
+                  className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff]"
                 >
                   <option value="team">{t.registrationModeTeam}</option>
                   <option value="individual">{t.registrationModeIndividual}</option>
                 </select>
               </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-slate-300 uppercase font-semibold">Color de liga</label>
+                <div className="space-y-2 rounded-lg border border-white/10 bg-black/40 p-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[
+                      { name: 'Light Blue', hex: '#4ea1ff' },
+                      { name: 'Racing Red', hex: '#ef4444' },
+                      { name: 'Electric Blue', hex: '#1274de' },
+                      { name: 'Emerald Green', hex: '#10b981' },
+                      { name: 'Hyper Orange', hex: '#f59e0b' },
+                      { name: 'Neon Purple', hex: '#a855f7' },
+                      { name: 'Cyan', hex: '#38bdf8' },
+                    ].map((color) => (
+                      <button
+                        key={color.hex}
+                        type="button"
+                        onClick={() => setFormAccentColor(color.hex)}
+                        title={color.name}
+                        className={`h-6 w-6 rounded-md border transition-transform ${
+                          formAccentColor.toLowerCase() === color.hex.toLowerCase()
+                            ? 'z-10 scale-125 border-white shadow-[0_0_10px_rgba(78,161,255,0.7)] ring-2 ring-[#4ea1ff]'
+                            : 'border-white/20 hover:scale-110'
+                        }`}
+                        style={{ backgroundColor: color.hex }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono-data text-[10px] text-slate-400">Personalizado:</span>
+                    <input
+                      type="text"
+                      value={formAccentColor}
+                      onChange={(e) => setFormAccentColor(e.target.value)}
+                      className="font-mono-data w-28 rounded-md border border-white/10 bg-black/60 px-2 py-0.5 text-xs text-white outline-none focus:border-[#4ea1ff]"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* SECTION 3: Categories, Max Slots & Dates */}
-          <div className="space-y-4 bg-black/30 p-4 border border-shell-line/40">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-cyan-400 border-b border-cyan-500/20 pb-1.5">
+          <div className="space-y-4 rounded-lg border border-white/10 bg-black/20 p-4">
+            <h3 className="border-b border-white/10 pb-2 text-xs font-bold uppercase tracking-widest text-[#4ea1ff]">
               {t.section3}
             </h3>
 
@@ -200,7 +239,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
               {/* Category Selection & Max Slots */}
               <div className="space-y-3">
                 <label className="block text-xs text-slate-300 uppercase font-semibold">{t.categoriesAndSlots}</label>
-                <div className="grid grid-cols-1 gap-2.5 bg-black/60 p-3 border border-shell-line/50">
+                <div className="grid grid-cols-1 gap-2.5 bg-black/40 p-3 border border-white/10 rounded-lg">
                   {['GT3', 'HYPERCAR', 'LMP2'].map((cat) => {
                     const currentCats = formClassTags
                       .split(',')
@@ -213,7 +252,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                         key={cat}
                         className={`p-2 border transition-colors flex items-center justify-between gap-3 ${
                           isChecked
-                            ? 'bg-cyan-950/40 border-cyan-400/60'
+                            ? 'bg-[rgba(78,161,255,.12)] border-[#4ea1ff]/60'
                             : 'bg-black/40 border-white/10 opacity-60'
                         }`}
                       >
@@ -230,7 +269,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                               }
                               setFormClassTags(updated.join(', '))
                             }}
-                            className="h-4 w-4 accent-cyan-400 cursor-pointer"
+                            className="h-4 w-4 accent-[#1274de] cursor-pointer"
                           />
                           <span>{cat}</span>
                         </label>
@@ -243,7 +282,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
               {/* Championship Dates */}
               <div className="space-y-3">
                 <label className="block text-xs text-slate-300 uppercase font-semibold">{t.championshipDates}</label>
-                <div className="bg-black/60 p-3 border border-shell-line/50 space-y-4">
+                <div className="bg-black/40 p-3 border border-white/10 rounded-lg space-y-4">
                   <div>
                     <label className="mb-1 block text-xs text-slate-300 uppercase font-semibold">{t.startDate}</label>
                     <input
@@ -252,7 +291,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                       value={formStartsAt}
                       onChange={(e) => setFormStartsAt(e.target.value)}
                       required
-                      className="w-full border border-shell-line bg-black/80 px-3 py-2 text-xs text-white font-mono outline-none rounded-lg focus:border-cyan-400"
+                      className="w-full border border-white/10 bg-black/60 px-3 py-2 text-xs text-white font-mono outline-none rounded-lg focus:border-[#4ea1ff]"
                     />
                   </div>
                   <div>
@@ -263,7 +302,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                       value={formEndsAt}
                       onChange={(e) => setFormEndsAt(e.target.value)}
                       required
-                      className="w-full border border-shell-line bg-black/80 px-3 py-2 text-xs text-white font-mono outline-none rounded-lg focus:border-cyan-400"
+                      className="w-full border border-white/10 bg-black/60 px-3 py-2 text-xs text-white font-mono outline-none rounded-lg focus:border-[#4ea1ff]"
                     />
                   </div>
                 </div>
@@ -272,8 +311,8 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
           </div>
 
           {/* SECTION 4: Media & Banner Images */}
-          <div className="space-y-4 bg-black/30 p-4 border border-shell-line/40">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-cyan-400 border-b border-cyan-500/20 pb-1.5">
+          <div className="space-y-4 rounded-lg border border-white/10 bg-black/20 p-4">
+            <h3 className="border-b border-white/10 pb-2 text-xs font-bold uppercase tracking-widest text-[#4ea1ff]">
               {t.section4}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -283,6 +322,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                   defaultValue={formBannerUrl}
                   onChange={setFormBannerUrl}
                   label={t.bannerLabel}
+                  entityName={formTitle}
                 />
               </div>
               <div>
@@ -291,33 +331,34 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                   defaultValue={formLogoUrl}
                   onChange={setFormLogoUrl}
                   label={t.logoLabel}
+                  entityName={formTitle}
                 />
               </div>
             </div>
           </div>
 
           {/* DANGER ZONE & ACTIONS */}
-          <div className="flex items-center justify-between pt-4 border-t border-shell-line/50">
+          <div className="flex items-center justify-between border-t border-white/10 pt-4">
             <button
               type="button"
               onClick={handleLeagueDelete}
-              className="border border-rose-800/60 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="flex items-center gap-1.5 rounded-lg border border-rose-800/60 bg-rose-950/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-rose-300 transition-colors hover:bg-rose-900/60"
             >
-              ⚠️ {tEdit.deleteLeague}
+              {tEdit.deleteLeague}
             </button>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="border border-shell-line px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
+                className="rounded-lg border border-white/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition-colors hover:bg-white/5"
               >
                 {t.cancel}
               </button>
               <button
                 type="submit"
                 disabled={isLeagueSubmitting}
-                className="bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold px-6 py-2 text-xs uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer"
+                className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-6 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-[0_0_15px_rgba(78,161,255,0.4)] transition-all hover:bg-[#1f82ee] disabled:opacity-50"
               >
                 {isLeagueSubmitting ? tEdit.saving : tEdit.save}
               </button>

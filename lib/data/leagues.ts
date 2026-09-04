@@ -85,18 +85,20 @@ export const getLeagueBySlug = cache(async (slug: string): Promise<League | null
 })
 
 export const getCircuits = cache(async (): Promise<Circuit[]> => {
-  try {
-    const circuits = await db.circuit.findMany({ orderBy: { name: 'asc' } })
-    if (circuits.length === 0) return DEFAULT_CIRCUITS
-    return circuits.map((data) => ({
-      id: data.id,
-      name: data.name,
-      slug: data.slug,
-      imageUrl: data.imageUrl,
-      isSystem: data.isSystem,
-    }))
-  } catch (error) {
-    console.error('Failed to get circuits:', error)
-    return DEFAULT_CIRCUITS
-  }
+  return fetchWithTTLCache('circuits', async () => {
+    try {
+      const circuits = await db.circuit.findMany({ orderBy: { name: 'asc' } })
+      if (circuits.length === 0) return DEFAULT_CIRCUITS
+      return circuits.map((data) => ({
+        id: data.id,
+        name: data.name,
+        slug: data.slug,
+        imageUrl: data.imageUrl,
+        isSystem: data.isSystem,
+      }))
+    } catch (error) {
+      console.error('Failed to get circuits:', error)
+      return DEFAULT_CIRCUITS
+    }
+  }, 300)
 })

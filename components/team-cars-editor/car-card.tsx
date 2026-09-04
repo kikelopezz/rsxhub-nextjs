@@ -2,7 +2,7 @@
 
 import { Trash, AlertTriangle, Users, Upload, FileArchive } from 'lucide-react'
 import { VehicleSelectorModal } from '@/components/vehicle-selector-modal'
-import { getSkinFileName, MAX_DRIVERS_PER_CAR } from './types'
+import { getSkinFileName, MAX_DRIVERS_PER_CAR, MAX_RESERVE_DRIVERS_PER_CAR } from './types'
 import type { CarEntry, TeamMemberOption, LeagueOption } from './types'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
@@ -36,9 +36,11 @@ type CarCardProps = {
   onUpdateField: (id: string, field: keyof CarEntry, value: any) => void
   onUpdateModel: (carId: string, name: string, acFolder: string, category: string) => void
   onUpdateDriver: (id: string, leagueKey: string, driverIdx: number, userId: string) => void
+  onUpdateReserveDriver: (id: string, leagueKey: string, driverIdx: number, userId: string) => void
   onSkinUpload: (carId: string, file: File) => void
   onSkinClear: (carId: string) => void
   getCarDriversForLeague: (car: CarEntry, leagueKey: string) => string[]
+  getCarReserveDriversForLeague: (car: CarEntry, leagueKey: string) => string[]
 }
 
 export function CarCard({
@@ -53,9 +55,11 @@ export function CarCard({
   onUpdateField,
   onUpdateModel,
   onUpdateDriver,
+  onUpdateReserveDriver,
   onSkinUpload,
   onSkinClear,
   getCarDriversForLeague,
+  getCarReserveDriversForLeague,
 }: CarCardProps) {
   const t = useDictionary().equipos.carEditor
   const theme = categoryThemes[car.category] || categoryThemes.GT3
@@ -64,6 +68,7 @@ export function CarCard({
   const currentLeagueObj = leaguesOptions.find((l) => l.id === currentLeagueKey || l.slug === currentLeagueKey)
   const maxSlots = MAX_DRIVERS_PER_CAR
   const carDrivers = getCarDriversForLeague(car, currentLeagueKey)
+  const reserveDrivers = getCarReserveDriversForLeague(car, currentLeagueKey)
 
   return (
     <div
@@ -160,6 +165,7 @@ export function CarCard({
             selectedModelName={car.modelName}
             selectedModelFolder={car.modelFolder}
             onSelect={(v) => onUpdateModel(car.id, v.name, v.acFolder, v.category)}
+            onClear={car.modelName ? () => onUpdateModel(car.id, '', '', car.category) : undefined}
           />
         </div>
 
@@ -243,6 +249,41 @@ export function CarCard({
                 <option value="">{t.vacantOption}</option>
                 {teamMembers.map((m) => {
                   if (assignedDriverUserIds.has(m.userId) && m.userId !== currentVal) return null
+                  return (
+                    <option key={m.userId} value={m.userId}>
+                      {m.name} {m.steamId ? `(${m.steamId})` : ''}
+                    </option>
+                  )
+                })}
+              </select>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Reserve Driver — separate from the regular slots above: doesn't count toward the
+          driver cap, and the same person can be the reserve for more than one car. */}
+      <div className="bg-amber-950/10 border border-dashed border-amber-500/40 rounded-lg p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] font-semibold text-amber-300/90 uppercase tracking-wider flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5 text-amber-400" />
+            {t.reserveDriver}
+          </label>
+          <span className="text-[10px] text-amber-400/70 italic">{t.reserveDriverHint}</span>
+        </div>
+        <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+          {Array.from({ length: MAX_RESERVE_DRIVERS_PER_CAR }, (_, reserveIdx) => {
+            const currentVal = reserveDrivers[reserveIdx] || ''
+            return (
+              <select
+                key={reserveIdx}
+                value={currentVal}
+                onChange={(e) => onUpdateReserveDriver(car.id, currentLeagueKey, reserveIdx, e.target.value)}
+                className="w-full bg-[#131d31] border border-amber-700/50 focus:border-amber-400 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none cursor-pointer hover:border-amber-600 transition-all font-semibold"
+              >
+                <option value="">{t.reserveVacantOption}</option>
+                {teamMembers.map((m) => {
+                  if (carDrivers.includes(m.userId) && m.userId !== currentVal) return null
                   return (
                     <option key={m.userId} value={m.userId}>
                       {m.name} {m.steamId ? `(${m.steamId})` : ''}

@@ -132,20 +132,20 @@ export function EventEntryListModal({
   const totalConfirmed = confirmations.length
 
   return (
-    <div className="fixed inset-0 z-[150] overflow-y-auto bg-black/85 backdrop-blur-sm p-4 flex justify-center items-start md:items-center">
-      <div className="w-full max-w-2xl bg-[#090d16] border border-shell-line shadow-2xl my-auto relative overflow-hidden">
+    <div className="fixed inset-0 z-[150] flex items-start justify-center overflow-y-auto bg-black/85 p-4 backdrop-blur-sm md:items-center">
+      <div className="relative my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#0a0f18] shadow-[0_0_60px_rgba(0,0,0,0.8)]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-shell-line p-4 md:p-5 bg-black/60">
+        <div className="flex items-center justify-between border-b border-white/10 bg-black/30 p-4 md:p-5">
           <div>
             <div className="flex items-center gap-2">
-              <span className="bg-cyan-950 text-cyan-400 border border-cyan-800/50 px-2 py-0.5 text-[10px] font-mono font-bold uppercase">
+              <span className="font-mono-data rounded border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.12)] px-2 py-0.5 text-[10px] font-bold uppercase text-[#4ea1ff]">
                 {event.circuitName}
               </span>
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 {totalConfirmed} {totalConfirmed === 1 ? tr.confirmedTeamOne : tr.confirmedTeamMany}
               </span>
             </div>
-            <h2 className="text-lg md:text-xl font-black uppercase italic tracking-tight text-white mt-1">
+            <h2 className="font-display-league mt-1.5 text-xl uppercase text-white md:text-2xl">
               {event.title || tr.round.replace('{circuit}', event.circuitName)}
             </h2>
           </div>
@@ -153,16 +153,16 @@ export function EventEntryListModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1.5 transition-colors cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-[#4ea1ff] hover:text-[#4ea1ff]"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-4 md:p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+        <div className="max-h-[70vh] space-y-6 overflow-y-auto p-4 md:p-6">
           {totalConfirmed === 0 ? (
-            <div className="text-center py-8 text-slate-400 text-sm font-medium">
+            <div className="py-8 text-center text-sm font-medium text-slate-400">
               {tr.noConfirmedTeams}
             </div>
           ) : (
@@ -171,10 +171,10 @@ export function EventEntryListModal({
 
               return (
                 <div key={tag} className="space-y-3">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-1.5 flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-1.5">
                     <div className="flex items-center gap-2">
                       <ClassBadge classTag={tag} className="text-xs font-black" />
-                      <span className="text-xs text-slate-400 font-bold uppercase">
+                      <span className="text-xs font-bold uppercase text-slate-400">
                         ({teamList.length} {teamList.length === 1 ? tr.teamOne : tr.teamMany})
                       </span>
                     </div>
@@ -183,14 +183,14 @@ export function EventEntryListModal({
                       type="button"
                       onClick={() => handleDownloadCategorySkins(tag, teamList)}
                       disabled={downloadingCategory === tag}
-                      className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider border rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      className={`flex items-center gap-1.5 rounded-lg border px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors ${
                         downloadingCategory === tag
-                          ? 'border-cyan-500/50 bg-cyan-950/60 text-cyan-300 animate-pulse'
-                          : 'border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 hover:text-white'
+                          ? 'animate-pulse border-[#4ea1ff]/50 bg-[rgba(78,161,255,.15)] text-[#4ea1ff]'
+                          : 'border-[#4ea1ff]/30 bg-[rgba(78,161,255,.08)] text-[#4ea1ff] hover:bg-[rgba(78,161,255,.18)] hover:text-white'
                       }`}
                       title={tr.downloadSkinsTitle.replace('{tag}', tag)}
                     >
-                      <FolderDown className="h-3.5 w-3.5 text-cyan-400" />
+                      <FolderDown className="h-3.5 w-3.5" />
                       {downloadingCategory === tag ? tr.bundlingSkins : tr.downloadSkins.replace('{tag}', tag)}
                     </button>
                   </div>
@@ -203,20 +203,20 @@ export function EventEntryListModal({
                       return (
                         <div
                           key={rowKey}
-                          className="flex flex-wrap items-center justify-between gap-3 bg-black/40 border border-slate-800 p-3 hover:border-cyan-500/30 transition-colors"
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/30 p-3 transition-colors hover:border-[#4ea1ff]/40"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="font-mono text-sm font-black text-cyan-300 bg-cyan-950/60 border border-cyan-500/30 px-2.5 py-1 shrink-0">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">
                               #{t.dorsal}
                             </span>
                             <div className="min-w-0">
-                              <h4 className="text-sm font-bold text-white uppercase tracking-wide truncate">
+                              <h4 className="truncate text-sm font-bold uppercase tracking-wide text-white">
                                 {t.teamName}
                               </h4>
                               {t.drivers.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
                                   {t.drivers.map((d, dIdx) => (
-                                    <span key={dIdx} className="text-slate-300 font-medium">
+                                    <span key={dIdx} className="font-medium text-slate-300">
                                       {d.name}
                                     </span>
                                   ))}
@@ -242,7 +242,7 @@ export function EventEntryListModal({
                                     alert(tr.noSteamIds)
                                   }
                                 }}
-                                className="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                                className="flex shrink-0 items-center gap-1 rounded-lg border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.08)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#4ea1ff] transition-colors hover:bg-[rgba(78,161,255,.18)]"
                                 title={tr.copyIdsTitle.replace('{dorsal}', t.dorsal)}
                               >
                                 {copiedKey === rowKey ? (
@@ -252,7 +252,7 @@ export function EventEntryListModal({
                                   </>
                                 ) : (
                                   <>
-                                    <Copy className="h-3 w-3 text-cyan-400" />
+                                    <Copy className="h-3 w-3" />
                                     <span>{tr.copyIds}</span>
                                   </>
                                 )}
@@ -260,17 +260,17 @@ export function EventEntryListModal({
                             )}
 
                             {skinUrl ? (
-                              <span className="bg-cyan-950/60 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold uppercase px-2 py-0.5 flex items-center gap-1">
-                                <Check className="h-3 w-3 text-cyan-400" />
+                              <span className="flex items-center gap-1 rounded-full border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.12)] px-2 py-0.5 text-[10px] font-bold uppercase text-[#4ea1ff]">
+                                <Check className="h-3 w-3" />
                                 {tr.skinOk}
                               </span>
                             ) : (
-                              <span className="bg-slate-900 text-slate-400 border border-slate-700/60 text-[10px] font-bold uppercase px-2 py-0.5">
+                              <span className="rounded-full border border-white/10 bg-black/40 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-400">
                                 {tr.noSkin}
                               </span>
                             )}
 
-                            <span className="bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold uppercase px-2 py-0.5">
+                            <span className="rounded-full border border-emerald-500/30 bg-emerald-950/60 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-400">
                               {tr.confirmed}
                             </span>
                           </div>

@@ -10,7 +10,10 @@ const firebaseConfig = {
 }
 
 const hasAdminCredentials = typeof window === 'undefined'
-  ? Boolean(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY)
+  ? Boolean(
+      process.env.FIRESTORE_EMULATOR_HOST ||
+      (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY)
+    )
   : true
 
 export const hasFirebase = Boolean(
@@ -49,7 +52,28 @@ if (typeof window === 'undefined') {
     privateKey = privateKey.replace(/\\n/g, '\n')
   }
 
-  if (projectId && clientEmail && privateKey) {
+  const isEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST)
+
+  if (projectId && isEmulator) {
+    // Emulator mode: no real credentials needed — the Admin SDK talks to
+    // FIRESTORE_EMULATOR_HOST directly once it knows the project ID.
+    // Without this, the SDK still tries to ping the GCE metadata server to
+    // resolve a default credential; off-GCP (e.g. this Windows dev box) that
+    // probe doesn't fail fast, so every Firestore call stalled ~9-10s before
+    // giving up — long enough to blow past this app's own 3.5s operation
+    // timeouts and make writes look like they silently failed.
+    if (!process.env.METADATA_SERVER_DETECTION) {
+      process.env.METADATA_SERVER_DETECTION = 'none'
+    }
+    try {
+      if (getAdminApps().length === 0) {
+        initializeAdminApp({ projectId })
+      }
+      adminDb = getAdminFirestore()
+    } catch (error) {
+      console.error('Failed to initialize Firebase Admin SDK for emulator:', error)
+    }
+  } else if (projectId && clientEmail && privateKey) {
     try {
       if (getAdminApps().length === 0) {
         initializeAdminApp({

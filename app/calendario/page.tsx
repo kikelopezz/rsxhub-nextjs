@@ -2,7 +2,12 @@ export const dynamic = 'force-dynamic'
 
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { getLeagueEvents, getLeagues } from '@/lib/platform-data'
+import { db } from '@/lib/db'
+import { fetchWithTTLCache } from '@/lib/ttl-cache'
 import CalendarContent from './calendar-content'
+
+const getCalendarNotes = () =>
+  fetchWithTTLCache('calendar_notes', () => db.calendarNote.findMany({ orderBy: { date: 'asc' } }), 30)
 
 type ViewMode = 'month' | 'programme'
 
@@ -52,8 +57,7 @@ export default async function CalendarioPage({
   const view: ViewMode = params.view === 'programme' ? 'programme' : 'month'
   const anchorDate = parseDateInput(params.date)
 
-  const events = await getLeagueEvents()
-  const leagues = await getLeagues()
+  const [events, leagues, notes] = await Promise.all([getLeagueEvents(), getLeagues(), getCalendarNotes()])
 
   const monthStart = startOfMonthUTC(anchorDate)
   const monthEnd = endOfMonthUTC(anchorDate)
@@ -92,17 +96,25 @@ export default async function CalendarioPage({
     qualyEndsAt: e.qualyEndsAt ?? null,
   }))
 
+  const serializableNotes = notes.map((n) => ({
+    id: n.id,
+    title: n.title,
+    date: n.date.toISOString(),
+  }))
+
   const serializableLeagues = leagues.map(l => ({
     id: l.id,
     title: l.title,
     slug: l.slug,
     simulator: l.simulator,
     accentColor: (l as any).accentColor || null,
+    logoUrl: (l as any).logoUrl || null,
   }))
 
   return (
     <CalendarContent
       initialEvents={serializableEvents}
+      initialNotes={serializableNotes}
       leagues={serializableLeagues}
       anchorDateStr={anchorDate.toISOString()}
       viewMode={view}

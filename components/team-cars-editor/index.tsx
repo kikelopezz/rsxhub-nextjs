@@ -42,7 +42,9 @@ export function TeamCarsEditor({
     removeCar,
     updateCarField,
     updateCarDriver,
+    updateCarReserveDriver,
     getCarDriversForLeague,
+    getCarReserveDriversForLeague,
     handleSkinFileUpload,
   } = useCarEditor({ initialCars, leaguesOptions, takenDorsals, currentTeamId })
   const t = useDictionary().equipos.carEditor
@@ -119,6 +121,7 @@ export function TeamCarsEditor({
                       )
                     }
                     onUpdateDriver={updateCarDriver}
+                    onUpdateReserveDriver={updateCarReserveDriver}
                     onSkinUpload={handleSkinFileUpload}
                     onSkinClear={(carId) =>
                       setCars((prev) =>
@@ -126,6 +129,7 @@ export function TeamCarsEditor({
                       )
                     }
                     getCarDriversForLeague={getCarDriversForLeague}
+                    getCarReserveDriversForLeague={getCarReserveDriversForLeague}
                   />
                 ))}
               </div>

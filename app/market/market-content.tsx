@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, X, Store, Send, Shield, User, Check, AlertCircle } from 'lucide-react'
+import { Plus, X, Send, Shield, User, Check, AlertCircle } from 'lucide-react'
 import {
   createMarketListing,
   deleteMarketListing,
@@ -200,73 +200,45 @@ export default function MarketPageContent({
 
   return (
     <div className="space-y-6">
-      {/* Header: identity + CTA, with stats as distinct pill-cards below */}
-      <div className="relative overflow-hidden border border-shell-line bg-gradient-to-br from-[#0d1420] via-[#0a0f18] to-[#070a10] rounded-lg p-6 md:p-8">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
-
-        <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent/10 text-shell-accent">
-              <Store className="h-6 w-6" />
-            </span>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">{tr.title}</h1>
-              <p className="mt-1 text-sm text-slate-400 max-w-xl">{tr.subtitle}</p>
-            </div>
-          </div>
-
-          {currentUser && (
-            belongsToTeam && !hasOwnedTeam ? (
-              <button
-                disabled
-                title={tr.cannotCreateListingTitle}
-                className="shrink-0 bg-slate-800 border border-slate-700 text-slate-400 px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg cursor-not-allowed"
-              >
-                {tr.alreadyInTeam}
-              </button>
-            ) : (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="shrink-0 bg-shell-accent hover:bg-red-700 text-white px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                {hasOwnedTeam ? tr.postTeamListing : tr.postDriverListing}
-              </button>
-            )
-          )}
+      {/* Header — big poster-style title, stats as an inline mono line */}
+      <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="font-display-league text-[42px] leading-[0.95] text-white md:text-[52px]">{tr.title}</h1>
+          <p className="mt-2 max-w-xl font-mono-data text-xs text-slate-500">{tr.subtitle}</p>
+          <p className="mt-2 font-mono-data text-[11px] uppercase tracking-wider text-slate-500">
+            {teamsCount} {tr.teamsLookingForDrivers.toLowerCase()} · {driversCount} {tr.driversLookingForTeam.toLowerCase()}
+          </p>
         </div>
 
-        {/* Stat pill-cards */}
-        <div className="relative mt-6 grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-3 rounded-lg border border-shell-line bg-black/30 px-5 py-3.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
-              <Shield className="h-4.5 w-4.5" />
-            </span>
-            <div>
-              <div className="text-lg font-bold text-white leading-none">{teamsCount}</div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">{tr.teamsLookingForDrivers}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-lg border border-shell-line bg-black/30 px-5 py-3.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
-              <User className="h-4.5 w-4.5" />
-            </span>
-            <div>
-              <div className="text-lg font-bold text-white leading-none">{driversCount}</div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">{tr.driversLookingForTeam}</div>
-            </div>
-          </div>
-        </div>
+        {currentUser && (
+          belongsToTeam && !hasOwnedTeam ? (
+            <button
+              disabled
+              title={tr.cannotCreateListingTitle}
+              className="shrink-0 bg-white/5 border border-white/10 text-slate-500 px-5 py-3 text-xs font-bold uppercase tracking-wider rounded-xl cursor-not-allowed font-display-condensed"
+            >
+              {tr.alreadyInTeam}
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="shrink-0 bg-white hover:bg-slate-200 text-black px-5 py-3 text-xs font-bold uppercase tracking-wider rounded-xl transition-colors flex items-center gap-2 cursor-pointer font-display-condensed"
+            >
+              <Plus className="h-4 w-4" />
+              {hasOwnedTeam ? tr.postTeamListing : tr.postDriverListing}
+            </button>
+          )
+        )}
       </div>
 
       {/* Tabs */}
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-1.5 rounded-lg border border-shell-line bg-black/40 p-1.5">
+        <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#0a0a0c] p-1.5">
           <button
             onClick={() => setActiveTab('team')}
-            className={`rounded-md px-5 py-2 text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`rounded-lg px-5 py-2 font-display-condensed text-xs font-bold uppercase tracking-wider transition-all ${
               activeTab === 'team'
-                ? 'bg-cyan-500 text-black font-extrabold shadow-[0_0_16px_rgba(6,182,212,0.35)]'
+                ? 'bg-white text-black'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -274,9 +246,9 @@ export default function MarketPageContent({
           </button>
           <button
             onClick={() => setActiveTab('driver')}
-            className={`rounded-md px-5 py-2 text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`rounded-lg px-5 py-2 font-display-condensed text-xs font-bold uppercase tracking-wider transition-all ${
               activeTab === 'driver'
-                ? 'bg-cyan-500 text-black font-extrabold shadow-[0_0_16px_rgba(6,182,212,0.35)]'
+                ? 'bg-white text-black'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -286,7 +258,7 @@ export default function MarketPageContent({
       </div>
 
       {/* Class & Sim Filters */}
-      <div className="flex flex-col gap-4 rounded-lg border border-shell-line bg-black/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mr-1">{tr.category}</span>
           {CLASS_OPTIONS.map((cls) => {
@@ -329,7 +301,7 @@ export default function MarketPageContent({
               onClick={() => setSimFilter(sim)}
               className={`rounded-md px-3.5 py-1.5 text-[11px] font-extrabold uppercase transition-all ${
                 simFilter === sim
-                  ? 'bg-cyan-500 text-black'
+                  ? 'bg-white text-black'
                   : 'bg-black/40 text-slate-400 hover:text-white border border-white/10'
               }`}
             >
@@ -341,7 +313,7 @@ export default function MarketPageContent({
 
       {/* Main Listings Grid */}
       {filteredListings.length === 0 ? (
-        <div className="shell-panel p-8 text-center border border-dashed border-shell-line">
+        <div className="rounded-2xl border border-dashed border-white/10 bg-[#0a0a0c] p-8 text-center">
           <p className="text-sm text-slate-400">{tr.noListings}</p>
         </div>
       ) : activeTab === 'team' ? (

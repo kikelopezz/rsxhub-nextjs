@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { TeamShowcase } from '@/components/team-showcase'
 import { ImagePicker } from '@/components/image-picker'
-import { Plus, X, Shield, Users, Trophy } from 'lucide-react'
+import { Plus, X, Shield } from 'lucide-react'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
 type TeamDashboard = {
@@ -57,6 +57,7 @@ export default function EquiposContent({
   const tr = dict.equipos.list
   const trModal = dict.equipos.createModal
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [newTeamName, setNewTeamName] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedAccent, setSelectedAccent] = useState('#00f0ff')
@@ -95,67 +96,40 @@ export default function EquiposContent({
 
   return (
     <div className="space-y-6 text-white">
-      {/* Header: identity + CTA, with stats as distinct pill-cards below */}
-      <div className="relative overflow-hidden border border-shell-line bg-gradient-to-br from-[#0d1420] via-[#0a0f18] to-[#070a10] rounded-lg p-6 md:p-8">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
-
-        <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent/10 text-shell-accent">
-              <Shield className="h-6 w-6" />
-            </span>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">{tr.title}</h1>
-              <p className="mt-1 text-sm text-slate-400 max-w-xl">{tr.subtitle}</p>
-            </div>
-          </div>
-
-          {session && (
-            belongsToTeam ? (
-              <button
-                disabled
-                title={tr.alreadyInTeamTitle}
-                className="shrink-0 flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-400 px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg cursor-not-allowed"
-              >
-                {tr.alreadyInTeam}
-              </button>
-            ) : (
-              <button
-                onClick={() => {
-                  setSelectedTags([])
-                  setIsCreateOpen(true)
-                }}
-                className="shrink-0 flex items-center gap-2 bg-[#1274de] hover:bg-[#1f82ee] px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                {tr.createTeam}
-              </button>
-            )
+      {/* Header — big poster-style title, stats as an inline mono line */}
+      <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="font-display-league text-[42px] leading-[0.95] text-white md:text-[52px]">{tr.title}</h1>
+          <p className="mt-2 max-w-xl font-mono-data text-xs text-slate-500">{tr.subtitle}</p>
+          {teams.length > 0 && (
+            <p className="mt-2 font-mono-data text-[11px] uppercase tracking-wider text-slate-500">
+              {teams.length} equipos · {totalDrivers} pilotos · {totalCategories} categorías
+            </p>
           )}
         </div>
 
-        {/* Stat pill-cards */}
-        {teams.length > 0 && (
-          <div className="relative mt-6 grid grid-cols-3 gap-3">
-            {[
-              { icon: Shield, value: teams.length, label: 'Equipos' },
-              { icon: Users, value: totalDrivers, label: 'Pilotos' },
-              { icon: Trophy, value: totalCategories, label: 'Categorías' },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="flex items-center gap-3 rounded-lg border border-shell-line bg-black/30 px-5 py-3.5"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
-                  <stat.icon className="h-4.5 w-4.5" />
-                </span>
-                <div>
-                  <div className="text-lg font-bold text-white leading-none">{stat.value}</div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">{stat.label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+        {session && (
+          belongsToTeam ? (
+            <button
+              disabled
+              title={tr.alreadyInTeamTitle}
+              className="shrink-0 flex items-center gap-2 bg-white/5 border border-white/10 text-slate-500 px-5 py-3 text-xs font-bold uppercase tracking-wider rounded-xl cursor-not-allowed font-display-condensed"
+            >
+              {tr.alreadyInTeam}
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setSelectedTags([])
+                setNewTeamName('')
+                setIsCreateOpen(true)
+              }}
+              className="shrink-0 flex items-center gap-2 bg-white hover:bg-slate-200 text-black px-5 py-3 text-xs font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer font-display-condensed"
+            >
+              <Plus className="h-4 w-4" />
+              {tr.createTeam}
+            </button>
+          )
         )}
       </div>
 
@@ -231,6 +205,8 @@ export default function EquiposContent({
                       type="text"
                       name="name"
                       required
+                      value={newTeamName}
+                      onChange={(e) => setNewTeamName(e.target.value)}
                       placeholder={trModal.teamNamePlaceholder}
                       className="w-full border border-shell-line bg-black/40 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-accent rounded-lg transition-colors"
                     />
@@ -255,11 +231,13 @@ export default function EquiposContent({
                       name="logoUrl"
                       label={trModal.teamLogo}
                       defaultValue=""
+                      entityName={newTeamName}
                     />
                     <ImagePicker
                       name="bannerUrl"
                       label={trModal.teamBanner}
                       defaultValue=""
+                      entityName={newTeamName}
                     />
                   </div>
 
@@ -314,39 +292,25 @@ export default function EquiposContent({
                       />
                     </div>
 
-                    {/* Accent Color Selection */}
+                    {/* Accent Color — any RGB color, not just a preset list. This is what
+                        "lights up" the team's cards, banner and buttons across the site. */}
                     <div>
                       <label className="mb-1.5 block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
                         {trModal.accentColor}
                       </label>
-                      <div className="flex flex-wrap gap-2">
-                        {[
-                          { name: 'Neon Blue', hex: '#00f0ff', bg: 'bg-[#00f0ff]' },
-                          { name: 'Neon Pink', hex: '#ff007f', bg: 'bg-[#ff007f]' },
-                          { name: 'Electric Lime', hex: '#39ff14', bg: 'bg-[#39ff14]' },
-                          { name: 'Fiery Orange', hex: '#ff5500', bg: 'bg-[#ff5500]' },
-                          { name: 'Golden Yellow', hex: '#ffea00', bg: 'bg-[#ffea00]' },
-                          { name: 'Acid Purple', hex: '#b026ff', bg: 'bg-[#b026ff]' },
-                        ].map((color) => {
-                          const isSelected = selectedAccent === color.hex
-                          return (
-                            <button
-                              key={color.hex}
-                              type="button"
-                              onClick={() => setSelectedAccent(color.hex)}
-                              className={`flex items-center gap-1.5 border px-2.5 py-1.5 text-[11px] font-bold tracking-wider uppercase transition-all rounded-lg cursor-pointer ${
-                                isSelected
-                                  ? 'border-accent bg-accent/10 text-white'
-                                  : 'border-shell-line bg-black/40 hover:bg-white/5 text-slate-400'
-                              }`}
-                            >
-                              <span className={`h-2.5 w-2.5 rounded-full ${color.bg}`} />
-                              {color.name}
-                            </button>
-                          )
-                        })}
+                      <div
+                        className="flex items-center gap-3 rounded-lg border border-shell-line bg-black/40 p-2.5 transition-shadow"
+                        style={{ boxShadow: `0 0 18px ${selectedAccent}40` }}
+                      >
+                        <input
+                          type="color"
+                          name="accentColor"
+                          value={selectedAccent}
+                          onChange={(e) => setSelectedAccent(e.target.value)}
+                          className="h-9 w-14 cursor-pointer rounded-lg border border-white/10 bg-transparent p-0.5"
+                        />
+                        <span className="font-mono-data text-xs uppercase text-slate-300">{selectedAccent}</span>
                       </div>
-                      <input type="hidden" name="accentColor" value={selectedAccent} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

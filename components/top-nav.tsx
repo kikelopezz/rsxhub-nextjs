@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { SteamLoginButton } from './steam-login-button'
-import { NotificationsNav } from './notifications-nav'
+import { NotificationsNav, type NotificationItem } from './notifications-nav'
 import { LanguageSwitcher } from './language-switcher'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
@@ -15,6 +15,7 @@ interface TopNavProps {
   showAdmin: boolean
   displayName?: string
   avatarUrl?: string
+  notifications?: NotificationItem[]
 }
 
 function isActive(pathname: string, href: string) {
@@ -41,16 +42,34 @@ function SteamIcon() {
   )
 }
 
-export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavProps) {
+export function TopNav({ signedIn, showAdmin, displayName, avatarUrl, notifications }: TopNavProps) {
   const pathname = usePathname()
   const dict = useDictionary()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [showSignInHint, setShowSignInHint] = useState(false)
+
+  useEffect(() => {
+    if (signedIn) return
+    try {
+      if (localStorage.getItem('rsx_signin_hint_dismissed') === '1') return
+    } catch {}
+    setShowSignInHint(true)
+  }, [signedIn])
+
+  const dismissSignInHint = () => {
+    setShowSignInHint(false)
+    try {
+      localStorage.setItem('rsx_signin_hint_dismissed', '1')
+    } catch {}
+  }
 
   const baseLinks = [
+    { href: '/noticias', label: dict.nav.news },
     { href: '/calendario', label: dict.nav.calendar },
     { href: '/ligas', label: dict.nav.leagues },
     { href: '/equipos', label: dict.nav.teams },
     { href: '/market', label: dict.nav.market },
+    { href: '/live-timing', label: dict.nav.liveTiming },
     { href: '/about', label: dict.nav.about },
   ]
   const links = showAdmin ? [...baseLinks, { href: '/admin', label: dict.nav.admin }] : baseLinks
@@ -74,15 +93,15 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
         </Link>
 
         {/* Nav links */}
-        <nav className="flex flex-wrap items-center justify-center gap-1 rounded-lg border border-white/10 bg-black/60 p-1.5 text-[12px] font-bold uppercase tracking-wider text-white shadow-inner">
+        <nav className="flex flex-wrap items-center justify-center gap-1 p-1.5 text-[12px] font-bold uppercase tracking-wider text-white">
           {links.map((item) => (
             <Link
               key={item.label}
               href={item.href}
-              className={`relative rounded-md px-4 py-2 transition-all duration-200 ${
+              className={`relative rounded-md border px-4 py-2 transition-all duration-200 active:scale-90 ${
                 isActive(pathname, item.href)
-                  ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
-                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  ? 'border-[#4ea1ff] bg-[#1274de] text-white shadow-[0_0_20px_rgba(78,161,255,0.7)]'
+                  : 'border-transparent text-slate-300 hover:-translate-y-1 hover:scale-105 hover:border-[#4ea1ff] hover:bg-white/10 hover:text-white hover:shadow-[0_0_18px_rgba(78,161,255,0.65)]'
               }`}
             >
               {item.label}
@@ -95,12 +114,12 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
           {signedIn ? (
             <div className="flex items-center gap-2">
               {/* Notifications Center */}
-              <NotificationsNav />
+              <NotificationsNav initialNotifications={notifications} />
 
               {/* User Profile Button */}
               <Link
                 href="/perfil"
-                className="flex items-center gap-2.5 border border-white/20 bg-white/5 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-colors"
+                className="group flex items-center gap-2.5 border border-white/20 bg-white/5 px-4 py-2.5 rounded-lg hover:bg-white/10 hover:-translate-y-1 hover:scale-105 hover:border-[#4ea1ff] hover:shadow-[0_0_18px_rgba(78,161,255,0.65)] active:scale-95 transition-all duration-200"
               >
                 {avatarUrl ? (
                   <Image
@@ -108,10 +127,10 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
                     alt={displayName ?? 'Avatar'}
                     width={24}
                     height={24}
-                    className="rounded-full object-cover ring-1 ring-white/20 flex-shrink-0"
+                    className="rounded-full object-cover ring-1 ring-white/20 flex-shrink-0 transition-transform duration-200 group-hover:scale-110"
                   />
                 ) : (
-                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-800/40 border border-emerald-500/30 text-[11px] font-bold text-emerald-400">
+                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-800/40 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 transition-transform duration-200 group-hover:scale-110">
                     {(displayName?.[0] ?? 'U').toUpperCase()}
                   </span>
                 )}
@@ -124,19 +143,38 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
               <a
                 href="/api/auth/logout"
                 title={dict.nav.signOut}
-                className="flex items-center justify-center h-10 w-10 border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 rounded-lg text-rose-400 hover:text-rose-300 transition-colors"
+                className="flex items-center justify-center h-10 w-10 border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 hover:-translate-y-1 hover:scale-110 hover:shadow-[0_0_18px_rgba(244,63,94,0.6)] active:scale-90 rounded-lg text-rose-400 hover:text-rose-300 transition-all duration-200"
                 aria-label={dict.nav.signOut}
               >
                 <LogoutIcon />
               </a>
             </div>
           ) : (
-            <SteamLoginButton
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#1274de] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer"
-            >
-              <SteamIcon />
-              {dict.nav.signIn}
-            </SteamLoginButton>
+            <div className="relative">
+              <SteamLoginButton
+                className="group inline-flex items-center gap-2 rounded-full border border-[#4ea1ff]/40 bg-gradient-to-r from-[#1274de] to-[#0d5bb8] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white shadow-[0_0_16px_rgba(78,161,255,0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:border-[#8fc4ff] hover:shadow-[0_0_26px_rgba(78,161,255,0.9)] active:scale-90 cursor-pointer"
+              >
+                <SteamIcon />
+                {dict.nav.signIn}
+              </SteamLoginButton>
+
+              {showSignInHint && (
+                <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-64 animate-dropdown-in rounded-lg border border-[#4ea1ff]/40 bg-[#0a0f18] p-3 text-left shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
+                  <div className="absolute -top-1.5 right-6 h-3 w-3 rotate-45 border-l border-t border-[#4ea1ff]/40 bg-[#0a0f18]" />
+                  <button
+                    type="button"
+                    onClick={dismissSignInHint}
+                    aria-label={dict.nav.dismiss}
+                    className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                  <p className="pr-4 text-[11px] font-semibold normal-case leading-relaxed text-slate-200">
+                    {dict.nav.signInHint}
+                  </p>
+                </div>
+              )}
+            </div>
           )}
           <LanguageSwitcher />
         </div>
@@ -149,31 +187,33 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
         </Link>
 
         <div className="flex items-center gap-2">
-          {signedIn && <NotificationsNav />}
+          {signedIn && <NotificationsNav initialNotifications={notifications} />}
           <button
             type="button"
             onClick={() => setIsMenuOpen((open) => !open)}
             aria-label={isMenuOpen ? dict.nav.closeMenu : dict.nav.openMenu}
             aria-expanded={isMenuOpen}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-white hover:bg-white/10 hover:scale-110 hover:border-[#4ea1ff] hover:shadow-[0_0_18px_rgba(78,161,255,0.65)] active:scale-90 transition-all duration-200 cursor-pointer"
           >
-            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            <span className={`flex transition-transform duration-300 ${isMenuOpen ? 'rotate-90' : 'rotate-0'}`}>
+              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </span>
           </button>
         </div>
       </div>
 
       {/* Mobile dropdown panel */}
       {isMenuOpen && (
-        <div className="md:hidden absolute left-0 right-0 top-full mt-2 rounded-lg border border-white/10 bg-[#090d16] shadow-[0_16px_40px_rgba(0,0,0,0.6)] p-3 space-y-3 z-50">
+        <div className="md:hidden fixed left-6 right-6 top-[84px] rounded-lg border border-white/10 bg-[#090d16] shadow-[0_16px_40px_rgba(0,0,0,0.6)] p-3 space-y-3 z-50 origin-top animate-dropdown-in">
           <nav className="flex flex-col gap-1 text-[13px] font-bold uppercase tracking-wider">
             {links.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className={`rounded-md px-4 py-2.5 transition-colors ${
+                className={`rounded-md border px-4 py-2.5 transition-all duration-200 active:scale-95 ${
                   isActive(pathname, item.href)
-                    ? 'bg-[#1274de] text-white'
-                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                    ? 'border-[#4ea1ff] bg-[#1274de] text-white shadow-[0_0_16px_rgba(78,161,255,0.6)]'
+                    : 'border-transparent text-slate-300 hover:translate-x-1.5 hover:border-[#4ea1ff] hover:bg-white/10 hover:text-white hover:shadow-[0_0_14px_rgba(78,161,255,0.55)]'
                 }`}
               >
                 {item.label}
@@ -186,7 +226,7 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
               <>
                 <Link
                   href="/perfil"
-                  className="flex min-w-0 flex-1 items-center gap-2.5 border border-white/20 bg-white/5 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
+                  className="flex min-w-0 flex-1 items-center gap-2.5 border border-white/20 bg-white/5 px-3 py-2 rounded-lg hover:bg-white/10 hover:border-[#4ea1ff] hover:shadow-[0_0_16px_rgba(78,161,255,0.6)] active:scale-95 transition-all duration-200"
                 >
                   {avatarUrl ? (
                     <Image
@@ -209,14 +249,14 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl }: TopNavPr
                   href="/api/auth/logout"
                   title={dict.nav.signOut}
                   aria-label={dict.nav.signOut}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 rounded-lg text-rose-400 hover:text-rose-300 transition-colors"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 hover:shadow-[0_0_16px_rgba(244,63,94,0.6)] active:scale-90 rounded-lg text-rose-400 hover:text-rose-300 transition-all duration-200"
                 >
                   <LogoutIcon />
                 </a>
               </>
             ) : (
               <SteamLoginButton
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#1274de] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-[#4ea1ff]/40 bg-gradient-to-r from-[#1274de] to-[#0d5bb8] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white shadow-[0_0_16px_rgba(78,161,255,0.45)] transition-all duration-200 hover:border-[#8fc4ff] hover:shadow-[0_0_20px_rgba(78,161,255,0.75)] active:scale-95 cursor-pointer"
               >
                 <SteamIcon />
                 {dict.nav.signIn}

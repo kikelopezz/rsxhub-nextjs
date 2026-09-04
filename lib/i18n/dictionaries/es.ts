@@ -9,6 +9,8 @@ import equipos from './es/equipos'
 import admin from './es/admin'
 import market from './es/market'
 import perfil from './es/perfil'
+import liveTiming from './es/live-timing'
+import news from './es/news'
 
 const es = {
   common,
@@ -22,6 +24,8 @@ const es = {
   admin,
   market,
   perfil,
+  liveTiming,
+  news,
 }
 
 export default es

@@ -20,10 +20,10 @@ export async function AdminLeaguesTab({ visibleLeagues, visibleRegistrations, vi
   const t = getDictionary(await getLocale()).admin.leaguesTab
   return (
     <div className="space-y-6">
-      <section className="shell-panel p-4 md:p-5 rounded-lg space-y-4">
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-shell-line pb-3">
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-wide text-white italic">{t.title}</h2>
+            <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">{t.title}</h2>
             <p className="text-xs text-slate-400">{t.subtitle}</p>
           </div>
         </div>

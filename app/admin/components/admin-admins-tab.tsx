@@ -27,9 +27,9 @@ export async function AdminAdminsTab({ grants, fixedAdminSteamIds, currentUserSt
   return (
     <div className="space-y-6">
       {/* Grant form */}
-      <section className="shell-panel p-4 md:p-5 rounded-lg space-y-4">
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4">
         <div className="border-b border-shell-line pb-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
+          <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-accent" />
             {t.grantTitle}
           </h2>
@@ -58,9 +58,9 @@ export async function AdminAdminsTab({ grants, fixedAdminSteamIds, currentUserSt
       </section>
 
       {/* Current granted admins */}
-      <section className="shell-panel p-4 md:p-5 rounded-lg space-y-4">
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4">
         <div className="border-b border-shell-line pb-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-white">{t.currentAdminsTitle}</h2>
+          <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">{t.currentAdminsTitle}</h2>
           <p className="text-xs text-slate-400 mt-1">{t.currentAdminsSubtitle}</p>
         </div>
 
@@ -133,9 +133,9 @@ export async function AdminAdminsTab({ grants, fixedAdminSteamIds, currentUserSt
       </section>
 
       {/* Fixed / env-configured admins */}
-      <section className="shell-panel p-4 md:p-5 rounded-lg space-y-4">
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4">
         <div className="border-b border-shell-line pb-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-white">{t.fixedAdminsTitle}</h2>
+          <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">{t.fixedAdminsTitle}</h2>
           <p className="text-xs text-slate-400 mt-1">{t.fixedAdminsSubtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -12,7 +12,7 @@ export type TeamProfileData = {
 }
 
 export async function fetchTeamProfileData(
-  team: { id: string; ownerUserId?: string | null; members: Array<{ userId: string; role: string; displayName?: string; steamDisplayName?: string; steamId?: string }>; cars?: any[] },
+  team: { id: string; ownerUserId?: string | null; members: Array<{ userId: string; role: string; roleTags?: string[]; displayName?: string; steamDisplayName?: string; steamId?: string }>; cars?: any[] },
 ): Promise<TeamProfileData> {
   const memberUserIds = team.members.map((member) => member.userId)
   let pendingApplications: PendingApplication[] = []
@@ -47,6 +47,7 @@ export async function fetchTeamProfileData(
       teamPilots.push({
         userId: member.userId,
         role: member.role,
+        roleTags: member.roleTags || [],
         name: profile?.displayName || steam?.steamDisplayName || member.displayName || member.steamDisplayName || member.steamId || member.userId || 'Driver',
         avatarUrl: profile?.avatarUrl || steam?.steamAvatarUrl || (member as any).avatarUrl || null,
         steamId: steam?.steamId || member.steamId || '',
@@ -101,9 +102,14 @@ export async function fetchTeamProfileData(
         ])
 
         const categories = Array.from(classTagsSet).map((tag) => {
-          const points = pointsMap[`${tag}_${team.id}`] ?? 0
           const categoryCars = teamCarsInLeague.filter((c: any) => String(c.category || '').toUpperCase() === tag)
           const categoryRegs = lgRows.filter((r) => String(r.classTag || '').toUpperCase() === tag)
+
+          // Points belong to a specific car, not the team as a whole — sum every car this
+          // team has scored with in this class instead of reading one shared team value.
+          const carNumbers = new Set<string>(categoryRegs.map((r) => (r.assignedNumber != null ? String(r.assignedNumber) : '')))
+          if (carNumbers.size === 0) carNumbers.add('')
+          const points = Array.from(carNumbers).reduce((sum, carNumber) => sum + (pointsMap[`${tag}_${team.id}_${carNumber}`] ?? 0), 0)
 
           const catDrivers = new Set<string>([
             ...categoryRegs.map((r) => r.userId).filter((u) => u && u !== team.ownerUserId && !u.startsWith('unassigned')),

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter, unstable_rethrow } from 'next/navigation'
 import { X, AlertCircle, Play, Clock, ChevronDown } from 'lucide-react'
 import { useLeagueState, League, LeagueEvent, Registration, ManagedTeam, LeagueCar, EventConfirmation } from './hooks/use-league-state'
@@ -8,11 +9,13 @@ import { LeagueBanner } from './components/league-banner'
 import { LeagueRegistration } from './components/league-registration'
 import { LeagueSchedule } from './components/league-schedule'
 import { LeagueStandings } from './components/league-standings'
-import { LeagueResults } from './components/league-results'
-import { FinishRoundModal } from './components/finish-round-modal'
-import { ViewResultsModal } from './components/view-results-modal'
-import { LeagueEditModal } from './components/league-edit-modal'
-import { updateLeagueDetailsAction, deleteLeagueAction, registerTeamAction, unregisterTeamAction, updateTeamPointsAction } from '@/app/ligas/actions'
+
+// These three are modals only ever mounted after a click (two of them admin-only) — loading
+// their code on demand instead of bundling them into every visitor's initial page load.
+const FinishRoundModal = dynamic(() => import('./components/finish-round-modal').then((m) => m.FinishRoundModal), { ssr: false })
+const ViewResultsModal = dynamic(() => import('./components/view-results-modal').then((m) => m.ViewResultsModal), { ssr: false })
+const LeagueEditModal = dynamic(() => import('./components/league-edit-modal').then((m) => m.LeagueEditModal), { ssr: false })
+import { deleteLeagueAction, registerTeamAction, unregisterTeamAction, updateTeamPointsAction } from '@/app/ligas/actions'
 import { saveCalendarEvent, deleteCalendarEvent } from '@/app/calendario/actions'
 import { ClassBadge } from '@/components/class-badge'
 import { ImagePicker } from '@/components/image-picker'
@@ -103,13 +106,14 @@ export default function LeagueDetailPageContent({
     initialPointsOverrides
   })
 
-  const handleUpdateTeamPoints = async (tag: string, teamId: string, newPoints: number) => {
-    updateTeamPoints(tag, teamId, newPoints)
+  const handleUpdateTeamPoints = async (tag: string, teamId: string, carNumber: string, newPoints: number) => {
+    updateTeamPoints(tag, `${teamId}_${carNumber}`, newPoints)
     try {
       const fd = new FormData()
       fd.set('leagueId', league.id)
       fd.set('classTag', tag)
       fd.set('teamId', teamId)
+      fd.set('carNumber', carNumber)
       fd.set('points', String(newPoints))
       fd.set('slug', league.slug)
       await updateTeamPointsAction(fd)
@@ -124,28 +128,9 @@ export default function LeagueDetailPageContent({
   // Modals visibility
   const [isEditLeagueOpen, setIsEditLeagueOpen] = useState(false)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
-  const [isResultsOpen, setIsResultsOpen] = useState(false)
   const [isRegisterOpen, setIsRegisterOpen] = useState(false)
   const [finishingEventData, setFinishingEventData] = useState<{ event: LeagueEvent; initialSessionType?: 'qualifying' | 'race' } | null>(null)
   const [viewingResultsEvent, setViewingResultsEvent] = useState<LeagueEvent | null>(null)
-
-  // Edit League Form States
-  const [formTitle, setFormTitle] = useState(league.title)
-  const [formSlug, setFormSlug] = useState(league.slug)
-  const [formSimulator, setFormSimulator] = useState(league.simulator || 'ac')
-  const [formFormat, setFormFormat] = useState(league.format || 'sprint')
-  const [formStatus, setFormStatus] = useState(league.status || 'open')
-  const [formRegistrationMode, setFormRegistrationMode] = useState((league as any).registrationMode || 'team')
-  const [formClassTags, setFormClassTags] = useState((league.classTags || []).join(', '))
-  const [formStartsAt, setFormStartsAt] = useState(league.startsAt.split('T')[0])
-  const [formEndsAt, setFormEndsAt] = useState(league.endsAt.split('T')[0])
-  const [formClassLimits, setFormClassLimits] = useState<Record<string, number>>((league as any).classLimits || {})
-  const [formRegistrationOpen, setFormRegistrationOpen] = useState(league.registrationOpen)
-  const [formSlogan, setFormSlogan] = useState(league.slogan || '')
-  const [formAccentColor, setFormAccentColor] = useState(accentHex)
-  const [formBannerUrl, setFormBannerUrl] = useState(league.bannerUrl || '')
-  const [formLogoUrl, setFormLogoUrl] = useState((league as any).logoUrl || '')
-  const [isLeagueSubmitting, setIsLeagueSubmitting] = useState(false)
 
   // Event Form States
   const [editingEvent, setEditingEvent] = useState<LeagueEvent | null>(null)
@@ -171,30 +156,20 @@ export default function LeagueDetailPageContent({
 
   // Team Register Modal States
   const [selectedTeamId, setSelectedTeamId] = useState<string>(myManagedTeams[0]?.id || '')
+  const [selectedClassTag, setSelectedClassTag] = useState<string>(classTags[0] || 'GT3')
   const [isRegSubmitting, setIsRegSubmitting] = useState(false)
   const [regErrorMessage, setRegErrorMessage] = useState('')
 
-  // Recent results mock state
-  const [recentResults] = useState<{
-    round: string
-    GT3: Array<{ pos: number; team: string; dorsal?: number | null; time: string; gap: string; points: number }>
-    HYPERCAR: Array<{ pos: number; team: string; dorsal?: number | null; time: string; gap: string; points: number }>
-  }>({
-    round: 'No rounds completed yet',
-    GT3: [],
-    HYPERCAR: []
-  })
-
   // Lock body scrolling when any modal is open to prevent double scrollbars
   useEffect(() => {
-    const isAnyModalOpen = isEditLeagueOpen || isEventModalOpen || isRegisterOpen || isResultsOpen || Boolean(finishingEventData) || Boolean(viewingResultsEvent)
+    const isAnyModalOpen = isEditLeagueOpen || isEventModalOpen || isRegisterOpen || Boolean(finishingEventData) || Boolean(viewingResultsEvent)
     if (!isAnyModalOpen) return
     const original = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = original
     }
-  }, [isEditLeagueOpen, isEventModalOpen, isRegisterOpen, isResultsOpen, finishingEventData, viewingResultsEvent])
+  }, [isEditLeagueOpen, isEventModalOpen, isRegisterOpen, finishingEventData, viewingResultsEvent])
 
   // Close the country dropdown when clicking outside of it
   const countryDropdownRef = useRef<HTMLDivElement>(null)
@@ -218,38 +193,6 @@ export default function LeagueDetailPageContent({
     } catch (e: any) {
       unstable_rethrow(e)
       alert(e.message || tr.deleteLeagueFailed)
-    }
-  }
-
-  const handleLeagueUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLeagueSubmitting(true)
-    try {
-      const formData = new FormData(e.currentTarget)
-      formData.set('leagueId', league.id)
-      formData.set('title', formTitle)
-      formData.set('slug', formSlug)
-      formData.set('simulator', formSimulator)
-      formData.set('format', formFormat)
-      formData.set('status', formStatus)
-      formData.set('registrationMode', formRegistrationMode)
-      formData.set('classTags', formClassTags)
-      formData.set('startsAt', formStartsAt)
-      formData.set('endsAt', formEndsAt)
-      formData.set('classLimitsJson', JSON.stringify(formClassLimits))
-      formData.set('registrationOpen', formRegistrationOpen ? 'true' : 'false')
-      formData.set('slogan', formSlogan)
-      formData.set('accentColor', formAccentColor)
-      formData.set('bannerUrl', String(formData.get('bannerUrl') || formBannerUrl))
-      formData.set('logoUrl', String(formData.get('logoUrl') || formLogoUrl))
-
-      await updateLeagueDetailsAction(formData)
-      setIsEditLeagueOpen(false)
-      router.refresh()
-    } catch (err: any) {
-      alert(err.message || tr.updateSettingsFailed)
-    } finally {
-      setIsLeagueSubmitting(false)
     }
   }
 
@@ -421,7 +364,7 @@ export default function LeagueDetailPageContent({
       formData.set('slug', league.slug || '')
       formData.set('leagueId', league.id)
       formData.set('teamId', selectedTeamId)
-      formData.set('classTag', classTags[0] || 'GT3')
+      formData.set('classTag', selectedClassTag || classTags[0] || 'GT3')
 
       await registerTeamAction(formData)
       setIsRegisterOpen(false)
@@ -457,45 +400,35 @@ export default function LeagueDetailPageContent({
         }
       />
 
-      {/* 2. Main Content Grid */}
-      <section className="grid gap-4 md:grid-cols-[1.6fr_1.4fr]">
-        <LeagueSchedule
-          league={league}
-          events={events}
-          isAdmin={isAdmin}
-          isSteward={isSteward}
-          classTags={classTags}
-          confirmations={confirmations}
-          initialRegistrations={initialRegistrations}
-          myManagedTeams={myManagedTeams}
-          teamInfo={teamInfo}
-          standings={standings}
-          onOpenEventModal={handleOpenEventModal}
-          onDeleteEvent={handleEventDelete}
-          onFinishRound={(ev, initialSessionType) => setFinishingEventData({ event: ev, initialSessionType })}
-          onViewResults={(ev) => setViewingResultsEvent(ev)}
-        />
-
-        <LeagueStandings
-          isAdmin={isAdmin}
-          canEditPoints={canEditPoints}
-          classTags={classTags}
-          standings={standings}
-          standingsIndices={standingsIndices}
-          customCarImages={customCarImages}
-          onScrollStandings={scrollStandings}
-          onCarImageUpload={handleCarImageUpload}
-          onUpdateTeamPoints={handleUpdateTeamPoints}
-        />
-      </section>
-
-      {/* 4. Recent Race Results */}
-      <LeagueResults
+      {/* 2. Championship Ladder — full-width, dominant */}
+      <LeagueStandings
         isAdmin={isAdmin}
-        recentResults={recentResults}
+        canEditPoints={canEditPoints}
         classTags={classTags}
+        standings={standings}
+        standingsIndices={standingsIndices}
+        customCarImages={customCarImages}
+        onScrollStandings={scrollStandings}
+        onCarImageUpload={handleCarImageUpload}
+        onUpdateTeamPoints={handleUpdateTeamPoints}
+      />
+
+      {/* 3. Race Trail — horizontal schedule timeline */}
+      <LeagueSchedule
+        league={league}
         events={events}
-        onOpenResultsModal={() => setIsResultsOpen(true)}
+        isAdmin={isAdmin}
+        isSteward={isSteward}
+        classTags={classTags}
+        confirmations={confirmations}
+        initialRegistrations={initialRegistrations}
+        myManagedTeams={myManagedTeams}
+        teamInfo={teamInfo}
+        standings={standings}
+        onOpenEventModal={handleOpenEventModal}
+        onDeleteEvent={handleEventDelete}
+        onFinishRound={(ev, initialSessionType) => setFinishingEventData({ event: ev, initialSessionType })}
+        onViewResults={(ev) => setViewingResultsEvent(ev)}
       />
 
       {/* View Results Modal (Read-Only for Pilots & Users) */}
@@ -884,20 +817,28 @@ export default function LeagueDetailPageContent({
       )}
 
       {isRegisterOpen && myManagedTeams.length > 0 && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-sm p-4 md:p-6 flex justify-center items-start sm:items-center animate-fade-in">
-          <div className="shell-panel border border-shell-line bg-[#090d16] max-w-md w-full p-5 text-white rounded-lg relative my-auto">
-            <button onClick={() => setIsRegisterOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/85 p-4 backdrop-blur-sm sm:items-center md:p-6">
+          <div className="relative my-auto w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0f18] p-5 text-white shadow-[0_0_60px_rgba(0,0,0,0.8)]">
+            <button
+              onClick={() => setIsRegisterOpen(false)}
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-[#4ea1ff] hover:text-[#4ea1ff]"
+            >
               <X className="h-4 w-4" />
             </button>
-            <h2 className="text-xl font-bold uppercase tracking-tight text-white mb-2">{trReg.title}</h2>
+            <h2 className="font-display-league mb-4 text-2xl uppercase text-white">{trReg.title}</h2>
+            {regErrorMessage && (
+              <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-300">
+                {regErrorMessage}
+              </div>
+            )}
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs text-slate-300 uppercase font-semibold">{trReg.selectTeam}</label>
+                <label className="mb-1 block text-xs font-semibold uppercase text-slate-300">{trReg.selectTeam}</label>
                 <select
                   value={selectedTeamId}
                   onChange={(e) => setSelectedTeamId(e.target.value)}
                   required
-                  className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg"
+                  className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-[#4ea1ff]"
                 >
                   {myManagedTeams.map((team) => (
                     <option key={team.id} value={team.id}>
@@ -906,11 +847,34 @@ export default function LeagueDetailPageContent({
                   ))}
                 </select>
               </div>
-              <div className="flex justify-end gap-2 pt-2 border-t border-shell-line/50">
-                <button type="button" onClick={() => setIsRegisterOpen(false)} className="border border-shell-line px-4 py-2 text-xs font-bold uppercase">
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase text-slate-300">{trReg.selectCategory}</label>
+                <select
+                  value={selectedClassTag}
+                  onChange={(e) => setSelectedClassTag(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-[#4ea1ff]"
+                >
+                  {classTags.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-white/10 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsRegisterOpen(false)}
+                  className="rounded-lg border border-white/10 px-4 py-2 text-xs font-bold uppercase transition-colors hover:bg-white/5"
+                >
                   {trReg.cancel}
                 </button>
-                <button type="submit" disabled={isRegSubmitting} className="bg-shell-accent px-5 py-2 text-xs font-bold uppercase text-white">
+                <button
+                  type="submit"
+                  disabled={isRegSubmitting}
+                  className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-5 py-2 text-xs font-bold uppercase text-white shadow-[0_0_15px_rgba(78,161,255,0.4)] transition-all hover:bg-[#1f82ee] disabled:opacity-50"
+                >
                   {isRegSubmitting ? trReg.registering : trReg.confirmRegistration}
                 </button>
               </div>

@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
-const STATUS_KEYS = ['updated', 'invite', 'memberRemoved', 'roleUpdated', 'error']
+const STATUS_KEYS = ['created', 'updated', 'invite', 'memberRemoved', 'roleUpdated', 'error']
 
 export function ClearStatusQuery() {
   const router = useRouter()

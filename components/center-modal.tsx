@@ -1,17 +1,18 @@
 'use client'
 
-import { ReactNode, useEffect, useRef, useState } from 'react'
+import { ReactNode, CSSProperties, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 type CenterModalProps = {
   title: string
   triggerLabel: string
   triggerClassName?: string
+  triggerStyle?: CSSProperties
   widthClassName?: string
-  children: ReactNode
+  children: ReactNode | ((close: () => void) => ReactNode)
 }
 
-export function CenterModal({ title, triggerLabel, triggerClassName, widthClassName, children }: CenterModalProps) {
+export function CenterModal({ title, triggerLabel, triggerClassName, triggerStyle, widthClassName, children }: CenterModalProps) {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [rendered, setRendered] = useState(false)
@@ -61,7 +62,7 @@ export function CenterModal({ title, triggerLabel, triggerClassName, widthClassN
 
   return (
     <>
-      <button type="button" onClick={openModal} className={triggerClassName}>
+      <button type="button" onClick={openModal} className={triggerClassName} style={triggerStyle}>
         {triggerLabel}
       </button>
       {rendered && mounted
@@ -84,7 +85,7 @@ export function CenterModal({ title, triggerLabel, triggerClassName, widthClassN
                     Close
                   </button>
                 </div>
-                {children}
+                {typeof children === 'function' ? children(closeModal) : children}
               </div>
             </div>,
             document.body,

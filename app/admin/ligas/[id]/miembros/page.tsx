@@ -47,7 +47,7 @@ export default async function LeagueMembersPage({
 
   return (
     <div className="space-y-4">
-      <section className="shell-panel p-4 md:p-5">
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
         <div className="flex items-center justify-between gap-3">
           <SectionTitle title={t.title.replace('{league}', league.title)} subtitle={t.subtitle} />
           <div className="flex gap-2">
@@ -61,7 +61,7 @@ export default async function LeagueMembersPage({
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="shell-panel p-4 md:p-5">
+        <div className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
           <SectionTitle title={t.assignRoleTitle} subtitle={t.assignRoleSubtitle} />
           <form action={assignLeagueRole} className="space-y-3">
             <input type="hidden" name="leagueId" value={league.id} />
@@ -77,7 +77,7 @@ export default async function LeagueMembersPage({
           </form>
         </div>
 
-        <div className="shell-panel p-4 md:p-5">
+        <div className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
           <SectionTitle title={t.currentRolesTitle} subtitle={t.currentRolesSubtitle} />
           <div className="space-y-2">
             {members.length === 0 ? (

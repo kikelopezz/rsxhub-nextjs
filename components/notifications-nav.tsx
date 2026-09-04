@@ -34,10 +34,9 @@ export function NotificationsNav({
       .catch(() => {})
   }, [])
 
-  useEffect(() => {
-    fetchNotifications()
-  }, [fetchNotifications])
-
+  // The initial list already comes from the server (via `initialNotifications`), so there's
+  // no need to also re-fetch it client-side on mount — only when the panel is actually
+  // opened, to pick up anything new since the page loaded.
   useEffect(() => {
     if (open) {
       fetchNotifications()
@@ -101,10 +100,10 @@ export function NotificationsNav({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`relative flex items-center justify-center h-10 w-10 rounded-lg transition-all cursor-pointer ${
+        className={`relative flex items-center justify-center h-10 w-10 rounded-lg transition-all duration-200 hover:-translate-y-1 hover:scale-110 active:scale-90 cursor-pointer ${
           hasUnread
             ? 'bg-[#1274de]/25 border-2 border-[#1274de] text-[#1274de] animate-rsx-breath shadow-[0_0_18px_rgba(18,116,222,0.8)]'
-            : 'border border-white/20 bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white'
+            : 'border border-white/20 bg-white/5 hover:bg-white/10 hover:border-[#4ea1ff] hover:shadow-[0_0_18px_rgba(78,161,255,0.65)] text-slate-200 hover:text-white'
         }`}
         title="Notification Center"
         aria-label="Notification Center"
@@ -122,7 +121,7 @@ export function NotificationsNav({
 
       {/* Notifications Dropdown Panel */}
       {open && (
-        <div className="absolute right-0 mt-2 w-[min(380px,90vw)] bg-[#0c1220] border border-slate-800 rounded-lg shadow-2xl z-50 overflow-hidden space-y-0 text-left animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 top-[66px] w-[min(380px,90vw)] bg-[#0c1220] border border-slate-800 rounded-lg shadow-2xl z-50 overflow-hidden space-y-0 text-left origin-top-right animate-dropdown-in">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/80 bg-[#0f172a]/90">
             <div className="flex items-center gap-2">

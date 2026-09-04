@@ -10,12 +10,14 @@
 
 import { db } from '@/lib/db'
 
-export async function syncLeagueRegistrations(teamId: string): Promise<void> {
+export async function syncLeagueRegistrations(teamId: string): Promise<string[]> {
+  const syncedLeagueSlugs: string[] = []
+
   const team = await db.team.findUnique({
     where: { id: teamId },
     include: { cars: { include: { drivers: true } }, members: true },
   })
-  if (!team) return
+  if (!team) return syncedLeagueSlugs
 
   const existingRegLeagueIds = (await db.leagueRegistration.findMany({ where: { teamId }, select: { leagueId: true } })).map(
     (r) => r.leagueId,
@@ -95,5 +97,8 @@ export async function syncLeagueRegistrations(teamId: string): Promise<void> {
         })),
       }),
     ])
+    syncedLeagueSlugs.push(league.slug)
   }
+
+  return syncedLeagueSlugs
 }

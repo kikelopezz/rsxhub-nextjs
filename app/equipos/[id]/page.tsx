@@ -4,6 +4,7 @@ export const revalidate = 0
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ClearStatusQuery } from '@/components/clear-status-query'
+import { StatusBanner } from '@/components/status-banner'
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { getLeagues, getRegistrations, getLeagueEvents, getTeamPointsOverrides } from '@/lib/platform-data'
 import { getTeamsDashboard } from '@/lib/team-data'
@@ -124,6 +125,17 @@ export default async function TeamProfilePage({
     <div className="space-y-4 text-white">
       <ClearStatusQuery />
 
+      {qs.error === 'lineup-locked-qualy-day' && (
+        <div className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-100">
+          {tr.lineupLockedQualyDay}
+        </div>
+      )}
+      {qs.error === 'lineup-rate-limited' && (
+        <div className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-100">
+          {tr.lineupRateLimited}
+        </div>
+      )}
+
       {/* Banner + top stats */}
       <TeamBannerStats
         team={team}
@@ -135,26 +147,13 @@ export default async function TeamProfilePage({
         stats={stats}
         accentSoft={accentSoft}
         accentHard={accentHard}
-        leagueParticipation={leagueParticipation}
       />
 
       {/* Status message */}
-      {message ? (
-        <div
-          className={`border px-3 py-2 text-sm rounded-lg ${
-            message.kind === 'ok'
-              ? 'border-emerald-300/30 bg-emerald-500/10 text-emerald-100'
-              : message.kind === 'warn'
-              ? 'border-amber-300/30 bg-amber-500/10 text-amber-100'
-              : 'border-red-300/30 bg-red-500/10 text-red-100'
-          }`}
-        >
-          {message.text}
-        </div>
-      ) : null}
+      <StatusBanner message={message} />
 
       {/* Performance stats row */}
-      <section className="grid gap-[1px] overflow-hidden border border-shell-line bg-shell-line md:grid-cols-5 rounded-lg">
+      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-5">
         {[
           { label: tr.wins, value: stats.wins },
           { label: tr.podiums, value: stats.podiums },
@@ -162,9 +161,9 @@ export default async function TeamProfilePage({
           { label: tr.dsq, value: stats.dsq },
           { label: tr.racesRun, value: stats.racesRun },
         ].map((item) => (
-          <div key={item.label} className="bg-[#0b1320] p-4 rounded-lg">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">{item.label}</p>
-            <p className="mt-1 text-4xl font-black italic text-white">{item.value}</p>
+          <div key={item.label} className="bg-[#0f0f12] p-4 text-center">
+            <p className="font-display-league text-4xl leading-none text-white">{item.value}</p>
+            <p className="mt-2 font-mono-data text-[10px] uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
           </div>
         ))}
       </section>
@@ -178,6 +177,7 @@ export default async function TeamProfilePage({
           pendingApplications={pendingApplications}
           inviteCandidates={inviteCandidates}
           accentSoft={accentSoft}
+          accentHard={accentHard}
         />
         <TeamVehiclesSection
           team={team}
@@ -198,7 +198,7 @@ export default async function TeamProfilePage({
       />
 
       <div>
-        <Link href="/equipos" className="border border-shell-line bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15 rounded-lg">
+        <Link href="/equipos" className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 font-display-condensed text-sm font-bold uppercase tracking-wider text-white hover:bg-white/10">
           {tr.backToTeams}
         </Link>
       </div>

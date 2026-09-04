@@ -1,188 +1,122 @@
 'use client'
 
-import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import type { CSSProperties } from 'react'
 import type { League } from '@/types'
-import { FormattedDate } from '@/components/formatted-date'
 import { ClassBadge } from '@/components/class-badge'
 
-function registrationClass(isOpen?: boolean) {
-  if (isOpen) return 'border-emerald-400/50 bg-emerald-500/20 text-emerald-100'
-  return 'border-rose-400/45 bg-rose-500/20 text-rose-100'
-}
-
-function leagueClasses(format: League['format']) {
-  if (format === 'multiclass') return ['GT3', 'HYPERCAR']
-  if (format === 'gt3' || format === 'endurance' || format === 'sprint') return ['GT3']
-  if (format === 'prototype') return ['HYPERCAR']
-  if (format === 'formula') return ['F1']
-  return ['CLASE']
+const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  open: { bg: 'rgba(34,197,94,.16)', text: '#4ade80' },
+  ongoing: { bg: 'rgba(78,161,255,.16)', text: '#4ea1ff' },
+  finished: { bg: 'rgba(255,255,255,.08)', text: '#8b96a8' },
 }
 
 export function LeagueCard({
   league,
   registeredCount = 0,
-  layout = 'vertical',
 }: {
-  league: League
+  league: League & { leader?: { name: string; logoUrl: string | null; points: number } | null }
   registeredCount?: number
-  layout?: 'vertical' | 'horizontal'
 }) {
-  const [imgError, setImgError] = useState(false)
-  
-  const classes = (league.classTags?.length ? league.classTags : leagueClasses(league.format)).map((item) =>
-    item.trim().toUpperCase(),
-  )
-  const uniqueClasses = Array.from(new Set(classes)).slice(0, 4)
+  const classes = Array.from(new Set((league.classTags || []).map((tag) => tag.trim().toUpperCase()))).slice(0, 4)
   const simLogo = league.simulator === 'ac' ? '/branding/ACLogo.png' : '/branding/LMULogo.png'
-  const simAlt = league.simulator === 'ac' ? 'Assetto Corsa' : 'Le Mans Ultimate'
-  const badgeSrc = (league as any).logoUrl || simLogo
-  const badgeAlt = (league as any).logoUrl ? league.title : simAlt
-
+  const simLabel = league.simulator === 'ac' ? 'AC' : 'LMU'
   const accentHex = league.accentColor || '#1274de'
+  const statusKey = league.status === 'open' && !league.registrationOpen ? 'ongoing' : (league.status || 'open')
+  const statusStyle = STATUS_STYLES[statusKey] || STATUS_STYLES.open
+  const statusLabel = league.registrationOpen
+    ? 'Inscripciones abiertas'
+    : statusKey === 'finished'
+      ? 'Finalizada'
+      : 'En curso'
+  const leader = league.leader
 
-  if (layout === 'horizontal') {
-    return (
-      <Link href={`/ligas/${league.slug}`} className="group block h-full">
-        <article 
-          className="relative overflow-hidden rounded-lg border border-white/10 bg-[#070b12] shadow-soft transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(0,0,0,0.35)] h-full grid grid-cols-[1fr_auto] min-h-[200px]"
-          style={{ 
-            borderColor: imgError ? 'rgba(255,255,255,0.1)' : undefined,
-          }}
-        >
+  const initials = league.title.slice(0, 2).toUpperCase()
 
-          {/* LEFT: Text content */}
-          <div className="flex flex-col justify-between p-5 md:p-6 z-10">
-            <div>
-              <div className="flex flex-wrap items-center gap-1.5 mb-3">
-                <span className="rounded-lg border border-white/20 bg-black/60 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-300">
-                  {league.format.toUpperCase()}
-                </span>
-                {uniqueClasses.map((classTag) => (
-                  <ClassBadge key={classTag} classTag={classTag} />
-                ))}
-                {badgeSrc && (
-                  <span className="flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-200" style={{ borderColor: `${accentHex}66`, backgroundColor: `${accentHex}25` }}>
-                    <Image src={badgeSrc} alt={badgeAlt} width={48} height={12} className="h-3 w-auto object-contain" />
-                    {league.simulator.toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <h3 className="text-xl md:text-2xl font-black uppercase italic leading-[0.95] text-white drop-shadow-md [letter-spacing:-0.03em] group-hover:text-slate-200 transition-colors" style={{ '--tw-text-opacity': '1' } as any}>
-                {league.title}
-              </h3>
-              {league.slogan && (
-                <p className="text-[10px] font-black tracking-wider uppercase mt-1 italic" style={{ color: accentHex }}>
-                  {league.slogan}
-                </p>
-              )}
-              <p className="mt-1.5 text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                {league.shortDescription}
-              </p>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-white/8 flex items-center gap-3 text-xs">
-              <span className="font-extrabold uppercase tracking-wider" style={{ color: accentHex }}>
-                <FormattedDate date={league.startsAt} />
-              </span>
-              <span className={`rounded-lg border px-2 py-0.5 text-[9px] font-bold ${registrationClass(league.registrationOpen)}`}>
-                {league.registrationOpen ? 'OPEN' : 'CLOSED'}
-              </span>
-            </div>
-          </div>
-
-          {/* RIGHT: Banner image column */}
-          {league.bannerUrl && !imgError ? (
-            <div className="relative w-[180px] md:w-[220px] overflow-hidden flex-shrink-0">
-              {/* Fade from left to blend with card background */}
-              <div
-                className="absolute inset-y-0 left-0 w-16 z-10 pointer-events-none"
-                style={{ background: 'linear-gradient(90deg, #070b12 0%, transparent 100%)' }}
-              />
-              <Image
-                src={league.bannerUrl}
-                alt={league.title}
-                fill
-                sizes="220px"
-                quality={90}
-                onError={() => setImgError(true)}
-                className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
-              />
-            </div>
-          ) : (
-            <div className="w-[180px] md:w-[220px] flex-shrink-0 bg-gradient-to-br from-[#0d1526] to-[#1a283f]/60" />
-          )}
-        </article>
-      </Link>
-    )
-  }
-
-  // Layout vertical original
   return (
     <Link href={`/ligas/${league.slug}`} className="group block h-full">
       <article
-        className="hud-corners relative overflow-hidden rounded-lg border border-white/10 bg-gradient-to-b from-[#0d1420] to-[#0a0f18] shadow-[0_10px_26px_rgba(0,0,0,0.4)] transform-gpu will-change-transform transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(0,0,0,0.5)] h-full"
-        style={{
-          borderLeft: `2px solid ${accentHex}`
-        }}
+        className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0c] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--glow)] hover:shadow-[0_18px_44px_-12px_var(--glow)]"
+        style={{ '--glow': `${accentHex}88` } as CSSProperties}
       >
-        <div className="relative h-[260px] w-full overflow-hidden bg-[#080c14]">
-          {league.bannerUrl && !imgError ? (
-            <>
-              <Image
-                src={league.bannerUrl}
-                alt={league.title}
-                fill
-                sizes="(max-width: 768px) 100vw, 33vw"
-                quality={90}
-                className="object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
-                onError={() => setImgError(true)}
-              />
-              {/* Scrims to keep the title/next-race text and the bottom bar readable over any banner */}
-              <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/75 via-black/25 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#030509] via-[#030509]/60 to-transparent" />
-            </>
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-[#090d15] to-[#1a283f]/92" />
+        {/* Header band: real preview photo when set, diagonal accent split when not */}
+        <div
+          className="relative flex h-40 flex-col justify-between overflow-hidden p-4"
+          style={
+            league.logoUrl
+              ? undefined
+              : { background: `linear-gradient(160deg, ${accentHex} 0%, ${accentHex} 42%, #0a0a0c 42.5%, #0a0a0c 100%)` }
+          }
+        >
+          {league.logoUrl && (
+            <Image
+              src={league.logoUrl}
+              alt={league.title}
+              fill
+              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+            />
           )}
-        </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] from-10% via-[#0a0a0c]/50 via-45% to-transparent" />
+          <span className="pointer-events-none absolute -right-2 -top-7 select-none font-display-league text-[110px] leading-none text-white/10">
+            {initials}
+          </span>
 
-        {/* Top-Right: Simulator Badge */}
-        {simLogo && (
-          <div className="absolute right-4 top-4 z-10 flex h-16 w-16 items-center justify-center rounded-lg border border-white/15 bg-white p-2 shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
-            <Image src={simLogo} alt={simAlt} width={56} height={56} className="h-full w-full object-contain" />
+          <span className="absolute right-3 top-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white p-1.5 shadow-md">
+            <Image src={simLogo} alt={simLabel} width={40} height={40} className="h-full w-full object-contain" />
+          </span>
+
+          <div className="relative flex items-center justify-between">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wider backdrop-blur-sm"
+              style={{ background: statusStyle.bg, color: statusStyle.text, border: `1px solid ${statusStyle.text}55` }}
+            >
+              {statusLabel}
+            </span>
           </div>
-        )}
-
-        {/* Top-Left: Title & Next Race Date */}
-        <div className="absolute left-4 top-4 z-10 max-w-[calc(100%-88px)]">
-          <h3 className="text-2xl md:text-3xl font-black uppercase italic leading-[0.95] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] [letter-spacing:-0.03em]">
-            {league.title}
-          </h3>
-          {league.slogan && (
-            <p className="text-[10px] font-black tracking-wider uppercase mt-0.5 italic drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" style={{ color: accentHex }}>
-              {league.slogan}
-            </p>
-          )}
-          <p className="mt-1 text-xs font-semibold text-slate-200 drop-shadow-[0_1px_4px_rgba(0,0,0,0.95)]">
-            Next race <FormattedDate date={league.startsAt} />
-          </p>
+          <div className="relative">
+            <h3 className="font-display-league truncate text-[26px] leading-[0.95] text-white [text-shadow:0_2px_10px_rgba(0,0,0,.5)]">
+              {league.title}
+            </h3>
+          </div>
         </div>
 
-        {/* Bottom Bar: Class badges & Registration Status */}
-        <div className="absolute inset-x-0 bottom-0 p-4 z-10">
-          <div className="flex items-end justify-between gap-3 border-t border-white/15 pt-3 text-xs font-bold">
-            <div className="flex flex-wrap items-center gap-2">
-              {uniqueClasses.map((classTag) => (
-                <ClassBadge key={classTag} classTag={classTag} />
+        <div className="flex flex-1 flex-col p-4">
+          {classes.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {classes.map((tag) => (
+                <ClassBadge key={tag} classTag={tag} />
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`rounded-lg border px-2 py-1 ${registrationClass(league.registrationOpen)}`}>
-                REGISTRATION {league.registrationOpen ? 'OPEN' : 'CLOSED'}
-              </span>
-            </div>
+          )}
+
+          {/* Leader preview — the card's reason for being: who's winning right now */}
+          <div className="mb-3 flex items-center gap-2.5 rounded-lg border border-white/10 bg-black/30 px-3 py-2.5">
+            {leader ? (
+              <>
+                <span className="font-display-league w-5 text-center text-lg text-[#f5c518]">P1</span>
+                {leader.logoUrl ? (
+                  <Image src={leader.logoUrl} alt={leader.name} width={28} height={28} className="h-7 w-7 shrink-0 rounded-md border border-white/15 bg-[#0d1420] object-contain" />
+                ) : (
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/15 bg-[#0d1420] text-[10px] font-black text-slate-300">
+                    {leader.name.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-bold text-white">{leader.name}</p>
+                  <p className="text-[9px] uppercase tracking-wider text-slate-500">Líder actual</p>
+                </div>
+                <span className="font-mono-data text-sm font-bold text-[#4ea1ff]">{leader.points}</span>
+              </>
+            ) : (
+              <p className="w-full py-1 text-center text-[11px] italic text-slate-500">Aún sin resultados</p>
+            )}
+          </div>
+
+          <div className="mt-auto flex items-center justify-between text-[10px] text-slate-500">
+            <span className="font-mono-data">{registeredCount} {registeredCount === 1 ? 'equipo inscrito' : 'equipos inscritos'}</span>
+            <span className="font-bold uppercase tracking-wider text-[#4ea1ff] transition-transform group-hover:translate-x-0.5">Ver liga →</span>
           </div>
         </div>
       </article>

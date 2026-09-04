@@ -5,9 +5,12 @@ import { getLeagues } from '@/lib/platform-data'
 import { getTeamsDashboard } from '@/lib/team-data'
 import { createTeam } from './actions'
 import EquiposContent from './equipos-content'
+import { ClearStatusQuery } from '@/components/clear-status-query'
+import { StatusBanner } from '@/components/status-banner'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 import type { Dictionary } from '@/lib/i18n/dictionaries/es'
+import type { StatusMessage } from '@/components/status-banner'
 
 function statusMessage(
   params: {
@@ -19,7 +22,7 @@ function statusMessage(
     mode?: string
   },
   m: Dictionary['equipos']['messages']
-) {
+): StatusMessage {
   if (params.mode === 'mock') return { kind: 'warn', text: m.demoMode }
   if (params.created === '1') return { kind: 'ok', text: m.teamCreated }
   if (params.updated === '1') return { kind: 'ok', text: m.teamUpdated }
@@ -81,19 +84,8 @@ export default async function EquiposPage({
 
   return (
     <div className="space-y-4">
-      {message && (
-        <div
-          className={`border px-4 py-3 text-sm rounded-lg shadow-md ${
-            message.kind === 'ok'
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
-              : message.kind === 'warn'
-              ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
-              : 'border-red-500/30 bg-red-500/10 text-red-100'
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
+      <ClearStatusQuery />
+      <StatusBanner message={message} />
 
       {myPendingTeam && (
         <div className="border border-amber-500/30 bg-amber-500/10 text-amber-100 px-4 py-3 text-sm rounded-lg shadow-md">

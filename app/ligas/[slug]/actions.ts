@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { getLeagueBySlug } from '@/lib/platform-data'
 import { getCurrentUser } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { invalidateCache } from '@/lib/ttl-cache'
 
 import {
   getPreferredNumbers as _getPreferredNumbers,
@@ -242,6 +243,9 @@ export async function registerForLeague(formData: FormData) {
       redirect(`/ligas/${slug}?register=error`)
     }
 
+    invalidateCache([`registrations_${league.id}`, 'registrations_all', 'platform_drivers'])
+    revalidatePath(`/ligas/${slug}`)
+    revalidatePath('/ligas')
     redirect(`/ligas/${slug}?register=team-success`)
   }
 
@@ -281,6 +285,9 @@ export async function registerForLeague(formData: FormData) {
     redirect(`/ligas/${slug}?register=error`)
   }
 
+  invalidateCache([`registrations_${league.id}`, 'registrations_all', 'platform_drivers'])
+  revalidatePath(`/ligas/${slug}`)
+  revalidatePath('/ligas')
   redirect(`/ligas/${slug}?register=success`)
 }
 
@@ -363,5 +370,8 @@ export async function unregisterFromLeague(formData: FormData) {
     redirect(`/ligas/${slug}?register=error`)
   }
 
+  invalidateCache([`registrations_${league.id}`, 'registrations_all', 'platform_drivers'])
+  revalidatePath(`/ligas/${slug}`)
+  revalidatePath('/ligas')
   redirect(`/ligas/${slug}?register=withdrawn`)
 }

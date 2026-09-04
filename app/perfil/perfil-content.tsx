@@ -12,7 +12,6 @@ import {
   X,
   Check,
   Globe,
-  Gamepad2,
   Trophy,
   Users,
   Award,
@@ -21,9 +20,9 @@ import {
   Mail,
   AlertCircle
 } from 'lucide-react'
-import { COUNTRIES, getCountryName, getCountryFlag } from '@/lib/countries'
+import { COUNTRIES, getCountryName, getCountryFlagUrl } from '@/lib/countries'
 import { ClassBadge } from '@/components/class-badge'
-import { simulatorLabel } from '@/lib/utils'
+import { ImagePicker } from '@/components/image-picker'
 import { updateProfile, respondTeamInvite } from './actions'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
@@ -37,6 +36,18 @@ type ProfileData = {
   steamId: string
   steamDisplayName: string
   preferredCategories: string[]
+  isPublic: boolean
+  bannerUrl: string | null
+  accentColor: string | null
+}
+
+function hexToRgba(hexColor: string | null | undefined, alpha: number) {
+  const value = String(hexColor || '').replace('#', '').trim()
+  if (!/^[0-9a-fA-F]{6}$/.test(value)) return `rgba(18,116,222,${alpha})`
+  const r = Number.parseInt(value.slice(0, 2), 16)
+  const g = Number.parseInt(value.slice(2, 4), 16)
+  const b = Number.parseInt(value.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 type RegistrationItem = {
@@ -91,7 +102,10 @@ export default function PerfilContent({
   const [editDisplayName, setEditDisplayName] = useState(profile.displayName)
   const [editCountryCode, setEditCountryCode] = useState(profile.countryCode || 'ES')
   const [editBio, setEditBio] = useState(profile.bio || '')
-  const [editMainSim, setEditMainSim] = useState<'ac' | 'lmu'>(profile.mainSim || 'ac')
+  const [editIsPublic, setEditIsPublic] = useState(profile.isPublic !== false)
+  const [editBannerUrl, setEditBannerUrl] = useState(profile.bannerUrl || '')
+  const [editAccentColor, setEditAccentColor] = useState(profile.accentColor || '#1274de')
+  const [editErrorMessage, setEditErrorMessage] = useState('')
   const [editSelectedCategories, setEditSelectedCategories] = useState<string[]>(
     profile.preferredCategories.map((c) => c.toUpperCase())
   )
@@ -116,28 +130,41 @@ export default function PerfilContent({
   const handleSaveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setEditErrorMessage('')
 
     const formData = new FormData(e.currentTarget)
     try {
-      await updateProfile(formData)
-    } catch (err: any) {
-      if (!err?.digest?.startsWith('NEXT_REDIRECT') && err?.message !== 'NEXT_REDIRECT') {
-        console.error('Failed to update profile:', err)
+      const res = await updateProfile(formData)
+      if (res && !res.success) {
+        setEditErrorMessage(res.error || 'No se pudo guardar el perfil.')
+        return
       }
-    } finally {
-      setIsSubmitting(false)
       setIsEditOpen(false)
       router.refresh()
+    } catch (err: any) {
+      console.error('Failed to update profile:', err)
+      setEditErrorMessage('No se pudo guardar el perfil.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   return (
     <div className="space-y-6 text-white">
       {/* 1. Header Banner & Driver Card */}
-      <section className="relative overflow-hidden border border-shell-line bg-gradient-to-br from-[#0d1420] via-[#0a0f18] to-[#070a10] p-6 md:p-8 rounded-lg">
+      <section
+        className="relative overflow-hidden rounded-2xl border border-white/10 p-6 md:p-8"
+        style={{
+          backgroundImage: profile.bannerUrl
+            ? `linear-gradient(112deg, rgba(6,10,17,0.94) 20%, ${hexToRgba(profile.accentColor, 0.35)} 58%, rgba(6,10,17,0.88) 100%), url(${profile.bannerUrl})`
+            : `linear-gradient(135deg, #0d1420, #0a0f18, #070a10)`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
         {/* Glow Accent Effects */}
-        <div className="absolute top-0 right-0 h-48 w-48 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 h-48 w-48 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 h-48 w-48 rounded-full blur-3xl pointer-events-none" style={{ background: hexToRgba(profile.accentColor, 0.12) }} />
+        <div className="absolute bottom-0 left-0 h-48 w-48 rounded-full blur-3xl pointer-events-none" style={{ background: hexToRgba(profile.accentColor, 0.12) }} />
 
         <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center gap-5">
@@ -150,10 +177,19 @@ export default function PerfilContent({
                   width={96}
                   height={96}
                   quality={90}
-                  className="h-20 w-20 md:h-24 md:w-24 rounded-full object-cover ring-2 ring-accent/40 shadow-[0_0_20px_rgba(18,116,222,0.25)]"
+                  className="h-20 w-20 md:h-24 md:w-24 rounded-full object-cover ring-2"
+                  style={{ boxShadow: `0 0 20px ${hexToRgba(profile.accentColor, 0.25)}`, ['--tw-ring-color' as any]: hexToRgba(profile.accentColor, 0.4) }}
                 />
               ) : (
-                <div className="flex h-20 w-20 md:h-24 md:w-24 items-center justify-center rounded-full bg-accent/10 text-2xl font-bold text-accent border border-accent/30 shadow-[0_0_20px_rgba(18,116,222,0.2)]">
+                <div
+                  className="flex h-20 w-20 md:h-24 md:w-24 items-center justify-center rounded-full text-2xl font-bold border"
+                  style={{
+                    background: hexToRgba(profile.accentColor, 0.1),
+                    borderColor: hexToRgba(profile.accentColor, 0.3),
+                    color: profile.accentColor || '#1274de',
+                    boxShadow: `0 0 20px ${hexToRgba(profile.accentColor, 0.2)}`,
+                  }}
+                >
                   {profile.displayName.slice(0, 2).toUpperCase()}
                 </div>
               )}
@@ -162,13 +198,18 @@ export default function PerfilContent({
             {/* Driver Identity */}
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="text-2xl" title={getCountryName(profile.countryCode)}>
-                  {getCountryFlag(profile.countryCode)}
+                <span className="relative h-6 w-8 shrink-0 overflow-hidden rounded-sm shadow-sm" title={getCountryName(profile.countryCode)}>
+                  {getCountryFlagUrl(profile.countryCode) && (
+                    <Image src={getCountryFlagUrl(profile.countryCode)!} alt={getCountryName(profile.countryCode)} fill className="object-cover" />
+                  )}
                 </span>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+                <h1 className="font-display-league text-3xl leading-none text-white md:text-4xl">
                   {profile.displayName}
                 </h1>
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-accent">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest"
+                  style={{ borderColor: hexToRgba(profile.accentColor, 0.3), background: hexToRgba(profile.accentColor, 0.1), color: profile.accentColor || '#1274de' }}
+                >
                   {t.officialDriver}
                 </span>
               </div>
@@ -187,19 +228,21 @@ export default function PerfilContent({
                 </button>
 
                 <span className="flex items-center gap-1.5 rounded-lg border border-shell-line bg-white/5 px-2.5 py-1 text-slate-200">
-                  <span className="text-sm">{getCountryFlag(profile.countryCode)}</span>
+                  {getCountryFlagUrl(profile.countryCode) && (
+                    <span className="relative h-3.5 w-5 shrink-0 overflow-hidden rounded-sm">
+                      <Image src={getCountryFlagUrl(profile.countryCode)!} alt="" fill className="object-cover" />
+                    </span>
+                  )}
                   <span>{getCountryName(profile.countryCode)} ({profile.countryCode})</span>
-                </span>
-
-                <span className="flex items-center gap-1 rounded-lg border border-shell-line bg-white/5 px-2.5 py-1 text-slate-200">
-                  <Gamepad2 className="h-3 w-3 text-accent" />
-                  {simulatorLabel(profile.mainSim)}
                 </span>
               </div>
 
               {/* Driver Bio Section (preserves Enters/newlines cleanly with whitespace-pre-wrap) */}
               {profile.bio && (
-                <div className="mt-3 rounded-lg bg-black/40 border-l-2 border-accent p-3 text-xs text-slate-300 italic max-w-2xl font-medium leading-relaxed whitespace-pre-wrap break-words">
+                <div
+                  className="mt-3 rounded-lg bg-black/40 border-l-2 p-3 text-xs text-slate-300 italic max-w-2xl font-medium leading-relaxed whitespace-pre-wrap break-words"
+                  style={{ borderColor: profile.accentColor || '#1274de' }}
+                >
                   "{profile.bio}"
                 </div>
               )}
@@ -233,14 +276,14 @@ export default function PerfilContent({
       {/* 2. Grid Columns: General Data & Registrations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* General Data Card */}
-        <div className="shell-panel p-5 md:p-6 space-y-4 rounded-lg">
+        <div className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-5 md:p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-shell-line pb-3">
             <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
               <User className="h-4 w-4 text-accent" /> {t.generalDataTitle}
             </h2>
           </div>
 
-          <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div className="rounded-lg border border-shell-line bg-black/30 p-3 space-y-1">
               <dt className="text-[10px] text-slate-400 font-mono uppercase font-bold">{t.steamName}</dt>
               <dd className="font-bold text-white text-sm truncate">{profile.steamDisplayName}</dd>
@@ -251,15 +294,11 @@ export default function PerfilContent({
               <dd className="font-mono text-slate-300 font-semibold truncate">{profile.steamId}</dd>
             </div>
 
-            <div className="rounded-lg border border-shell-line bg-black/30 p-3 space-y-1">
-              <dt className="text-[10px] text-slate-400 font-mono uppercase font-bold">{t.mainPlatform}</dt>
-              <dd className="font-semibold text-accent">{simulatorLabel(profile.mainSim)}</dd>
-            </div>
           </dl>
         </div>
 
         {/* My Registrations Card */}
-        <div className="shell-panel p-5 md:p-6 space-y-4 rounded-lg">
+        <div className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-5 md:p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-shell-line pb-3">
             <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
               <Trophy className="h-4 w-4 text-accent" /> {t.myRegistrationsTitle}
@@ -311,7 +350,7 @@ export default function PerfilContent({
       </div>
 
       {/* 3. Team Invitations Card */}
-      <div className="shell-panel p-5 md:p-6 space-y-4 rounded-lg">
+      <div className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-5 md:p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-shell-line pb-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
             <Users className="h-4 w-4 text-accent" /> {t.pendingInvitesTitle}
@@ -386,7 +425,7 @@ export default function PerfilContent({
       </div>
 
       {/* 4. Preferred Categories Card */}
-      <div className="shell-panel p-5 md:p-6 space-y-4 rounded-lg">
+      <div className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-5 md:p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-shell-line pb-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
             <Award className="h-4 w-4 text-accent" /> {t.preferredCategoriesTitle}
@@ -425,6 +464,12 @@ export default function PerfilContent({
 
                 {/* Modal Form */}
                 <form onSubmit={handleSaveProfile} className="p-6 space-y-5">
+                  {editErrorMessage && (
+                    <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-300">
+                      {editErrorMessage}
+                    </div>
+                  )}
+
                   {/* Display Name */}
                   <div>
                     <label className="mb-1 block text-xs text-slate-300 uppercase tracking-wider font-semibold">
@@ -453,46 +498,10 @@ export default function PerfilContent({
                     >
                       {COUNTRIES.map((country) => (
                         <option key={country.code} value={country.code} className="bg-neutral-900 text-white">
-                          {getCountryFlag(country.code)} {country.name} ({country.code})
+                          {country.name} ({country.code})
                         </option>
                       ))}
                     </select>
-                  </div>
-
-                  {/* Main Simulator */}
-                  <div>
-                    <label className="mb-1.5 block text-xs text-slate-300 uppercase tracking-wider font-semibold">
-                      {t.mainSimulatorPlatform}
-                    </label>
-                    <input type="hidden" name="mainSim" value={editMainSim} />
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditMainSim('ac')}
-                        className={`flex flex-col items-center justify-center p-3.5 border text-center transition-all rounded-lg cursor-pointer ${
-                          editMainSim === 'ac'
-                            ? 'border-accent bg-accent/10 text-white shadow-[0_0_12px_rgba(18,116,222,0.2)]'
-                            : 'border-shell-line bg-black/40 text-slate-400 hover:text-white hover:border-slate-400'
-                        }`}
-                      >
-                        <span className="text-xs font-bold tracking-wide uppercase">{t.assettoCorsa}</span>
-                        <span className="mt-0.5 text-[10px] text-slate-400">{t.assettoCorsaSubtitle}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setEditMainSim('lmu')}
-                        className={`flex flex-col items-center justify-center p-3.5 border text-center transition-all rounded-lg cursor-pointer ${
-                          editMainSim === 'lmu'
-                            ? 'border-accent bg-accent/10 text-white shadow-[0_0_12px_rgba(18,116,222,0.2)]'
-                            : 'border-shell-line bg-black/40 text-slate-400 hover:text-white hover:border-slate-400'
-                        }`}
-                      >
-                        <span className="text-xs font-bold tracking-wide uppercase">{t.leMansUltimate}</span>
-                        <span className="mt-0.5 text-[10px] text-slate-400">{t.leMansUltimateSubtitle}</span>
-                      </button>
-                    </div>
                   </div>
 
                   {/* Bio with line breaks note */}
@@ -509,6 +518,35 @@ export default function PerfilContent({
                       placeholder={t.bioPlaceholder}
                       className="w-full border border-shell-line bg-black/60 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-accent transition-colors resize-y font-medium leading-relaxed"
                     />
+                  </div>
+
+                  {/* Profile Banner */}
+                  <ImagePicker
+                    name="bannerUrl"
+                    label={t.profileBanner}
+                    defaultValue={editBannerUrl}
+                    onChange={setEditBannerUrl}
+                    entityName={editDisplayName}
+                  />
+
+                  {/* Accent Color — any RGB color, lights up the profile banner, avatar ring and badges */}
+                  <div>
+                    <label className="mb-1.5 block text-xs text-slate-300 uppercase tracking-wider font-semibold">
+                      {t.profileAccentColor}
+                    </label>
+                    <div
+                      className="flex items-center gap-3 rounded-lg border border-shell-line bg-black/30 p-2.5 transition-shadow"
+                      style={{ boxShadow: `0 0 18px ${editAccentColor}40` }}
+                    >
+                      <input
+                        type="color"
+                        name="accentColor"
+                        value={editAccentColor}
+                        onChange={(e) => setEditAccentColor(e.target.value)}
+                        className="h-9 w-14 cursor-pointer rounded-lg border border-white/10 bg-transparent p-0.5"
+                      />
+                      <span className="font-mono-data text-xs uppercase text-slate-300">{editAccentColor}</span>
+                    </div>
                   </div>
 
                   {/* Preferred Categories */}
@@ -546,6 +584,35 @@ export default function PerfilContent({
                         )
                       })}
                     </div>
+                  </div>
+
+                  {/* Profile visibility */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-shell-line bg-black/30 p-4">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-white uppercase tracking-wider">{t.profileVisibility}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        {editIsPublic ? t.profileVisibilityPublicHint : t.profileVisibilityPrivateHint}
+                      </p>
+                      <Link href={`/perfil/${profile.id}`} target="_blank" className="mt-1.5 inline-block text-[10px] font-bold uppercase tracking-wider text-accent hover:underline">
+                        {t.viewPublicProfile}
+                      </Link>
+                    </div>
+                    <input type="hidden" name="isPublic" value={editIsPublic ? 'true' : 'false'} />
+                    <button
+                      type="button"
+                      onClick={() => setEditIsPublic((prev) => !prev)}
+                      role="switch"
+                      aria-checked={editIsPublic}
+                      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors cursor-pointer ${
+                        editIsPublic ? 'bg-accent' : 'bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                          editIsPublic ? 'translate-x-[20px]' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </div>
 
                   {/* Buttons */}

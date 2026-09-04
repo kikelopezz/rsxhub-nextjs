@@ -70,14 +70,15 @@ export async function updateTeamPointsAction(formData: FormData) {
   const leagueId = String(formData.get('leagueId') || '').trim()
   const classTag = String(formData.get('classTag') || 'GT3').trim().toUpperCase()
   const teamId = String(formData.get('teamId') || '').trim()
+  const carNumber = String(formData.get('carNumber') || '').trim()
   const points = Math.max(0, parseInt(String(formData.get('points') || '0'), 10) || 0)
   const slug = String(formData.get('slug') || '')
 
   if (!leagueId || !teamId) throw new Error('Missing parameters')
 
   await db.leagueTeamPoints.upsert({
-    where: { leagueId_classTag_teamId: { leagueId, classTag, teamId } },
-    create: { leagueId, classTag, teamId, points, updatedBy: session.userId },
+    where: { leagueId_classTag_teamId_carNumber: { leagueId, classTag, teamId, carNumber } },
+    create: { leagueId, classTag, teamId, carNumber, points, updatedBy: session.userId },
     update: { points, updatedBy: session.userId },
   })
 

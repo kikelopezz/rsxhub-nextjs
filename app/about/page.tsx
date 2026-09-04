@@ -16,7 +16,7 @@ export async function generateMetadata() {
   const locale = await getLocale()
   return locale === 'en'
     ? { title: 'About - Real Sim Experience', description: 'Learn about RSX sim racing community, our history, services, partners and how to compete in our competitive leagues.' }
-    : { title: 'Sobre nosotros - Real Sim Experience', description: 'Conoce la comunidad de sim racing RSX, nuestra historia, servicios, colaboradores y cómo competir en nuestras ligas.' }
+    : { title: 'Sobre nosotros - Real Sim Experience', description: 'Conoce la comunidad de sim racing RSX, nuestra historia, servicios, colaboradores y cómo competir en nuestros campeonatos.' }
 }
 
 export default async function AboutPage() {
@@ -37,11 +37,11 @@ function ContentEs() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#060910] via-transparent to-transparent z-10" />
 
         <div className="relative z-20 max-w-3xl px-6 md:px-12 space-y-4">
-          <span className="inline-flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-accent">
+          <span className="inline-flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 font-mono-data text-xs font-bold uppercase tracking-widest text-accent">
             <Flag className="h-3.5 w-3.5" />
             Quiénes somos
           </span>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
+          <h1 className="font-display-league text-4xl uppercase text-white md:text-5xl">
             Sobre <span className="text-accent">Real Sim Experience</span>
           </h1>
           <p className="text-sm md:text-base text-slate-300 leading-relaxed max-w-2xl">
@@ -56,8 +56,8 @@ function ContentEs() {
       <section className="grid gap-8 lg:grid-cols-[1.2fr_1fr] items-start">
         <div className="space-y-6 rounded-lg border border-shell-line bg-gradient-to-br from-[#0d1420] via-[#0a0f18] to-[#070a10] p-6 md:p-8">
           <div className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-accent">Nuestra historia</span>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+            <span className="font-mono-data text-xs font-bold uppercase tracking-widest text-accent">Nuestra historia</span>
+            <h2 className="font-display-league text-2xl uppercase text-white md:text-3xl">
               Sim Racing <span className="text-accent">de verdad</span>
             </h2>
           </div>
@@ -133,8 +133,8 @@ function ContentEs() {
       {/* 3. Our Services Section */}
       <section className="space-y-6">
         <div className="space-y-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-accent">Qué ofrecemos</span>
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+          <span className="font-mono-data text-xs font-bold uppercase tracking-widest text-accent">Qué ofrecemos</span>
+          <h2 className="font-display-league text-2xl uppercase text-white md:text-3xl">
             Nuestros <span className="text-accent">Servicios</span>
           </h2>
           <p className="text-sm text-slate-400 leading-relaxed max-w-xl">
@@ -204,8 +204,8 @@ function ContentEs() {
       {/* 4. Our Partners Section */}
       <section className="space-y-6">
         <div className="space-y-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-accent">Colaboradores</span>
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+          <span className="font-mono-data text-xs font-bold uppercase tracking-widest text-accent">Colaboradores</span>
+          <h2 className="font-display-league text-2xl uppercase text-white md:text-3xl">
             Nuestros <span className="text-accent">Partners</span>
           </h2>
           <p className="text-sm text-slate-400 leading-relaxed max-w-xl">
@@ -225,7 +225,7 @@ function ContentEs() {
 
       {/* 5. Call To Action Banner */}
       <section className="border border-shell-line bg-gradient-to-r from-[#0c1626] to-[#060a12] p-8 md:p-12 text-center space-y-6 rounded-lg shadow-xl max-w-5xl mx-auto">
-        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
+        <h2 className="font-display-league text-3xl uppercase text-white md:text-4xl">
           ¿Listo para <span className="text-accent">competir?</span>
         </h2>
         <p className="text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
@@ -263,11 +263,11 @@ function ContentEn() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#060910] via-transparent to-transparent z-10" />
 
         <div className="relative z-20 max-w-3xl px-6 md:px-12 space-y-4">
-          <span className="inline-flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-accent">
+          <span className="inline-flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 font-mono-data text-xs font-bold uppercase tracking-widest text-accent">
             <Flag className="h-3.5 w-3.5" />
             Who We Are
           </span>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
+          <h1 className="font-display-league text-4xl uppercase text-white md:text-5xl">
             About <span className="text-accent">Real Sim Experience</span>
           </h1>
           <p className="text-sm md:text-base text-slate-300 leading-relaxed max-w-2xl">
@@ -283,8 +283,8 @@ function ContentEn() {
       <section className="grid gap-8 lg:grid-cols-[1.2fr_1fr] items-start">
         <div className="space-y-6 rounded-lg border border-shell-line bg-gradient-to-br from-[#0d1420] via-[#0a0f18] to-[#070a10] p-6 md:p-8">
           <div className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-accent">Our Story</span>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+            <span className="font-mono-data text-xs font-bold uppercase tracking-widest text-accent">Our Story</span>
+            <h2 className="font-display-league text-2xl uppercase text-white md:text-3xl">
               Sim Racing <span className="text-accent">For Real</span>
             </h2>
           </div>
@@ -360,8 +360,8 @@ function ContentEn() {
       {/* 3. Our Services Section */}
       <section className="space-y-6">
         <div className="space-y-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-accent">What We Offer</span>
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+          <span className="font-mono-data text-xs font-bold uppercase tracking-widest text-accent">What We Offer</span>
+          <h2 className="font-display-league text-2xl uppercase text-white md:text-3xl">
             Our <span className="text-accent">Services</span>
           </h2>
           <p className="text-sm text-slate-400 leading-relaxed max-w-xl">
@@ -431,8 +431,8 @@ function ContentEn() {
       {/* 4. Our Partners Section */}
       <section className="space-y-6">
         <div className="space-y-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-accent">Collaborators</span>
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+          <span className="font-mono-data text-xs font-bold uppercase tracking-widest text-accent">Collaborators</span>
+          <h2 className="font-display-league text-2xl uppercase text-white md:text-3xl">
             Our <span className="text-accent">Partners</span>
           </h2>
           <p className="text-sm text-slate-400 leading-relaxed max-w-xl">
@@ -452,7 +452,7 @@ function ContentEn() {
 
       {/* 5. Call To Action Banner */}
       <section className="border border-shell-line bg-gradient-to-r from-[#0c1626] to-[#060a12] p-8 md:p-12 text-center space-y-6 rounded-lg shadow-xl max-w-5xl mx-auto">
-        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
+        <h2 className="font-display-league text-3xl uppercase text-white md:text-4xl">
           Ready to <span className="text-accent">Compete?</span>
         </h2>
         <p className="text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">

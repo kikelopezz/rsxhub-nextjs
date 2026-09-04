@@ -32,23 +32,28 @@ export const getRegistrations = cache(async (leagueId?: string): Promise<LeagueR
         status: data.status,
       }))
 
-      const { teams } = await getTeamsDashboard()
-
       // Fill in missing steamId for rows written before it was denormalized.
       const missingSteamUserIds = Array.from(
         new Set(registrations.filter((r) => !r.steamId && r.userId && !r.userId.startsWith('steam_')).map((r) => r.userId))
       )
-      if (missingSteamUserIds.length > 0) {
-        try {
-          const steamAccounts = await db.steamAccount.findMany({ where: { userId: { in: missingSteamUserIds } } })
-          const steamIdByUserId = new Map(steamAccounts.map((s) => [s.userId, s.steamId]))
-          for (const r of registrations) {
-            if (!r.steamId) {
-              r.steamId = steamIdByUserId.get(r.userId) || (r.userId.startsWith('steam_') ? r.userId.replace('steam_', '') : '')
-            }
+
+      // Independent of each other — run together instead of one after the other.
+      const [{ teams }, steamAccounts] = await Promise.all([
+        getTeamsDashboard(),
+        missingSteamUserIds.length > 0
+          ? db.steamAccount.findMany({ where: { userId: { in: missingSteamUserIds } } }).catch((err) => {
+              console.error('Failed to backfill steam accounts for registrations:', err)
+              return []
+            })
+          : Promise.resolve([]),
+      ])
+
+      if (steamAccounts.length > 0) {
+        const steamIdByUserId = new Map(steamAccounts.map((s) => [s.userId, s.steamId]))
+        for (const r of registrations) {
+          if (!r.steamId) {
+            r.steamId = steamIdByUserId.get(r.userId) || (r.userId.startsWith('steam_') ? r.userId.replace('steam_', '') : '')
           }
-        } catch (err) {
-          console.error('Failed to backfill steam accounts for registrations:', err)
         }
       }
 
@@ -136,8 +141,7 @@ export const getEventConfirmations = cache(async (leagueId: string): Promise<any
         confirmedAt: data.confirmedAt.toISOString(),
       }))
 
-      const { teams } = await getTeamsDashboard()
-      const leagueRegs = await getRegistrations(leagueId)
+      const [{ teams }, leagueRegs] = await Promise.all([getTeamsDashboard(), getRegistrations(leagueId)])
 
       return rawConfirmations.filter((c: any) => {
         const isReg = leagueRegs.some(
@@ -181,14 +185,14 @@ export type PlatformDriverUser = {
 export const getAllRegisteredDrivers = cache(async (): Promise<PlatformDriverUser[]> => {
   return fetchWithTTLCache('platform_drivers', async () => {
     try {
-      const [profiles, roles, teams, members] = await Promise.all([
+      const [profiles, roles, teams, members, steamAccounts] = await Promise.all([
         db.profile.findMany(),
         db.platformRole.findMany(),
         db.team.findMany({ where: { status: 'approved' } }),
         db.teamMember.findMany(),
+        db.steamAccount.findMany(),
       ])
 
-      const steamAccounts = await db.steamAccount.findMany({ where: { userId: { in: profiles.map((p) => p.userId) } } })
       const steamByUserId = new Map(steamAccounts.map((s) => [s.userId, s.steamId]))
 
       const rolesMap = new Map<string, string>()
@@ -233,12 +237,14 @@ export const getAllRegisteredDrivers = cache(async (): Promise<PlatformDriverUse
   }, 60)
 })
 
+// Keyed by `${classTag}_${teamId}_${carNumber}` — points belong to a specific car, not the
+// team as a whole, so a team running two cars in the same class scores them independently.
 export const getTeamPointsOverrides = cache(async (leagueId: string): Promise<Record<string, number>> => {
   const pointsMap: Record<string, number> = {}
   try {
     const rows = await db.leagueTeamPoints.findMany({ where: { leagueId } })
     for (const row of rows) {
-      pointsMap[`${row.classTag.toUpperCase()}_${row.teamId}`] = row.points
+      pointsMap[`${row.classTag.toUpperCase()}_${row.teamId}_${row.carNumber}`] = row.points
     }
   } catch (err) {
     console.error('Failed to get team points:', err)

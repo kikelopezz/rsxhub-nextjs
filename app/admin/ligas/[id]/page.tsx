@@ -124,7 +124,7 @@ export default async function AdminLeaguePage({
 
   return (
     <div className="space-y-4 text-white">
-      <section className="shell-panel p-4 md:p-5 rounded-lg">
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
         <div className="flex items-center justify-between gap-3">
           <SectionTitle title={t.manageTitle.replace('{league}', league.title)} subtitle={t.manageSubtitle} />
           <div className="flex gap-2">
@@ -185,7 +185,7 @@ export default async function AdminLeaguePage({
         ) : null}
       </section>
 
-      <section className="shell-panel p-4 md:p-5 rounded-lg">
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
         <SectionTitle title={t.configTitle} subtitle={t.configSubtitle} />
         {!canManage ? (
           <p className="text-sm text-slate-400">{t.reviewOnlyNote}</p>
@@ -251,7 +251,7 @@ export default async function AdminLeaguePage({
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="shell-panel p-4 md:p-5 rounded-lg">
+        <div className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
           <SectionTitle title={t.carsAllowedTitle} subtitle={t.carsAllowedSubtitle} />
           <div className="space-y-2">
             {leagueCars.length === 0 ? <p className="text-sm text-slate-400">{t.noCarsConfigured}</p> : null}
@@ -284,7 +284,7 @@ export default async function AdminLeaguePage({
           ) : null}
         </div>
 
-        <div className="shell-panel p-4 md:p-5 rounded-lg">
+        <div className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
           <SectionTitle title={t.createEventTitle} subtitle={t.createEventSubtitle} />
           {!canManage ? (
             <p className="text-sm text-slate-400">{t.reviewOnlyCreateNote}</p>
@@ -346,7 +346,7 @@ export default async function AdminLeaguePage({
           )}
         </div>
 
-        <div className="shell-panel p-4 md:p-5 rounded-lg col-span-1 md:col-span-2">
+        <div className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 col-span-1 md:col-span-2">
           <SectionTitle title={t.currentEventsTitle} subtitle={t.currentEventsSubtitle} />
           {canReview ? (
             <div className="mb-3 border border-shell-line bg-black/20 p-3 text-xs text-slate-300 rounded-lg">
@@ -482,7 +482,7 @@ export default async function AdminLeaguePage({
         </div>
       </section>
 
-      <section className="shell-panel p-4 md:p-5 rounded-lg">
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
         <SectionTitle title={t.registrationsTitle} subtitle={t.registrationsSubtitle} />
         <div className="space-y-2">
           {registrations.length === 0 ? (

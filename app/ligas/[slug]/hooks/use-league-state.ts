@@ -161,7 +161,9 @@ export function useLeagueState({
             const teamName = teamDetails.name
             const logoUrl = teamDetails.logoUrl || `https://placehold.co/40x40/0a1220/ffffff?text=${teamName.slice(0, 3).toUpperCase()}`
             const carImageUrl = (teamDetails as any).carImageUrl || (teamDetails as any).lateralImageUrl || '/branding/lateral-car.png'
-            const savedPoints = initialPointsOverrides?.[`${tag}_${reg.teamId}`] ?? 0
+            // Points belong to this specific car (dorsal), not the team as a whole — a team
+            // with two cars in the same class must score them independently.
+            const savedPoints = initialPointsOverrides?.[`${tag}_${reg.teamId}_${dorsal != null ? dorsal : ''}`] ?? 0
 
             list.push({
               id: uniqueKey,
@@ -306,10 +308,13 @@ export function useLeagueState({
     return Array.from(map.values())
   }, [uniqueRegisteredCars, myManagedTeams, teamInfo])
 
-  const updateTeamPoints = (tag: string, teamId: string, newPoints: number) => {
+  // `rowId` is the standing row's own unique id (`${teamId}_${carNumber}`) — matching on
+  // that instead of just teamId is what keeps two cars from the same team in the same
+  // class from overwriting each other's points.
+  const updateTeamPoints = (tag: string, rowId: string, newPoints: number) => {
     setStandings((prev) => {
       const list = [...(prev[tag] || [])]
-      const idx = list.findIndex((t) => t.teamId === teamId || t.id === teamId || t.id.startsWith(teamId))
+      const idx = list.findIndex((t) => t.id === rowId)
       if (idx !== -1) {
         list[idx] = { ...list[idx], points: newPoints }
         list.sort((a, b) => b.points - a.points)

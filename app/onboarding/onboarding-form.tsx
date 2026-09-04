@@ -24,7 +24,6 @@ const CATEGORY_OPTIONS = ['GT3', 'HYPERCAR', 'FORMULA', 'LMP2']
 
 export default function OnboardingForm({ defaultData, userId }: OnboardingFormProps) {
   const dict = useDictionary()
-  const [mainSim, setMainSim] = useState<'ac' | 'lmu'>(defaultData.mainSim)
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     defaultData.preferredCategories.map((c) => c.toUpperCase())
   )
@@ -103,41 +102,6 @@ export default function OnboardingForm({ defaultData, userId }: OnboardingFormPr
         <p className="text-[10px] text-slate-500 mt-1">
           {dict.onboarding.form.countryHint}
         </p>
-      </div>
-
-      {/* Main Simulator Card Selector */}
-      <div>
-        <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2.5">
-          {dict.onboarding.form.primarySimulator}
-        </label>
-        <input type="hidden" name="mainSim" value={mainSim} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setMainSim('ac')}
-            className={`flex flex-col items-center justify-center p-4 border text-center transition-all rounded-lg ${
-              mainSim === 'ac'
-                ? 'border-[#1274de] bg-[#1274de]/10 text-white shadow-[0_0_15px_rgba(18,116,222,0.15)]'
-                : 'border-white/10 bg-black/20 text-slate-400 hover:text-white hover:border-white/20'
-            }`}
-          >
-            <span className="text-sm font-bold tracking-wide uppercase">{dict.onboarding.form.assettoCorsa}</span>
-            <span className="mt-1 text-[11px] text-slate-400">{dict.onboarding.form.assettoCorsaSubtitle}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setMainSim('lmu')}
-            className={`flex flex-col items-center justify-center p-4 border text-center transition-all rounded-lg ${
-              mainSim === 'lmu'
-                ? 'border-[#1274de] bg-[#1274de]/10 text-white shadow-[0_0_15px_rgba(18,116,222,0.15)]'
-                : 'border-white/10 bg-black/20 text-slate-400 hover:text-white hover:border-white/20'
-            }`}
-          >
-            <span className="text-sm font-bold tracking-wide uppercase">{dict.onboarding.form.leMansUltimate}</span>
-            <span className="mt-1 text-[11px] text-slate-400">{dict.onboarding.form.leMansUltimateSubtitle}</span>
-          </button>
-        </div>
       </div>
 
       {/* Category Selection Checklist */}

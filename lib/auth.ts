@@ -22,10 +22,16 @@ export const getCurrentUser = cache(async () => {
     if (!session.userId) {
       session.userId = `steam_${session.steamId}`
     }
-    // If we have a generic name or are missing the avatar, try to resolve it dynamically from Steam
+    // If we have a generic name or are missing the avatar, try to resolve it dynamically from
+    // Steam. This hits an external, uncached API — without a TTL cache it would mean a live
+    // network round-trip to Steam on every single page load for that user.
     if (!session.avatarUrl || session.steamDisplayName.startsWith('Steam User')) {
       try {
-        const summary = await fetchSteamPlayerSummary(session.steamId)
+        const summary = await fetchWithTTLCache(
+          `steam_summary_${session.steamId}`,
+          () => fetchSteamPlayerSummary(session.steamId),
+          300
+        )
         if (summary && !summary.steamDisplayName.startsWith('Steam User')) {
           session.steamDisplayName = summary.steamDisplayName
           if (summary.avatarUrl) {
@@ -60,6 +66,22 @@ export async function getGrantedAdminSteamIds(): Promise<string[]> {
       return []
     }
   }, 20)
+}
+
+// Resolves every platform admin (hardcoded/env list, admin-panel grants, and
+// platform_role rows) down to their internal user IDs, for sending them notifications.
+export async function getAdminUserIds(): Promise<string[]> {
+  try {
+    const adminSteamIds = Array.from(new Set([...getConfiguredAdminSteamIds(), ...(await getGrantedAdminSteamIds())]))
+    const [steamAccounts, roleRows] = await Promise.all([
+      adminSteamIds.length > 0 ? db.steamAccount.findMany({ where: { steamId: { in: adminSteamIds } }, select: { userId: true } }) : Promise.resolve([]),
+      db.platformRole.findMany({ where: { role: { in: ['platform_admin', 'super_admin'] } }, select: { userId: true } }),
+    ])
+    return Array.from(new Set([...steamAccounts.map((s) => s.userId), ...roleRows.map((r) => r.userId)]))
+  } catch (error) {
+    console.error('Failed to resolve admin user IDs:', error)
+    return []
+  }
 }
 
 export function canAccessPlatformAdmin(role?: PlatformRole | null) {
@@ -148,8 +170,7 @@ export const getAdminAccessContext = cache(async (userId?: string) => {
     }
   }
 
-  const platformRole = await getPlatformRole(userId)
-  const memberships = await getLeagueMemberships(userId)
+  const [platformRole, memberships] = await Promise.all([getPlatformRole(userId), getLeagueMemberships(userId)])
   const managedLeagueIds = memberships.filter((item) => canStewardLeague(item.role)).map((item) => item.leagueId)
   const platformAdmin = canAccessPlatformAdmin(platformRole)
 

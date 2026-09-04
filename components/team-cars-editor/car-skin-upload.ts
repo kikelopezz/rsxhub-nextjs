@@ -10,7 +10,7 @@
  * Returns the final public URL, or null if all tiers failed.
  * Throws an Error if the file is not a valid archive or exceeds 200 MB.
  */
-export async function uploadSkinFile(file: File): Promise<string | null> {
+export async function uploadSkinFile(file: File, folder?: string): Promise<string | null> {
   const isArchive = /\.(zip|rar|7z|tar|gz|tgz)$/i.test(file.name)
   if (!isArchive) {
     throw new Error('Only compressed archive files (.zip, .rar, .7z, .tar.gz) are allowed.')
@@ -26,7 +26,7 @@ export async function uploadSkinFile(file: File): Promise<string | null> {
     const presignRes = await fetch('/api/uploads/presign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/zip' }),
+      body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/zip', folder }),
     })
     if (presignRes.ok) {
       const { uploadUrl, publicUrl } = await presignRes.json()

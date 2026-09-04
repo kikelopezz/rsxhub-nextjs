@@ -21,21 +21,19 @@ export default async function LigasPage({ searchParams }: Props) {
   const isAdmin = access.canAccessPlatformAdmin
 
   const params = await searchParams
-  const [leagues, registrations, teamsDashboard] = await Promise.all([
+  const [leagues, registrations, teamsDashboard, teamIdRows] = await Promise.all([
     getLeagues(),
     getRegistrations(),
     getTeamsDashboard(),
+    db.team.findMany({ select: { id: true } }).catch((e) => {
+      console.error('Failed to fetch valid team ids:', e)
+      return []
+    }),
   ])
   const teamById = new Map(teamsDashboard.teams.map((team) => [team.id, team]))
 
   // Get all valid team IDs in the system to filter out orphan registrations
-  const validTeamIds = new Set<string>()
-  try {
-    const teamIdRows = await db.team.findMany({ select: { id: true } })
-    teamIdRows.forEach((t) => validTeamIds.add(t.id))
-  } catch (e) {
-    console.error('Failed to fetch valid team ids:', e)
-  }
+  const validTeamIds = new Set<string>(teamIdRows.map((t) => t.id))
 
   // Compute registered counts for leagues (unique teams/drivers per category)
   const registeredByLeague: Record<string, number> = {}
@@ -80,7 +78,8 @@ export default async function LigasPage({ searchParams }: Props) {
         if (reg.classTag && reg.classTag !== primaryClass) continue
         if (!reg.teamId || seenTeams.has(reg.teamId) || !validTeamIds.has(reg.teamId)) continue
         seenTeams.add(reg.teamId)
-        const points = pointsMap[`${primaryClass.toUpperCase()}_${reg.teamId}`] || 0
+        const dorsal = reg.assignedNumber != null ? String(reg.assignedNumber) : ''
+        const points = pointsMap[`${primaryClass.toUpperCase()}_${reg.teamId}_${dorsal}`] || 0
         const team = teamById.get(reg.teamId)
         if (!team) continue
         if (!best || points > best.points) {

@@ -1,10 +1,11 @@
 'use client'
 
 import Image from 'next/image'
+import type { CSSProperties } from 'react'
 import { Trash, MessageSquare } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
 import { simulatorLabel } from '@/lib/utils'
-import { getCountryFlag, getCountryName } from '@/lib/countries'
+import { getCountryFlagUrl, getCountryName } from '@/lib/countries'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
 export type Listing = {
@@ -42,6 +43,15 @@ interface MarketDriverCardsProps {
   onInviteClick: (listingId: string) => void
 }
 
+// No team color to draw on here (this is an individual driver, not a team), so the
+// glow comes from their primary racing category instead — same hues as ClassBadge.
+const CATEGORY_ACCENT: Record<string, string> = {
+  GT3: '#009f00',
+  LMP2: '#0072f0',
+  HYPERCAR: '#e10600',
+  FORMULA: '#9333ea',
+}
+
 export function MarketDriverCards({
   listings,
   currentUserId,
@@ -64,16 +74,21 @@ export function MarketDriverCards({
         const myTeamInvite = invites.find(
           (inv) => inv.listingId === item.id && (Boolean(inv.teamId && myTeamIds.includes(inv.teamId)) || isOwner)
         )
+        const accent = CATEGORY_ACCENT[classes[0]] || '#1274de'
 
         return (
           <div
             key={item.id}
-            className="shell-panel rounded-lg border border-shell-line flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/40 hover:shadow-[0_16px_36px_rgba(6,182,212,0.12)] overflow-hidden"
+            className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0c] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--glow)] hover:shadow-[0_16px_40px_-10px_var(--glow)]"
+            style={{ '--glow': `${accent}88` } as CSSProperties}
           >
             <div className="p-5 space-y-4">
               {/* Header: driver identity */}
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-full bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                <div
+                  className="h-12 w-12 rounded-full border overflow-hidden shrink-0 bg-slate-800"
+                  style={{ borderColor: accent, boxShadow: `0 0 12px ${accent}60` }}
+                >
                   <Image
                     src={
                       item.user_avatar ||
@@ -82,6 +97,7 @@ export function MarketDriverCards({
                     alt={item.user_name}
                     width={48}
                     height={48}
+                    unoptimized
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -91,10 +107,17 @@ export function MarketDriverCards({
                   </h4>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="flex items-center gap-1 text-[11px] text-slate-400">
-                      <span>{getCountryFlag(item.country_code || item.countryCode || 'ES')}</span>
+                      {getCountryFlagUrl(item.country_code || item.countryCode || 'ES') && (
+                        <span className="relative h-3 w-4 shrink-0 overflow-hidden rounded-sm">
+                          <Image src={getCountryFlagUrl(item.country_code || item.countryCode || 'ES')!} alt="" fill className="object-cover" />
+                        </span>
+                      )}
                       <span>{getCountryName(item.country_code || item.countryCode || 'ES')}</span>
                     </span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded">
+                    <span
+                      className="font-mono-data text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
+                      style={{ color: accent, background: `${accent}1a`, border: `1px solid ${accent}40` }}
+                    >
                       {simulatorLabel(item.main_sim)}
                     </span>
                   </div>
@@ -129,9 +152,9 @@ export function MarketDriverCards({
             </div>
 
             {/* Contact & Actions */}
-            <div className="border-t border-shell-line bg-black/20 px-5 py-3.5 flex items-center justify-between gap-3">
-              <span className="flex items-center gap-1.5 text-slate-400 text-xs truncate min-w-0">
-                <MessageSquare className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+            <div className="border-t border-white/10 bg-black/20 px-5 py-3.5 flex items-center justify-between gap-3">
+              <span className="flex items-center gap-1.5 text-slate-400 text-xs truncate min-w-0 font-mono-data">
+                <MessageSquare className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
                 <span className="truncate">{item.contact_info}</span>
               </span>
 
@@ -144,7 +167,8 @@ export function MarketDriverCards({
                   ) : (
                     <button
                       onClick={() => onInviteClick(item.id)}
-                      className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-4 py-1.5 text-[11px] uppercase tracking-wider rounded transition-colors cursor-pointer"
+                      className="text-black font-display-condensed font-bold px-4 py-1.5 text-[11px] uppercase tracking-wider rounded-lg transition-transform cursor-pointer active:scale-95"
+                      style={{ background: accent, boxShadow: `0 0 14px ${accent}60` }}
                     >
                       {tr.inviteDriver}
                     </button>

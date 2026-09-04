@@ -9,7 +9,7 @@ const registration = {
   withdraw: 'Retirar',
   registerTeam: 'Inscribir equipo',
   requirementTitle: 'REQUISITO DE INSCRIPCIÓN',
-  requirementBody: 'Debes ser el jefe o fundador de un equipo para inscribir vehículos en esta liga.',
+  requirementBody: 'Debes ser el jefe o fundador de un equipo para inscribir vehículos en este campeonato.',
   accessRequiredTitle: 'ACCESO REQUERIDO',
   accessRequiredBody: 'Inicia sesión con Steam y sé jefe de equipo para inscribirte.',
 }

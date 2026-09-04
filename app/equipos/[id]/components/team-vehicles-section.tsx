@@ -77,17 +77,18 @@ export async function TeamVehiclesSection({
 }: TeamVehiclesSectionProps) {
   const t = getDictionary(await getLocale()).equipos.vehiclesSection
   return (
-    <article className="hud-corners shell-panel p-4 md:p-5 rounded-lg col-span-1 md:col-span-2">
+    <article className="col-span-1 rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:col-span-2 md:p-5">
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-black uppercase italic text-white">{t.title}</h2>
+          <h2 className="font-display-league text-2xl text-white">{t.title}</h2>
           <div className="mt-2 h-1 w-52 rounded-lg" style={{ background: `linear-gradient(90deg, ${accentHard}, transparent)` }} />
         </div>
         {canManage && (
           <CenterModal
             title={t.manageTitle}
             triggerLabel={t.manageVehicles}
-            triggerClassName="inline-flex items-center gap-1.5 border border-cyan-500 bg-cyan-950/40 hover:bg-cyan-500/20 px-4 py-2.5 text-xs font-bold uppercase italic text-cyan-300 rounded-lg transition-colors cursor-pointer shrink-0"
+            triggerClassName="inline-flex items-center gap-1.5 border bg-black/40 hover:bg-white/5 px-4 py-2.5 text-xs font-bold uppercase italic rounded-lg transition-colors cursor-pointer shrink-0"
+            triggerStyle={{ borderColor: accentHard, color: '#fff', boxShadow: `0 0 16px ${accentHard}` }}
             widthClassName="w-[min(1100px,94vw)]"
           >
             <form action={updateTeam} className="space-y-5 p-2 bg-[#090d16] text-white">
@@ -161,8 +162,8 @@ export async function TeamVehiclesSection({
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs font-black text-white uppercase italic tracking-wider">
-                                {t.carNumber} <span className={`font-bold ${theme.carDorsal}`}>#{car.dorsal || 'N/A'}</span>
+                              <span className="font-mono-data text-xs font-semibold uppercase tracking-wider text-white">
+                                {t.carNumber} <span className={`font-display-league text-lg ${theme.carDorsal}`}>#{car.dorsal || 'N/A'}</span>
                               </span>
                               {(car.modelName || car.model_name) && (
                                 <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/60 border border-cyan-500/40 px-2 py-0.5 rounded font-mono">
@@ -238,6 +239,28 @@ export async function TeamVehiclesSection({
                               )
                             })}
                           </div>
+
+                          {(() => {
+                            const reserveByLeague = car.reserveDriverUserIdsByLeague || car.reserve_driver_user_ids_by_league || {}
+                            const reserveList =
+                              reserveByLeague[effectiveLeagueKey] ||
+                              reserveByLeague[carLeague?.id || ''] ||
+                              reserveByLeague[carLeague?.slug || ''] ||
+                              car.reserveDriverUserIds ||
+                              car.reserve_driver_user_ids ||
+                              []
+                            const reserveId = Array.isArray(reserveList) && reserveList[0] ? String(reserveList[0]).trim() : null
+                            const reserveDriver = reserveId ? teamMembersOptions.find((m) => m.userId === reserveId) : null
+                            if (!reserveDriver) return null
+                            return (
+                              <div className="mt-2 flex items-center gap-1.5">
+                                <span className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-300">
+                                  {t.reserve}
+                                </span>
+                                <span className="truncate text-[10px] font-semibold text-amber-200/90">{reserveDriver.name}</span>
+                              </div>
+                            )
+                          })()}
                         </div>
                       </div>
                     )

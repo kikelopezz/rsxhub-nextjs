@@ -39,6 +39,9 @@ export default async function PerfilPage({
     steamId: session.steamId,
     steamDisplayName: session.steamDisplayName,
     preferredCategories: [] as string[],
+    isPublic: true,
+    bannerUrl: null as string | null,
+    accentColor: null as string | null,
   }
   let pendingInvites: Array<{ id: string; teamName: string; teamLogoUrl: string | null; invitedBy: string; message: string | null }> = []
 
@@ -64,6 +67,9 @@ export default async function PerfilPage({
         steamId: session.steamId,
         steamDisplayName: session.steamDisplayName,
         preferredCategories: dbProfile.preferredCategories || [],
+        isPublic: dbProfile.isPublic,
+        bannerUrl: dbProfile.bannerUrl || null,
+        accentColor: dbProfile.accentColor || null,
       }
     }
 
@@ -96,8 +102,8 @@ export default async function PerfilPage({
     console.error('Failed to load profile details:', e)
   }
 
-  const registrations = (await getRegistrations()).filter((item) => item.userId === session.userId)
-  const leagues = await getLeagues()
+  const [allRegistrations, leagues] = await Promise.all([getRegistrations(), getLeagues()])
+  const registrations = allRegistrations.filter((item) => item.userId === session.userId)
 
   return (
     <PerfilContent

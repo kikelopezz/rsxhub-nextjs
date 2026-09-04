@@ -1,0 +1,352 @@
+RSX — Update 1.2
+=================
+Registro de cambios de esta tanda de trabajo (laboratorio, rama "staging").
+
+Migración de base de datos
+---------------------------
+[x] Migración completa de Firestore a PostgreSQL auto-hospedado (VPS propio, con
+    PgBouncer + TLS + backups diarios). Ya desplegado en producción.
+[x] Reescritos los 47 archivos que tocaban Firestore: autenticación, ligas y
+    eventos, inscripciones y resultados, equipos, mercado, notificaciones y
+    administración.
+
+Rediseño de ligas (solo en el laboratorio, pendiente de pasar a producción)
+-----------------------------------------------------------------------------
+[x] Listado de ligas rediseñado ("Championship Deck"): las tarjetas muestran
+    ahora el líder de puntos actual de cada liga, filtro de formato y filtro de
+    "inscripción abierta".
+[x] Página de detalle de liga reconstruida con el layout "Race Control": banner
+    compacto tipo panel de mando, clasificación en barras (timing tower) con
+    pestañas por categoría, calendario en línea de tiempo horizontal.
+[x] El banner ahora ajusta la foto de fondo al panel en vez de recortarla.
+
+[x] Bug: al subir logo/banner de equipo o liga, si dos subidas usaban el mismo
+    nombre de archivo original (ej. "logo.png"), la nueva pisaba a la antigua
+    aunque fueran de equipos distintos. Ahora el archivo se nombra con el
+    nombre del equipo/liga + el tipo: "[nombre]-logo" / "[nombre]-banner",
+    así cada uno tiene su propio archivo y no se pisan entre sí.
+
+Pendiente — pedido el 2026-09-03
+---------------------------------
+[x] Bug: en la clasificación de equipos, al subir foto de coche en un equipo con
+    varios coches de distinta categoría, se aplicaba la misma foto a todos.
+    Corregido: la foto ahora se guarda por coche+categoría, no solo por equipo.
+    También agrandada y sin recuadro/marco.
+[x] Bug: al editar un evento del calendario y pulsar "actualizar", el modal se
+    quedaba abierto pero cambiaba en silencio a modo "Add Event" con el
+    formulario en blanco — fácil de confundir con que seguía editando y crear
+    sin querer un evento duplicado. Ahora el gestor se cierra al actualizar,
+    igual que ya hacía la página de la liga.
+[x] Quitar el botón de "crear evento" del calendario: ya no aparece el "+" al
+    pasar el ratón por un día, ni se puede crear un evento nuevo desde ahí.
+    Los días vacíos ya no son clicables; los días con eventos siguen abriendo
+    el gestor para editar/eliminar los que ya existen. Crear eventos nuevos
+    sigue disponible desde la propia página de cada liga ("Añadir ronda").
+[x] Cambiar el selector de idioma (ES/EN) por banderas de España y Reino Unido
+    (mismo mecanismo de bandera-emoji que ya usa el resto de la web para
+    nacionalidades, para mantenerlo consistente).
+[x] Panel de admin: nuevo apartado "Noticias" (crear/editar/eliminar, con
+    título, extracto, imagen y contenido completo).
+[x] Nav: nuevo apartado de "Noticias" (entre Livetiming y Sobre Nosotros);
+    página propia /noticias con el listado completo, y las 3 más recientes
+    aparecen en la portada debajo del carrusel. Probado de punta a punta
+    creando una noticia real desde el admin.
+[x] Globo/tooltip bajo "Iniciar sesión" invitando a los visitantes a entrar con
+    Steam — se puede cerrar y no vuelve a salir (se recuerda por navegador).
+[x] Rediseñado el botón de "Iniciar sesión" — píldora con degradado y brillo,
+    en vez del rectángulo plano anterior.
+[x] Añadir "Livetiming" en la nav, entre Mercado y Sobre Nosotros. Integrado con
+    el HTML que pasaste (Supabase para los stints oficiales + JSON del servidor),
+    con diseño propio de RSX y proxy interno para evitar el bloqueo de CORS.
+[x] Perfiles de piloto personalizables: nueva página /perfil/[id] de solo
+    lectura para ver el perfil de otro piloto (enlazada desde los nombres de
+    pilotos en la plantilla de equipo). Interruptor público/privado en "Editar
+    perfil" — un perfil privado solo lo ve su dueño y los admins. Probado con
+    dos usuarios distintos: visible en público, oculto al ponerlo privado.
+[x] Quitar "plataforma principal" de la página de perfil (tarjeta de cabecera,
+    ficha de datos generales y formulario de edición).
+[x] Quitar "plataforma principal" del onboarding (primer inicio de sesión).
+[x] Renombrar "Ligas" por "Campeonatos": hecho en menú, portada, pie de página,
+    listado, creación/edición, panel de admin y perfil (español e inglés,
+    con la gramática corregida en cada frase, no solo la palabra suelta).
+    Quedan sin tocar algunos mensajes de error más profundos de paneles de
+    admin (importación de resultados, gestión de roles) — decirme si quieres
+    que también los pase.
+[x] Regla: máximo 3 cambios de alineación por coche y día. Se detecta comparando
+    la alineación guardada con la nueva antes de guardar (cambiar otros datos
+    del equipo sin tocar pilotos no cuenta). Verificado contra la base real:
+    3 cambios cuentan correctamente, un coche distinto no se ve afectado.
+[x] Notificación a los admins (vía las campanita de notificaciones) cuando se
+    modifica una alineación, con enlace directo al equipo.
+[x] Bloqueo de cambios de alineación a partir del viernes de la semana de la
+    próxima carrera del campeonato al que está inscrito el coche. Verificado
+    con 5 combinaciones de fechas (jueves/viernes/domingo de la semana de
+    carrera, semana siguiente, otra semana).
+[x] Calendario: los admins pueden añadir etiquetas informativas para los
+    equipos (fechas de entrega de skins, eventos fuera de pista...) desde
+    cualquier día, incluso sin carrera ese día. Se ven como etiqueta ámbar en
+    la casilla. Probado de punta a punta creando una nota real.
+[x] Quitar la pantalla/indicador de "loading page" entre transiciones — era el
+    recuadro genérico con spinner que tapaba toda la página al navegar. Se
+    mantiene la barra fina superior de progreso (menos intrusiva) y el
+    esqueleto de carga propio de la página de equipo, que sí están bien.
+[x] Colorear las carreras del calendario: ERC en azul, ERC NEXT GEN en naranja.
+    Probado creando ambas ligas con eventos reales y comprobando los colores
+    en la vista de mes y en el destacado de "próxima sesión".
+
+Pedido tras revisar capturas — 2026-09-03
+-------------------------------------------
+[x] Bug visual: la bolita del interruptor de visibilidad del perfil se salía
+    fuera de la pastilla. Causa real: al no fijar "left" explícito, el
+    navegador la posicionaba usando el centrado interno del botón como base,
+    y el desplazamiento se sumaba encima. Corregido fijando la posición base.
+[x] Perfil: layout del bloque de visibilidad arreglado (el enlace "ver como
+    los demás lo ven" quedaba flotando entre el texto y el interruptor).
+[x] Perfil: banner personalizable y color de acento propio (bordes, brillos,
+    insignia "piloto oficial"), tanto en tu propio perfil como en la vista
+    pública que ven otros pilotos.
+[x] Bug real encontrado de paso: si guardar el perfil fallaba por cualquier
+    motivo, el error se tragaba en silencio y no se avisaba al usuario —
+    parecía que se había guardado sin haberlo hecho. Corregido para que
+    ahora sí muestre el error dentro del propio formulario.
+
+Pedido el 2026-09-03 (imágenes + livetiming + noticias)
+----------------------------------------------------------
+[x] Selector de imágenes (usado en noticias, equipos, ligas, perfil, eventos):
+    botón para eliminar la imagen seleccionada, y paso de "ajustar posición"
+    arrastrando antes de subir (o sobre una ya subida) — se recorta la parte
+    elegida y se sube ya ajustada. Probado de punta a punta: subir, arrastrar,
+    confirmar y borrar, con una imagen real.
+[x] Bug real encontrado de paso: borrar una imagen daba error "Invalid file
+    path" siempre en Windows — path.normalize() convertía las barras "/" de
+    la URL en "\" y la comprobación fallaba. Corregido usando normalización
+    de tipo URL en vez de ruta de sistema de archivos.
+[x] Bug de permisos encontrado de paso: borrar imágenes estaba restringido a
+    administradores, pero subirlas no — así que ningún usuario normal podía
+    borrar su propio logo/banner. Ahora cualquier usuario con sesión puede
+    borrar imágenes de su propio contenido; solo los assets de marca
+    compartidos ("/branding/") siguen restringidos a admins.
+[x] Livetiming: nuevo estilo — línea "en directo" pulsante, pestañas de
+    subrayado, franja de telemetría con esquinas HUD, filas con franja de
+    color por categoría y podio dorado/plata/bronce en las 3 primeras
+    posiciones, leyenda de colores al pie.
+[x] Noticias: confirmado que ya estaban debajo del carrusel (parecía que no
+    porque no había ninguna publicada tras borrar la de prueba — la sección
+    se oculta a propósito cuando no hay noticias, en vez de mostrar un hueco
+    vacío). Dejo una noticia de ejemplo publicada para que se vea.
+
+Pedido el 2026-09-03 (tarde) — galería, nav, banderas, imágenes de campeonato
+--------------------------------------------------------------------------------
+[x] Galería de fotos del selector de imágenes: ahora solo la ven los admins.
+    Cualquier usuario sigue pudiendo subir sus propias imágenes, simplemente
+    ya no navega por las de los demás. Probado con cuenta admin (la ve) y
+    cuenta normal (no la ve, pero sigue pudiendo subir).
+[x] Nav: "Noticias" movido antes de "Calendario".
+[x] Banderas del selector de idioma: eran emoji, que en varias configuraciones
+    de Windows se ven como texto "ES"/"GB" en vez de banderas. Ahora son SVG
+    reales (España y Reino Unido) que se ven igual en cualquier sistema.
+[x] Campeonatos: ahora hay dos imágenes claramente distintas — "Imagen de
+    preview" (la que se ve en la tarjeta del listado de campeonatos, antes se
+    subía pero nunca se mostraba en ningún sitio — corregido) y "Banner"
+    (cabecera de la página del campeonato, sin cambios). Probado creando el
+    preview y viéndolo en la tarjeta real.
+[x] Ajuste de posición de imagen: ahora tiene un marco claro (borde de color +
+    rejilla de referencia) para ver los límites del recorte, y se quitó el
+    sombreado oscuro que tapaba la vista previa normal de las imágenes.
+[x] Livetiming: añadido selector de los 3 servidores (con estado en vivo/sin
+    conexión de cada uno, como en tu captura), cambia entre ellos y cada uno
+    sondea su propio marcador. Corregido de paso que el indicador "en directo"
+    no distinguía un servidor realmente activo de uno vacío/apagado.
+[x] Calendario: la casilla del día de hoy ahora se ilumina entera (borde +
+    resplandor azul + fondo teñido), no solo un pequeño detalle. La clase CSS
+    que se usaba antes para esto no existía realmente (no hacía nada).
+[x] Bug: en la página de un equipo sin banner propio, se mostraba por error el
+    banner del campeonato en el que estaba inscrito (heredado sin querer).
+    Quitado ese comportamiento: un equipo ahora solo muestra su propia imagen
+    (banner subido, si no logo, si no foto de coche), nunca la de una liga.
+[x] Livetiming: añadidos los 2 campeonatos (ERC / ERC NEXT GEN) como pestañas,
+    cada uno con sus 3 servidores propios. NOTA: como servidor real de ERC
+    NEXT GEN aún no confirmado, asumí que están en el mismo servidor que ERC
+    con los siguientes 3 índices — decir si hay que apuntarlo a otro sitio.
+[x] Livetiming rediseñado por completo: nuevo layout en dos columnas con un
+    panel lateral fijo (campeonato, servidores, datos de circuito/aire/
+    asfalto/tiempo restante) y la clasificación a la derecha.
+[x] Añadido un mapa del circuito en vivo: dibuja la posición real de cada
+    coche en pista (con su número y color de categoría) usando las
+    coordenadas GPS que ya manda el servidor, dejando una estela que va
+    revelando la forma del trazado según se corre. Se reinicia al cambiar de
+    servidor. Probado con datos simulados (no hay coches en pista ahora mismo
+    para verlo con datos reales, pero la lógica de dibujado está verificada).
+[x] Botón "Simular" en livetiming: genera una carrera de demostración (10
+    coches, 4 categorías, vueltas, paradas en boxes, sectores) directamente
+    en el navegador, sin tocar ningún servidor real, para poder ver la
+    página funcionando (tabla + mapa) mientras no haya carreras en curso.
+    Deja claro con un aviso ámbar que son datos de demostración.
+[x] Bug real encontrado de paso: la función que asigna la categoría
+    (HYPERCAR/LMP2/GT3/GT4) a partir del nombre técnico del coche no
+    reconocía coches Hypercar/LMDh reales del servidor (ej.
+    "porsche_963_2023"), así que probablemente se estén mostrando como GT3
+    en la tabla real ahora mismo. No lo he tocado todavía por si prefieres
+    revisar primero la lista exacta de nombres de coche que usa el servidor
+    — decirme si lo corrijo.
+
+Pedido el 2026-09-03 (tarde/noche) — tiempos de carga de toda la web
+-----------------------------------------------------------------------
+[x] Bug real encontrado: había DOS barras de carga superiores montadas a la
+    vez (una en el layout general, otra dentro del panel de la app), con
+    z-index e implementación distintas, compitiendo entre sí — por eso no se
+    veía limpia "arriba del todo". Quitada la duplicada (la del layout, que
+    además no tenía ningún efecto conectado), y la que queda ahora se monta
+    directamente en el layout raíz, fuera de las consultas de sesión/perfil,
+    para que aparezca al instante en cualquier navegación. Verificado: ahora
+    solo hay un elemento de barra de carga en el DOM.
+[x] Bug real encontrado: el nombre/avatar de Steam se resolvía con una
+    petición en vivo a la web de Steam (sin caché) en CADA carga de página
+    para cualquier usuario sin avatar o con nombre genérico — y esa consulta
+    se hace en el panel general que envuelve toda la web, así que afectaba a
+    todas las páginas. Ahora se guarda en caché 5 minutos (ya existía un
+    sistema de caché en el proyecto para esto, solo faltaba usarlo aquí).
+[x] Varias páginas (panel general, perfil, calendario, campeonatos) hacían
+    sus consultas a la base de datos una detrás de otra pudiendo hacerse a
+    la vez, sin necesidad — corregido en el panel general que envuelve toda
+    la web, perfil, calendario y campeonatos, para que las consultas
+    independientes se lancen en paralelo. Probado en las páginas principal,
+    perfil, equipos, calendario y campeonatos: cargan correctamente y sin
+    errores en consola.
+[x] Segunda pasada de optimización, a fondo por toda la capa de datos:
+    - Bug real: la lista de equipos se guardaba en caché una copia completa
+      distinta POR CADA usuario que visitaba la web (mismo contenido,
+      duplicado en memoria una y otra vez), en vez de una sola vez para
+      todos. Corregido: ahora se guarda una única vez y cada usuario solo
+      calcula aparte su lista personal de "mis equipos" (que sí es barata).
+    - Varias consultas a la base de datos que se hacían una detrás de otra
+      pudiendo ir a la vez: inscripciones a campeonatos, confirmaciones de
+      eventos y el listado de pilotos registrados.
+    - Al avisar a todos los inscritos de una nueva ronda de un campeonato,
+      las notificaciones se enviaban una por una en fila; ahora se envían
+      todas a la vez.
+    Probado cargando principal, equipos, campeonatos, perfil, calendario,
+    noticias y livetiming de punta a punta: todo sigue funcionando igual,
+    sin errores en consola.
+[x] Tercera pasada — reducir lo que tarda el navegador, no solo el servidor:
+    - Medido con una build de producción real: el servidor responde en
+      12-111ms (muy rápido, las optimizaciones anteriores funcionan). Lo que
+      se nota como "lento" al probar es sobre todo el modo desarrollo en sí
+      (siempre más lento que producción) y, después de eso, el navegador
+      descargando y arrancando el JavaScript de la página.
+    - La campanita de notificaciones hacía SIEMPRE una petición aparte nada
+      más cargar cualquier página, aunque el dato ya se podía traer del
+      servidor de una — ahora viaja junto con el resto de la página y solo
+      vuelve a pedir datos frescos cuando abres el desplegable.
+    - Quitado un peso de letra de Roboto que no se usaba en ningún sitio de
+      la web (uno menos que descargar en cada página).
+    - En la página de un campeonato, las ventanas de "editar campeonato",
+      "finalizar ronda" y "ver resultados" (2 de las 3 solo para admins) se
+      cargaban siempre aunque casi nadie las abre — ahora solo se descargan
+      cuando se abren de verdad.
+    - En livetiming, el motor de la simulación de carrera ahora también se
+      carga solo al pulsar "Simular", no en cada visita a la página.
+    Medido antes/después con una build de producción real: página de
+    campeonato de 174 a 168 KB de JavaScript inicial, livetiming de 176 a
+    174 KB. Probado que la simulación y la página de campeonato siguen
+    funcionando igual tras el cambio.
+    De paso encontré (sin tocar todavía): las imágenes de equipo de
+    relleno (placehold.co) y una imagen de marca ("lateral-car.png") están
+    rotas — no es un tema de velocidad, es que no cargan — decirme si
+    quieres que las arregle también.
+[x] Aviso de "cambios guardados" rediseñado y arreglado (equipo → editar
+    equipo, y avisos del listado de equipos): antes desaparecía casi al
+    instante porque la web borra el "?updated=1" de la URL nada más
+    cargar la página, y el aviso dependía de que ese parámetro siguiera
+    ahí. Ahora el aviso "recuerda" el mensaje por su cuenta en cuanto
+    aparece y ya no depende de la URL, así que se queda visible el tiempo
+    completo (5 segundos) aunque la URL se limpie al momento — antes de
+    este cambio esa misma limpieza cancelaba en silencio el temporizador,
+    así que en la primera prueba se quedaba pegado en pantalla para
+    siempre en vez de desaparecer. Nuevo diseño: icono, franja de color a
+    la izquierda, mejor contraste, entra/sale con una transición suave, y
+    botón para cerrarlo a mano si quieres. Probado el ciclo completo
+    (aparece, sigue a los 3s, desaparece solo a los 5s) con capturas reales.
+[x] Botón "Guardar cambios" del equipo (información general): ahora se pone
+    "Guardando..." con un icono girando y se bloquea mientras se procesa,
+    para que quede claro que ha registrado el clic. Reutiliza un componente
+    que ya existía en el proyecto para esto (SubmitButton) pero que no se
+    estaba usando en este botón en concreto. Probado forzando una conexión
+    lenta para verlo en pantalla real.
+[x] Quitado el botón "Simular" de livetiming (y todo el motor de carrera de
+    demostración que lo generaba) a petición tuya — livetiming vuelve a
+    depender solo de los servidores reales.
+[x] Bug real corregido: la puntuación de la clasificación se guardaba por
+    EQUIPO, no por coche. Si un equipo tenía dos coches en la misma
+    categoría, solo existía un número de puntos para los dos — al puntuar
+    uno, el otro coche del mismo equipo se llevaba automáticamente los
+    mismos puntos aunque no hubiera corrido o hubiera quedado fuera de
+    puntos. Corregido en toda la cadena (base de datos, guardado y
+    lectura) para que cada coche tenga su propia puntuación independiente.
+    Probado creando un equipo real con dos coches en la misma categoría:
+    puntuar uno ya no afecta al otro, ni en pantalla ni tras recargar la
+    página.
+[x] Añadido piloto reserva en la alineación de cada coche (equipos → gestionar
+    vehículos): aparte de los 4 pilotos titulares, ahora hay un hueco aparte
+    marcado en ámbar para el piloto de reserva de ese coche. No cuenta para
+    el máximo de 4 titulares, y el mismo piloto puede ser reserva de varios
+    coches a la vez (no se bloquea entre coches como sí pasa con los
+    titulares). Se ve también en la ficha pública del equipo, con una
+    etiqueta "RESERVA" bien diferenciada de los titulares. Los cambios de
+    reserva cuentan igual que los de titulares para el límite de 3 cambios
+    de alineación al día y el bloqueo de los viernes de semana de carrera.
+    Probado de punta a punta: asignar reserva, guardar, recargar y verlo en
+    la ficha pública — con datos de prueba reales, borrados después.
+[x] Lista de coches del selector de vehículos actualizada con los 25 coches
+    reales que me pasaste (14 GT3, 9 HY, 2 LMP2), y en ERC ahora se pueden
+    añadir coches GT3 e HY, en ERC NEXT GEN coches GT3 y LMP2 — tal cual lo
+    pediste.
+[x] Bug real encontrado y corregido de paso: los 14 coches GT3 que ya
+    existían en el selector apuntaban a carpetas del juego que NO EXISTEN
+    en tu instalación real — es decir, ese selector llevaba roto (o
+    apuntando a nada) desde siempre. Lo comprobé carpeta por carpeta contra
+    tu instalación real de Assetto Corsa y ahora cada coche apunta a su
+    carpeta real y verificada (los de Hypercar ya estaban bien, no hizo
+    falta tocarlos). Probado abriendo el selector real: "GT3 (14
+    disponibles)" con las 14 rutas correctas.
+[x] Selector de vehículos rediseñado por completo: cada coche ahora tiene un
+    distintivo de color según su categoría (verde GT3, azul LMP2, rojo
+    Hypercar) con las iniciales del fabricante, tarjetas más grandes y
+    claras en cuadrícula de 3 columnas, filtros por categoría con icono y
+    contador de coches disponibles, buscador más visible, y la ruta técnica
+    de la carpeta como detalle secundario en vez de protagonista. El coche
+    ya seleccionado se ve claramente marcado con el color de su categoría y
+    una marca de verificación. Probado abriendo el selector real y
+    buscando "ferrari" para confirmar que el filtro sigue funcionando.
+[x] Arreglado que el selector de vehículos no iba fluido al hacer scroll en
+    la lista de coches: el scroll "se escapaba" hacia la ventana de detrás
+    al llegar arriba/abajo de la lista (dos zonas con scroll una dentro de
+    otra, típico causante de esa sensación de "engancha"), y las tarjetas
+    usaban una transición de hover más pesada de lo necesario. Ambas
+    corregidas.
+[x] Selector de vehículos rehecho por completo con FOTOS REALES de cada
+    coche: encontré que cada coche instalado ya trae una foto de vista
+    previa renderizada en el propio simulador (una por cada skin del
+    coche), así que saqué una foto real de cada uno de los 25 coches y las
+    metí en la web. Cada tarjeta ahora es la foto del coche a tamaño
+    grande con el nombre y fabricante encima en degradado, la categoría en
+    una esquina, y el vehículo elegido se marca con un check sobre la
+    propia foto. La ruta técnica de la carpeta queda como detalle pequeño
+    debajo, ya no protagoniza la tarjeta. Probado con capturas reales:
+    fotos cargando bien, sin errores, búsqueda y selección funcionando
+    igual que antes.
+[x] Arreglado el scroll a tirones en la lista de coches con fotos: quité el
+    efecto de "zoom" al pasar el ratón por encima de la foto (bonito pero
+    costoso al hacer scroll con 25 fotos reales), y le dije al navegador
+    que no gaste esfuerzo dibujando las tarjetas que están fuera de la
+    vista mientras haces scroll (se dibujan solo cuando entran en pantalla,
+    en vez de las 25 a la vez todo el rato). Probado que las tarjetas
+    siguen apareciendo bien al hacer scroll hasta el final de la lista.
+[x] A petición tuya, devuelto el efecto de zoom al pasar el ratón (se queda
+    solo la mejora de "no dibujar lo que no se ve"). Medí de verdad con una
+    traza real de Chrome (no solo contar frames) en modo desarrollo Y en
+    una build de producción real: en ambas, lo que el navegador tarda en
+    pintar/calcular la pantalla es mínimo — nada ahí explica una bajada de
+    frames. No encontré ningún cuello de botella real que arreglar en el
+    código de la tarjeta. Sigue pendiente de que el usuario confirme si
+    la sensación de "tirones" persiste tras estos cambios.

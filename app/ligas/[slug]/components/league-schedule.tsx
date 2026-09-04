@@ -82,14 +82,14 @@ export function LeagueSchedule({
   }, [events, showExpiredRounds])
 
   return (
-    <div className="shell-panel p-4 md:p-5 rounded-lg space-y-4">
-      <div className="flex items-center justify-between border-b border-shell-line pb-3">
-        <h2 className="text-xl font-bold uppercase tracking-tight text-white">{tr.title}</h2>
+    <div className="space-y-4 rounded-2xl border border-white/10 bg-[#0d1420] p-4 md:p-5">
+      <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <h2 className="font-display-league text-2xl uppercase text-white">{tr.title}</h2>
         {isAdmin && (
           <button
             type="button"
             onClick={() => onOpenEventModal()}
-            className="border px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-[filter] hover:brightness-125 flex items-center gap-1 cursor-pointer"
+            className="flex cursor-pointer items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-[filter] hover:brightness-125"
             style={{ borderColor: `${accent}66`, backgroundColor: `${accent}26`, color: accent }}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -99,29 +99,41 @@ export function LeagueSchedule({
       </div>
       <p className="text-xs text-slate-400">{tr.subtitle}</p>
 
-      <div className="space-y-4">
+      <div>
         {activeEvents.length === 0 ? (
           <p className="text-sm text-slate-300">{tr.noRounds}</p>
         ) : (
-          activeEvents.map((ev, index) => {
-            const isCompleted = (ev as any).status === 'completed' || new Date(ev.startsAt) < new Date()
+          <div className="-mx-1 overflow-x-auto pb-1">
+            <div className="flex px-1" style={{ minWidth: 'min-content' }}>
+              {activeEvents.map((ev, index) => {
+                const isCompleted = (ev as any).status === 'completed' || new Date(ev.startsAt) < new Date()
 
-            return (
-              <div
-                key={ev.id}
-                className={`border p-4 transition-colors space-y-3 rounded-lg relative ${
-                  isCompleted
-                    ? 'border-slate-800 bg-slate-900/40 opacity-90'
-                    : 'border-shell-line bg-black/40'
-                }`}
-                style={!isCompleted ? { borderColor: `${accent}4D` } : undefined}
-              >
+                return (
+                  <div key={ev.id} className="flex w-[420px] shrink-0 flex-col px-2 first:pl-0 last:pr-0">
+                    <div className="mb-3 flex shrink-0 items-center">
+                      <span
+                        className="font-mono-data flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold"
+                        style={{ borderColor: accent, color: accent, background: '#0a0f18' }}
+                      >
+                        {index + 1}
+                      </span>
+                      {index < activeEvents.length - 1 && <div className="ml-1 h-0.5 flex-1 bg-white/10" />}
+                    </div>
+
+                    <div
+                      className={`relative flex-1 space-y-3 rounded-xl border p-4 transition-colors ${
+                        isCompleted
+                          ? 'border-white/5 bg-black/20 opacity-90'
+                          : 'border-white/10 bg-black/30'
+                      }`}
+                      style={!isCompleted ? { borderColor: `${accent}4D` } : undefined}
+                    >
                 {/* Round Header */}
-                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-shell-line/40 pb-3">
+                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-white/5 pb-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span
-                        className="border px-2 py-0.5 text-[10px] font-mono font-bold uppercase"
+                        className="font-mono-data rounded border px-2 py-0.5 text-[10px] font-bold uppercase"
                         style={{ backgroundColor: `${accent}1F`, color: accent, borderColor: `${accent}55` }}
                       >
                         R{index + 1}
@@ -130,13 +142,13 @@ export function LeagueSchedule({
                         {ev.circuitName}
                       </span>
                       {isCompleted && (
-                        <span className="bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2 py-0.5 text-[10px] font-mono font-bold uppercase">
+                        <span className="font-mono-data rounded border border-emerald-800/50 bg-emerald-950 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-400">
                           {tr.completed}
                         </span>
                       )}
                     </div>
 
-                    <h3 className="text-base font-bold text-white uppercase italic tracking-tight">
+                    <h3 className="font-display-league text-xl uppercase text-white">
                       {ev.title || tr.round.replace('{n}', String(index + 1)).replace('{circuit}', ev.circuitName)}
                     </h3>
 
@@ -476,13 +488,16 @@ export function LeagueSchedule({
                     )
                   })
                 })()}
-              </div>
-            )
-          })
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
 
         {expiredCount > 0 && (
-          <div className="pt-2 text-center">
+          <div className="pt-3 text-center">
             <button
               type="button"
               onClick={() => setShowExpiredRounds((prev) => !prev)}

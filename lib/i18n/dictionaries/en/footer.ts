@@ -1,12 +1,12 @@
 import type es from '../es/footer'
 
 const footer: typeof es = {
-  description: 'Sim racing competition platform. Leagues, results and standings for the sim racing community.',
+  description: 'Sim racing competition platform. Championships, results and standings for the sim racing community.',
   platform: 'Platform',
   links: {
     home: 'Home',
     calendar: 'Calendar',
-    leagues: 'Leagues',
+    leagues: 'Championships',
     teams: 'Teams',
     drivers: 'Drivers',
     about: 'About',
