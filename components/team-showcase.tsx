@@ -33,6 +33,7 @@ export function TeamShowcase({
   accentColor,
   slogan,
   competitionClasses = [],
+  carSkinUrls = [],
   pilotNames = [],
   profileHref,
   skins = [],
@@ -41,6 +42,15 @@ export function TeamShowcase({
   const [isNavigating, setIsNavigating] = useState(false)
   const accent = accentColor || primaryColor || '#1274de'
   const initials = teamName.slice(0, 2).toUpperCase()
+
+  // Same fallback chain as the team's own profile hero (banner → logo → a car skin) — a
+  // team that only ever set a logo shouldn't show a plain gradient here while its own page
+  // shows an actual image, just because this card only ever checked teamBannerUrl.
+  const bannerImage =
+    teamBannerUrl ||
+    teamLogoUrl ||
+    carSkinUrls.find((url) => /\.(png|jpe?g|webp|svg)$/i.test(url)) ||
+    null
 
   const goToProfile = (event: React.MouseEvent) => {
     // If user clicks a button/link inside, don't trigger the card click
@@ -63,22 +73,22 @@ export function TeamShowcase({
       } ${isNavigating ? 'opacity-75 border-cyan-500/60 shadow-[0_0_20px_rgba(6,182,212,0.3)]' : ''}`}
       style={{ '--glow': `${accent}88` } as CSSProperties}
     >
-      {/* Poster band — diagonal color block when there's no banner photo, real photo (tinted) when there is */}
+      {/* Poster band — diagonal color block when there's no banner/logo/skin photo at all, real photo (tinted) when there is */}
       <div
         className="relative h-40 w-full shrink-0 overflow-hidden"
         style={
-          teamBannerUrl
+          bannerImage
             ? undefined
             : { background: `linear-gradient(160deg, ${accent} 0%, ${accent} 42%, #0a0a0c 42.5%, #0a0a0c 100%)` }
         }
       >
-        {teamBannerUrl && (
+        {bannerImage && (
           <Image
-            src={teamBannerUrl}
+            src={bannerImage}
             alt={teamName}
             fill
             sizes="(max-width: 768px) 100vw, 33vw"
-            unoptimized={!isOptimizable(teamBannerUrl)}
+            unoptimized={!isOptimizable(bannerImage)}
             className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
           />
         )}

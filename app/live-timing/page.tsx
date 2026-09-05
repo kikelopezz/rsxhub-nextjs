@@ -20,7 +20,7 @@ type SortKey = 'Position' | 'Class' | 'Number' | 'Driver' | 'Team' | 'BestLap' |
 type Tab = 'live' | 'results'
 type ConnectionStatus = 'connecting' | 'online' | 'offline'
 
-const CLASS_FILTERS = ['ALL', 'HYPERCAR', 'LMP2', 'GT3', 'GT4']
+const CLASS_FILTERS = ['ALL', 'HYPERCAR', 'LMP2', 'GT3', 'GT4', 'TCR']
 
 // The server's gap-to-leader field comes as "mm:ss.mmm" (e.g. "00:00.210"), not a plain
 // "+X.XXX" seconds string — parseFloat alone stops at the ":" and silently reads every gap as
@@ -66,9 +66,12 @@ const POS_CHIP: Record<number, string> = {
 
 type ChampionshipId = 'erc' | 'erc-next-gen'
 
+// Only 5 real servers exist upstream (indices 0-4) — an out-of-range index (5+) doesn't
+// error, it silently falls back to server 0's data, which made the old 3rd "ERC NEXT GEN"
+// slot show a duplicate of the 1st ERC server instead of a genuinely offline server.
 const CHAMPIONSHIPS: { id: ChampionshipId; label: string; servers: number[] }[] = [
   { id: 'erc', label: 'ERC', servers: [0, 1, 2] },
-  { id: 'erc-next-gen', label: 'ERC NEXT GEN', servers: [3, 4, 5] },
+  { id: 'erc-next-gen', label: 'ERC NEXT GEN', servers: [3, 4] },
 ]
 
 const ALL_SERVERS = CHAMPIONSHIPS.flatMap((c) => c.servers)

@@ -5,7 +5,17 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
-const SLIDE_IMAGES = ['/carousel/slide1.png', '/carousel/slide2.png', '/carousel/slide3.png', '/carousel/slide4.png', '/carousel/slide5.png']
+const SLIDE_IMAGES = [
+  '/carousel/slide1.png',
+  '/carousel/slide2.png',
+  '/carousel/slide3.png',
+  '/carousel/slide4.png',
+  '/carousel/slide5.png',
+  '/carousel/slide6.jpg',
+  '/carousel/slide7.png',
+  '/carousel/slide8.png',
+  '/carousel/slide9.png',
+]
 
 interface HeroSectionProps {
   driversCount: number

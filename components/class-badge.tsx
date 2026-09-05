@@ -28,6 +28,11 @@ export function getCategoryStyles(classTag: string, isSelected: boolean = true) 
       ? 'bg-[#9333ea] text-white border-purple-400 font-black italic shadow-[0_0_14px_rgba(147,51,234,0.45)]'
       : 'bg-[#9333ea]/15 text-purple-400 border border-[#9333ea]/40 hover:bg-[#9333ea]/30 hover:border-purple-400 font-extrabold italic'
   }
+  if (tag.includes('TCR')) {
+    return isSelected
+      ? 'bg-[#f59e0b] text-black border-amber-400 font-black italic shadow-[0_0_14px_rgba(245,158,11,0.45)]'
+      : 'bg-[#f59e0b]/15 text-amber-400 border border-[#f59e0b]/40 hover:bg-[#f59e0b]/30 hover:border-amber-400 font-extrabold italic'
+  }
 
   return isSelected
     ? 'bg-cyan-600 text-white border-cyan-400 font-black italic shadow-[0_0_14px_rgba(8,145,178,0.45)]'
@@ -47,6 +52,8 @@ export function ClassBadge({ classTag, className = '' }: ClassBadgeProps) {
     bgClass = 'bg-[#e10600] text-white font-black italic border border-red-500/20'
   } else if (tag.includes('FORMULA') || tag.includes('F1') || tag.includes('F2') || tag.includes('F3') || tag === 'FORM') {
     bgClass = 'bg-[#9333ea] text-white font-black italic border border-purple-400/20'
+  } else if (tag.includes('TCR')) {
+    bgClass = 'bg-[#f59e0b] text-black font-black italic border border-amber-400/20'
   }
 
   return (

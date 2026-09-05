@@ -116,6 +116,7 @@ export function getClassTagFromModel(carModel?: string): string {
   const m = raw.toLowerCase()
   if (m.includes('hypercar') || m.includes('lmh') || m.includes('lmdh')) return 'HYPERCAR'
   if (m.includes('lmp2') || m.includes('lmp3') || m.includes('lmp1')) return 'LMP2'
+  if (m.includes('tcr')) return 'TCR'
   if (m.includes('gt4')) return 'GT4'
   return 'GT3'
 }
@@ -125,6 +126,7 @@ export const CLASS_COLORS: Record<string, string> = {
   LMP2: '#0072f0',
   GT3: '#009f00',
   GT4: '#009f00',
+  TCR: '#f59e0b',
 }
 
 export function formatNanos(n?: number): string {

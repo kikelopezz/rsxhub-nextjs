@@ -166,6 +166,7 @@ export default function EquiposContent({
                 accentColor={team.accentColor}
                 slogan={team.slogan}
                 competitionClasses={team.classTags && team.classTags.length > 0 ? team.classTags : ['UNCLASSIFIED']}
+                carSkinUrls={team.carSkinUrls}
                 pilotNames={pilotNames}
                 profileHref={`/equipos/${team.id}`}
                 skins={team.skinAssignments}
