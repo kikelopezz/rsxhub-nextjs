@@ -33,7 +33,11 @@ export function getR2PublicUrl(key: string): string {
 
 export function getR2KeyFromUrl(url: string): string | null {
   if (!publicUrl || !url.startsWith(`${publicUrl}/`)) return null
-  return url.slice(publicUrl.length + 1)
+  // Strip a cache-busting query string (e.g. logo/banner uploads append `?v=...` so
+  // re-uploading the same deterministic filename isn't served stale from cache) before
+  // slicing off the key — otherwise it'd be treated as part of the R2 object key.
+  const withoutQuery = url.split('?')[0].split('#')[0]
+  return withoutQuery.slice(publicUrl.length + 1)
 }
 
 export async function uploadBufferToR2(key: string, buffer: Buffer, contentType: string): Promise<string> {

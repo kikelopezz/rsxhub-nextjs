@@ -63,7 +63,9 @@ export async function GET(req: Request) {
     // Ensure uploads folder exists
     await fs.mkdir(UPLOADS_DIR, { recursive: true })
 
-    const IMAGE_EXT = /\.(png|jpe?g|gif|svg|webp)$/i
+    // Allows an optional trailing cache-busting query string (see the `cacheBust` logo/
+    // banner suffix added below) after the extension.
+    const IMAGE_EXT = /\.(png|jpe?g|gif|svg|webp)(\?.*)?$/i
 
     // Fetch explicit gallery uploads
     const galleryUploads = await getGalleryUploads()
@@ -146,6 +148,13 @@ export async function POST(req: Request) {
     const entityBase =
       slugifiedEntityName && (type === 'logo' || type === 'banner') ? `${slugifiedEntityName}-${type}` : null
 
+    // A deterministic filename means re-uploading a replacement logo/banner produces the
+    // exact same URL as before — which the browser (and Next/Image's own 1-year cache)
+    // would keep serving stale from cache even though the file on disk/R2 was overwritten
+    // with new bytes. Append a version marker so every upload gets a fresh, cache-safe URL
+    // while the underlying storage key stays the same (still replaces the old file).
+    const cacheBust = entityBase ? `?v=${Date.now().toString(36)}` : ''
+
     const isArchive = /\.(zip|rar|7z|tar|gz|tgz)$/i.test(file.name)
 
     // Compressed skin archives upload
@@ -215,7 +224,7 @@ export async function POST(req: Request) {
 
     if (hasR2) {
       try {
-        const finalUrl = await uploadBufferToR2(`uploads/${safeName}`, inputBuffer, file.type || 'application/octet-stream')
+        const finalUrl = `${await uploadBufferToR2(`uploads/${safeName}`, inputBuffer, file.type || 'application/octet-stream')}${cacheBust}`
         await removeDeletedAsset(finalUrl)
         if (isGallery) {
           await addGalleryUpload(finalUrl)
@@ -231,7 +240,7 @@ export async function POST(req: Request) {
     try {
       await fs.mkdir(UPLOADS_DIR, { recursive: true })
       await fs.writeFile(targetPath, inputBuffer)
-      const finalUrl = `/uploads/${safeName}`
+      const finalUrl = `/uploads/${safeName}${cacheBust}`
       await removeDeletedAsset(finalUrl)
       if (isGallery) {
         await addGalleryUpload(finalUrl)
@@ -291,7 +300,9 @@ export async function DELETE(req: Request) {
     // Sanitize path to prevent directory traversal. Use posix normalization since this
     // is a URL path, not a filesystem path — plain path.normalize() would rewrite the
     // forward slashes to backslashes on Windows and break the startsWith checks below.
-    const normalized = path.posix.normalize(url).replace(/^(\.\.\/)+/, '')
+    // Strip a `?v=...` cache-busting suffix first — it isn't part of the filename on disk.
+    const urlWithoutQuery = url.split('?')[0].split('#')[0]
+    const normalized = path.posix.normalize(urlWithoutQuery).replace(/^(\.\.\/)+/, '')
 
     let targetPath = ''
     if (normalized.startsWith('/uploads/') || normalized.startsWith('uploads/')) {
