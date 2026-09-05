@@ -15,7 +15,7 @@ import { DeleteLeagueButton } from '@/components/delete-league-button'
 import { DeleteTeamButtonDouble } from '@/components/delete-team-button-double'
 import { DeleteUserButtonDouble } from '@/components/delete-user-button-double'
 import { AdminGallery } from '@/components/admin-gallery'
-import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive, GitMerge } from 'lucide-react'
 import {
   adminDeleteMarketListing,
   quickUpdateLeagueStatusAction,
@@ -31,6 +31,7 @@ import { AdminTeamsTab } from './components/admin-teams-tab'
 import { AdminCatalogTab } from './components/admin-catalog-tab'
 import { AdminAdminsTab } from './components/admin-admins-tab'
 import { AdminNewsTab } from './components/admin-news-tab'
+import { AdminUserMergeTab } from './components/admin-user-merge-tab'
 import { getNewsPosts } from '@/lib/news-data'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
@@ -305,6 +306,17 @@ export default async function AdminPage({
         >
           <Newspaper className="h-3.5 w-3.5 text-cyan-400" />
           Noticias ({newsPosts.length})
+        </Link>
+        <Link
+          href="/admin?tab=merge"
+          className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
+            activeTab === 'merge'
+              ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <GitMerge className="h-3.5 w-3.5 text-cyan-400" />
+          Perfiles duplicados
         </Link>
         <Link
           href="/admin?tab=system"
@@ -599,6 +611,9 @@ export default async function AdminPage({
 
       {/* TAB CONTENT: NEWS */}
       {activeTab === 'news' && <AdminNewsTab posts={newsPosts} />}
+
+      {/* TAB CONTENT: DUPLICATE PROFILE MERGE */}
+      {activeTab === 'merge' && <AdminUserMergeTab />}
 
       {/* TAB CONTENT: DATA CLEANUP */}
       {activeTab === 'system' && (

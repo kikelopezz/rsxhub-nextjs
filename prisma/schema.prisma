@@ -158,8 +158,10 @@ model League {
   results            LeagueResult[]
   resultImports      LeagueResultImport[]
   teamPoints         LeagueTeamPoints[]
+  carPhotos          LeagueCarPhoto[]
   leagueCars         LeagueCar[]
   teams              Team[]
+  marketListings     MarketListing[]
 
   @@map("leagues")
 }
@@ -449,6 +451,27 @@ model LeagueTeamPoints {
   @@map("league_team_points")
 }
 
+// Server-side persisted "side profile" car photo shown on the standings ladder. Keyed the
+// same way as LeagueTeamPoints (a team running two cars in one class must be able to show
+// a different photo per car) — previously this only lived in the uploading admin's own
+// browser localStorage, so every other viewer just saw the shared default silhouette.
+model LeagueCarPhoto {
+  id        String   @id @default(cuid())
+  leagueId  String   @map("league_id")
+  classTag  String   @map("class_tag")
+  teamId    String   @map("team_id")
+  carNumber String   @default("") @map("car_number")
+  imageUrl  String   @map("image_url")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([leagueId, classTag, teamId, carNumber])
+  @@map("league_car_photos")
+}
+
 model DriverNumberPreference {
   id       String @id @default(cuid())
   userId   String @map("user_id")
@@ -503,6 +526,7 @@ model Team {
   teamRegistrations  LeagueTeamRegistration[]
   eventConfirmations LeagueEventConfirmation[]
   teamPoints         LeagueTeamPoints[]
+  carPhotos          LeagueCarPhoto[]
   marketListings     MarketListing[]
   marketApplications MarketApplication[]
 
@@ -643,6 +667,8 @@ model MarketListing {
   teamId      String?           @map("team_id")
   teamName    String?           @map("team_name")
   teamLogo    String?           @map("team_logo")
+  leagueId    String?           @map("league_id")
+  leagueTitle String?           @map("league_title")
   title       String
   description String
   mainSim     Simulator         @map("main_sim")
@@ -651,6 +677,7 @@ model MarketListing {
   createdAt   DateTime          @default(now()) @map("created_at")
 
   team         Team?               @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  league       League?             @relation(fields: [leagueId], references: [id], onDelete: SetNull)
   applications MarketApplication[]
 
   @@map("market_listings")

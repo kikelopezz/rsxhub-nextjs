@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getCurrentUser, getAdminAccessContext, canStewardLeague } from '@/lib/auth'
-import { getLeagueBySlug, getLeagueCars, getLeagueEvents, getRegistrations, getEventConfirmations, getTeamPointsOverrides } from '@/lib/platform-data'
+import { getLeagueBySlug, getLeagueCars, getLeagueEvents, getRegistrations, getEventConfirmations, getTeamPointsOverrides, getCarPhotoOverrides } from '@/lib/platform-data'
 import { getTeamsDashboard } from '@/lib/team-data'
 import LeagueDetailPageContent from './page-content'
 
@@ -18,13 +18,14 @@ export default async function LigaDetailPage({
   if (!league) return notFound()
 
   // All of these only depend on `league`/`session` above, not on each other — run concurrently.
-  const [access, events, leagueCars, registrations, confirmations, initialPointsOverrides, teamsDashboard] = await Promise.all([
+  const [access, events, leagueCars, registrations, confirmations, initialPointsOverrides, initialCarPhotos, teamsDashboard] = await Promise.all([
     getAdminAccessContext(session?.userId),
     getLeagueEvents(league.id),
     getLeagueCars(league.id),
     getRegistrations(league.id),
     getEventConfirmations(league.id),
     getTeamPointsOverrides(league.id),
+    getCarPhotoOverrides(league.id),
     getTeamsDashboard(session?.userId),
   ])
   const isAdmin = access.canAccessPlatformAdmin
@@ -128,6 +129,7 @@ export default async function LigaDetailPage({
     id: t.id,
     name: t.name,
     logoUrl: t.logoUrl || null,
+    status: (t as any).status || 'approved',
     members: t.members.map((m) => ({
       userId: m.userId,
       displayName: m.displayName || (m as any).steamDisplayName || (m as any).steamId || m.userId,
@@ -173,6 +175,7 @@ export default async function LigaDetailPage({
       teamInfo={serializableTeamInfo}
       initialConfirmations={serializableConfirmations}
       initialPointsOverrides={initialPointsOverrides}
+      initialCarPhotos={initialCarPhotos}
     />
   )
 }

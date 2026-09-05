@@ -7,7 +7,7 @@
  */
 
 import { revalidatePath } from 'next/cache'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getTeamsDashboard } from '@/lib/team-data'
 
@@ -22,6 +22,7 @@ export async function createMarketListing(formData: FormData) {
   const classTag = String(formData.get('classTag') || 'ALL').trim().toUpperCase()
   const contactInfo = String(formData.get('contactInfo') || '').trim()
   const teamId = formData.get('teamId') ? String(formData.get('teamId')) : null
+  const leagueId = formData.get('leagueId') ? String(formData.get('leagueId')) : null
 
   if (!title || !description || !contactInfo) {
     throw new Error('Missing fields')
@@ -46,6 +47,12 @@ export async function createMarketListing(formData: FormData) {
   const countryCode = profile?.countryCode || 'ES'
   let teamName = ''
   let teamLogo = ''
+  let leagueTitle = ''
+
+  if (leagueId) {
+    const league = await db.league.findUnique({ where: { id: leagueId }, select: { title: true } })
+    leagueTitle = league?.title || ''
+  }
 
   if (type === 'team_seeking_driver' && teamId) {
     const team = await db.team.findUnique({ where: { id: teamId } })
@@ -66,6 +73,8 @@ export async function createMarketListing(formData: FormData) {
       teamId,
       teamName,
       teamLogo,
+      leagueId,
+      leagueTitle: leagueTitle || null,
       title,
       description,
       mainSim,
@@ -81,7 +90,10 @@ export async function deleteMarketListing(listingId: string) {
   const session = await getCurrentUser()
   if (!session) throw new Error('Unauthorized')
 
-  await db.marketListing.deleteMany({ where: { id: listingId, userId: session.userId } })
+  const access = await getAdminAccessContext(session.userId)
+  const where = access.canAccessPlatformAdmin ? { id: listingId } : { id: listingId, userId: session.userId }
+
+  await db.marketListing.deleteMany({ where })
 
   revalidatePath('/market')
 }

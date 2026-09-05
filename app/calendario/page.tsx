@@ -94,6 +94,9 @@ export default async function CalendarioPage({
     hasQualy: e.hasQualy ?? true,
     qualyStartsAt: e.qualyStartsAt ?? null,
     qualyEndsAt: e.qualyEndsAt ?? null,
+    color: e.color ?? null,
+    maxDrivers: e.maxDrivers ?? null,
+    classLimits: e.classLimits ?? null,
   }))
 
   const serializableNotes = notes.map((n) => ({

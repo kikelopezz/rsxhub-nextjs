@@ -16,6 +16,7 @@ interface TopNavProps {
   displayName?: string
   avatarUrl?: string
   notifications?: NotificationItem[]
+  marketBadgeCount?: number
 }
 
 function isActive(pathname: string, href: string) {
@@ -42,7 +43,7 @@ function SteamIcon() {
   )
 }
 
-export function TopNav({ signedIn, showAdmin, displayName, avatarUrl, notifications }: TopNavProps) {
+export function TopNav({ signedIn, showAdmin, displayName, avatarUrl, notifications, marketBadgeCount = 0 }: TopNavProps) {
   const pathname = usePathname()
   const dict = useDictionary()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -105,6 +106,11 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl, notificati
               }`}
             >
               {item.label}
+              {item.href === '/market' && marketBadgeCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#1274de] text-[10px] font-black text-white leading-none shadow-[0_0_12px_#00f0ff] ring-2 ring-cyan-400/80 animate-pulse">
+                  {marketBadgeCount > 9 ? '9+' : marketBadgeCount}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
@@ -152,10 +158,14 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl, notificati
           ) : (
             <div className="relative">
               <SteamLoginButton
-                className="group inline-flex items-center gap-2 rounded-full border border-[#4ea1ff]/40 bg-gradient-to-r from-[#1274de] to-[#0d5bb8] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white shadow-[0_0_16px_rgba(78,161,255,0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:border-[#8fc4ff] hover:shadow-[0_0_26px_rgba(78,161,255,0.9)] active:scale-90 cursor-pointer"
+                className="group relative inline-flex items-stretch overflow-hidden border border-[#4ea1ff]/50 bg-[#0a0f18] text-white shadow-[0_0_14px_rgba(78,161,255,0.35)] transition-all duration-200 [clip-path:polygon(9px_0,100%_0,100%_calc(100%-9px),calc(100%-9px)_100%,0_100%,0_9px)] hover:border-[#8fc4ff] hover:shadow-[0_0_24px_rgba(78,161,255,0.7)] active:scale-[0.97] cursor-pointer"
               >
-                <SteamIcon />
-                {dict.nav.signIn}
+                <span className="flex items-center justify-center bg-[#1274de] px-3 transition-colors group-hover:bg-[#1f82ee]">
+                  <SteamIcon />
+                </span>
+                <span className="flex items-center px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em]">
+                  {dict.nav.signIn}
+                </span>
               </SteamLoginButton>
 
               {showSignInHint && (
@@ -210,13 +220,18 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl, notificati
               <Link
                 key={item.label}
                 href={item.href}
-                className={`rounded-md border px-4 py-2.5 transition-all duration-200 active:scale-95 ${
+                className={`relative rounded-md border px-4 py-2.5 transition-all duration-200 active:scale-95 ${
                   isActive(pathname, item.href)
                     ? 'border-[#4ea1ff] bg-[#1274de] text-white shadow-[0_0_16px_rgba(78,161,255,0.6)]'
                     : 'border-transparent text-slate-300 hover:translate-x-1.5 hover:border-[#4ea1ff] hover:bg-white/10 hover:text-white hover:shadow-[0_0_14px_rgba(78,161,255,0.55)]'
                 }`}
               >
                 {item.label}
+                {item.href === '/market' && marketBadgeCount > 0 && (
+                  <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#1274de] text-[10px] font-black text-white leading-none shadow-[0_0_12px_#00f0ff] ring-2 ring-cyan-400/80">
+                    {marketBadgeCount > 9 ? '9+' : marketBadgeCount}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>
@@ -256,10 +271,14 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl, notificati
               </>
             ) : (
               <SteamLoginButton
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-[#4ea1ff]/40 bg-gradient-to-r from-[#1274de] to-[#0d5bb8] px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-white shadow-[0_0_16px_rgba(78,161,255,0.45)] transition-all duration-200 hover:border-[#8fc4ff] hover:shadow-[0_0_20px_rgba(78,161,255,0.75)] active:scale-95 cursor-pointer"
+                className="relative flex flex-1 items-stretch overflow-hidden border border-[#4ea1ff]/50 bg-[#0a0f18] text-white shadow-[0_0_14px_rgba(78,161,255,0.35)] transition-all duration-200 [clip-path:polygon(9px_0,100%_0,100%_calc(100%-9px),calc(100%-9px)_100%,0_100%,0_9px)] active:scale-[0.97] cursor-pointer"
               >
-                <SteamIcon />
-                {dict.nav.signIn}
+                <span className="flex items-center justify-center bg-[#1274de] px-3">
+                  <SteamIcon />
+                </span>
+                <span className="flex flex-1 items-center justify-center px-4 py-2.5 text-[12px] font-bold uppercase tracking-[0.14em]">
+                  {dict.nav.signIn}
+                </span>
               </SteamLoginButton>
             )}
             <LanguageSwitcher />

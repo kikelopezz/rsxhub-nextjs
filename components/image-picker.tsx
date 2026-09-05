@@ -12,10 +12,11 @@ interface ImagePickerProps {
   onChange?: (value: string) => void
   /** Team or league name used to build a stable, collision-free filename (e.g. "[name]-logo"). */
   entityName?: string
+  /** Logos/avatars are square (512x512) — banners are wide (3:1). Without this, every crop
+   *  frame and preview box defaulted to the wide banner ratio, so a square logo upload got
+   *  force-cropped into a 3:1 rectangle instead of staying square. */
+  square?: boolean
 }
-
-const FRAME_W = 720
-const FRAME_H = 240 // 3:1, matches the preview box aspect ratio below
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -25,10 +26,14 @@ function clamp(value: number, min: number, max: number) {
  *  lets the user pan it, then bakes the visible crop into a new image blob. */
 function RepositionModal({
   imageSrc,
+  frameW,
+  frameH,
   onCancel,
   onConfirm,
 }: {
   imageSrc: string
+  frameW: number
+  frameH: number
   onCancel: () => void
   onConfirm: (blob: Blob) => void
 }) {
@@ -45,12 +50,12 @@ function RepositionModal({
     if (!img) return
     const iw = img.naturalWidth
     const ih = img.naturalHeight
-    const scale = Math.max(FRAME_W / iw, FRAME_H / ih)
+    const scale = Math.max(frameW / iw, frameH / ih)
     const dw = iw * scale
     const dh = ih * scale
     setNatural({ w: iw, h: ih })
     setCoverScale(scale)
-    setOffset({ x: (FRAME_W - dw) / 2, y: (FRAME_H - dh) / 2 })
+    setOffset({ x: (frameW - dw) / 2, y: (frameH - dh) / 2 })
     setReady(true)
   }
 
@@ -59,11 +64,11 @@ function RepositionModal({
       const dw = natural.w * coverScale
       const dh = natural.h * coverScale
       return {
-        x: clamp(x, FRAME_W - dw, 0),
-        y: clamp(y, FRAME_H - dh, 0),
+        x: clamp(x, frameW - dw, 0),
+        y: clamp(y, frameH - dh, 0),
       }
     },
-    [natural, coverScale]
+    [natural, coverScale, frameW, frameH]
   )
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -88,14 +93,14 @@ function RepositionModal({
     setBaking(true)
     try {
       const canvas = document.createElement('canvas')
-      canvas.width = FRAME_W * 2
-      canvas.height = FRAME_H * 2
+      canvas.width = frameW * 2
+      canvas.height = frameH * 2
       const ctx = canvas.getContext('2d')
       if (!ctx) throw new Error('Canvas not supported')
       const sx = -offset.x / coverScale
       const sy = -offset.y / coverScale
-      const sw = FRAME_W / coverScale
-      const sh = FRAME_H / coverScale
+      const sw = frameW / coverScale
+      const sh = frameH / coverScale
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
       canvas.toBlob(
         (blob) => {
@@ -127,7 +132,7 @@ function RepositionModal({
 
         <div
           className="hud-corners relative mx-auto touch-none select-none overflow-hidden border-2 border-[#4ea1ff] bg-black/60"
-          style={{ width: '100%', aspectRatio: `${FRAME_W} / ${FRAME_H}`, cursor: ready ? 'grab' : 'default' }}
+          style={{ width: '100%', aspectRatio: `${frameW} / ${frameH}`, cursor: ready ? 'grab' : 'default' }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -144,10 +149,10 @@ function RepositionModal({
               ready
                 ? {
                     position: 'absolute',
-                    left: `${(offset.x / FRAME_W) * 100}%`,
-                    top: `${(offset.y / FRAME_H) * 100}%`,
-                    width: `${((natural.w * coverScale) / FRAME_W) * 100}%`,
-                    height: `${((natural.h * coverScale) / FRAME_H) * 100}%`,
+                    left: `${(offset.x / frameW) * 100}%`,
+                    top: `${(offset.y / frameH) * 100}%`,
+                    width: `${((natural.w * coverScale) / frameW) * 100}%`,
+                    height: `${((natural.h * coverScale) / frameH) * 100}%`,
                     maxWidth: 'none',
                   }
                 : { opacity: 0, position: 'absolute' }
@@ -189,7 +194,10 @@ function RepositionModal({
   )
 }
 
-export function ImagePicker({ name, defaultValue = '', label = 'League Banner Image', hideGallery = false, onChange, entityName }: ImagePickerProps) {
+export function ImagePicker({ name, defaultValue = '', label = 'League Banner Image', hideGallery = false, onChange, entityName, square = false }: ImagePickerProps) {
+  const frameW = square ? 512 : 720
+  const frameH = square ? 512 : 240
+  const aspectClass = square ? 'aspect-square' : 'aspect-[3/1]'
   const [images, setImages] = useState<string[]>([])
   const [selected, setSelected] = useState<string>(defaultValue)
   const [loadingList, setLoadingList] = useState(true)
@@ -355,12 +363,12 @@ export function ImagePicker({ name, defaultValue = '', label = 'League Banner Im
 
       {/* Selected Preview Box */}
       {selected ? (
-        <div className="hud-corners relative aspect-[3/1] w-full border border-shell-line bg-black/40 overflow-hidden group">
+        <div className={`hud-corners relative ${aspectClass} w-full ${square ? 'max-w-[220px]' : ''} border border-shell-line bg-black/40 overflow-hidden group`}>
           <Image
             src={selected}
-            alt="Selected Banner Preview"
+            alt={square ? 'Selected Logo Preview' : 'Selected Banner Preview'}
             fill
-            sizes="(max-width: 768px) 100vw, 500px"
+            sizes={square ? '220px' : '(max-width: 768px) 100vw, 500px'}
             quality={90}
             className="object-cover object-center"
           />
@@ -385,7 +393,7 @@ export function ImagePicker({ name, defaultValue = '', label = 'League Banner Im
           </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center aspect-[3/1] w-full border border-dashed border-white/10 bg-black/20 text-center p-4">
+        <div className={`flex flex-col items-center justify-center ${aspectClass} w-full ${square ? 'max-w-[220px]' : ''} border border-dashed border-white/10 bg-black/20 text-center p-4`}>
           <span className="text-xs text-slate-400">{hideGallery ? 'No logo selected.' : 'No banner selected.'}</span>
           <span className="text-[10px] text-slate-500 mt-1">{hideGallery ? 'Upload a team logo image to get started.' : 'Select an image below or upload a new one.'}</span>
         </div>
@@ -446,6 +454,8 @@ export function ImagePicker({ name, defaultValue = '', label = 'League Banner Im
       {repositionSrc && (
         <RepositionModal
           imageSrc={repositionSrc}
+          frameW={frameW}
+          frameH={frameH}
           onCancel={() => setRepositionSrc(null)}
           onConfirm={handleRepositionConfirm}
         />

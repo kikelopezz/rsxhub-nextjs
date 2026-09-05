@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { toast } from 'sonner'
 import JSZip from 'jszip'
 import { Calendar, Clock, Plus, Edit2, Trash2, Users, CheckCircle2, Trophy, Eye, Copy, Check, X, FolderDown } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
@@ -121,7 +122,7 @@ export function LeagueSchedule({
                     </div>
 
                     <div
-                      className={`relative flex-1 space-y-3 rounded-xl border p-4 transition-colors ${
+                      className={`relative flex-1 space-y-3 overflow-hidden rounded-xl border p-4 transition-colors ${
                         isCompleted
                           ? 'border-white/5 bg-black/20 opacity-90'
                           : 'border-white/10 bg-black/30'
@@ -459,8 +460,10 @@ export function LeagueSchedule({
 
                                         if (wasConfirmed) {
                                           await cancelAttendanceAction(fd)
+                                          toast.success(`#${dorsalDisplay} ${tag} unconfirmed`)
                                         } else {
                                           await confirmAttendanceAction(fd)
+                                          toast.success(`#${dorsalDisplay} ${tag} confirmed`)
                                         }
                                         router.refresh()
                                       } catch (err: any) {

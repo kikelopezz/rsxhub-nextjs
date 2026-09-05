@@ -116,7 +116,7 @@ export function LeagueCard({
 
           <div className="mt-auto flex items-center justify-between text-[10px] text-slate-500">
             <span className="font-mono-data">{registeredCount} {registeredCount === 1 ? 'equipo inscrito' : 'equipos inscritos'}</span>
-            <span className="font-bold uppercase tracking-wider text-[#4ea1ff] transition-transform group-hover:translate-x-0.5">Ver liga →</span>
+            <span className="font-bold uppercase tracking-wider text-[#4ea1ff] transition-transform group-hover:translate-x-0.5">Ver campeonato →</span>
           </div>
         </div>
       </article>

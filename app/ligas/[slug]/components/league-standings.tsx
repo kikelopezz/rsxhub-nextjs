@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Trophy, ChevronUp, ChevronDown, Upload } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
 import { TeamStanding } from '../hooks/use-league-state'
@@ -15,7 +16,7 @@ interface LeagueStandingsProps {
   standingsIndices: Record<string, number>
   customCarImages: Record<string, string>
   onScrollStandings: (tag: string, direction: 'up' | 'down') => void
-  onCarImageUpload: (carKey: string, file: File) => void
+  onCarImageUpload: (classTag: string, teamId: string, carNumber: string, file: File) => void
   onUpdateTeamPoints?: (tag: string, teamId: string, carNumber: string, newPoints: number) => void
 }
 
@@ -110,7 +111,7 @@ export function LeagueStandings({
             return (
               <div
                 key={team.id}
-                className="grid grid-cols-[44px_36px_1fr_auto] items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-white/[0.02] md:grid-cols-[44px_36px_1fr_144px_auto]"
+                className="grid grid-cols-[44px_36px_1fr_auto] items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-white/[0.02] md:grid-cols-[44px_36px_1fr_256px_auto]"
               >
                 <span className="font-display-league text-center text-2xl leading-none" style={{ color: posColor }}>
                   {originalIdx + 1}
@@ -145,7 +146,7 @@ export function LeagueStandings({
                 {isAdmin ? (
                   <label
                     title={t.uploadCarPhoto}
-                    className="group relative hidden h-16 w-36 shrink-0 cursor-pointer items-center justify-center overflow-hidden transition-opacity hover:opacity-90 md:flex"
+                    className="group relative hidden h-28 w-64 shrink-0 cursor-pointer items-center justify-center overflow-visible transition-opacity hover:opacity-90 md:flex"
                   >
                     <input
                       type="file"
@@ -153,32 +154,36 @@ export function LeagueStandings({
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0]
-                        if (file) onCarImageUpload(carKey, file)
+                        if (file) onCarImageUpload(tag, team.teamId || '', String(team.assignedNumber ?? ''), file)
                       }}
                     />
                     <Image
                       src={customCarImages[carKey] || team.carImageUrl || '/branding/lateral-car.png'}
                       alt="Vehicle side profile"
                       fill
-                      sizes="144px"
+                      sizes="256px"
                       quality={90}
-                      className="scale-125 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] transition-transform group-hover:scale-[1.35]"
+                      className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] transition-transform group-hover:scale-105"
                     />
                     <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/80 text-[9px] font-black uppercase text-[#4ea1ff] opacity-0 transition-opacity group-hover:opacity-100">
                       <Upload className="h-3.5 w-3.5" /> {t.change}
                     </div>
                   </label>
                 ) : (
-                  <div className="relative hidden h-16 w-36 shrink-0 items-center justify-center overflow-hidden md:flex">
+                  <Link
+                    href={`/equipos/${team.teamId || team.id}`}
+                    title={team.name}
+                    className="relative hidden h-28 w-64 shrink-0 items-center justify-center transition-transform hover:scale-105 md:flex"
+                  >
                     <Image
                       src={customCarImages[carKey] || team.carImageUrl || '/branding/lateral-car.png'}
                       alt="Vehicle side profile"
                       fill
-                      sizes="144px"
+                      sizes="256px"
                       quality={90}
-                      className="scale-125 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                      className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
                     />
-                  </div>
+                  </Link>
                 )}
 
                 {canEditPoints ? (

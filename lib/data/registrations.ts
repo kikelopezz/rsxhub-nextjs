@@ -251,3 +251,18 @@ export const getTeamPointsOverrides = cache(async (leagueId: string): Promise<Re
   }
   return pointsMap
 })
+
+// Keyed the same way as getTeamPointsOverrides — the standings ladder's uploaded car
+// side-profile photo belongs to a specific car, not the team as a whole.
+export const getCarPhotoOverrides = cache(async (leagueId: string): Promise<Record<string, string>> => {
+  const photoMap: Record<string, string> = {}
+  try {
+    const rows = await db.leagueCarPhoto.findMany({ where: { leagueId } })
+    for (const row of rows) {
+      photoMap[`${row.classTag.toUpperCase()}_${row.teamId}_${row.carNumber}`] = row.imageUrl
+    }
+  } catch (err) {
+    console.error('Failed to get car photos:', err)
+  }
+  return photoMap
+})

@@ -38,6 +38,18 @@ export async function registerTeamAction(formData: FormData) {
     include: { cars: { include: { drivers: true } } },
   })
 
+  if (!team) throw new Error('Team not found.')
+
+  // A brand-new team starts as "pending" until a platform admin approves it — it can't
+  // register for a championship until then.
+  if (team.status !== 'approved') {
+    throw new Error(
+      team.status === 'rejected'
+        ? 'This team has been rejected and cannot register for championships.'
+        : 'This team is still pending admin approval and cannot register for championships yet.'
+    )
+  }
+
   // Find all cars in the team's workshop that match the league's classTags
   const matchingCars = (team?.cars || []).filter((car) => {
     if (!car.category) return false

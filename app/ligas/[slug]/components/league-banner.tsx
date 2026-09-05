@@ -59,18 +59,20 @@ export function LeagueBanner({
           />
         )}
 
-        <div className="absolute inset-0 flex min-h-[92px] flex-wrap items-center justify-between gap-4 p-4 md:px-6 md:py-5">
-        <div className="flex min-w-0 items-center gap-4">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#0a0f18]">
-            <Image
-              src={league.simulator === 'ac' ? '/branding/ACLogo.png' : '/branding/LMULogo.png'}
-              alt={league.simulator}
-              width={30}
-              height={30}
-              className="h-full w-full object-contain p-1"
-            />
-          </span>
+        {/* Game logo — top-right, white chip (same convention as the league card), sized
+            up slightly from the card version since the banner has more room to spare. */}
+        <span className="absolute right-3 top-3 z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-white p-2 shadow-md">
+          <Image
+            src={league.simulator === 'ac' ? '/branding/ACLogo.png' : '/branding/LMULogo.png'}
+            alt={league.simulator}
+            width={44}
+            height={44}
+            className="h-full w-full object-contain"
+          />
+        </span>
 
+        <div className="absolute inset-0 flex min-h-[92px] flex-wrap items-center justify-between gap-4 p-4 pr-20 md:py-5 md:pl-6 md:pr-24">
+        <div className="flex min-w-0 items-center gap-4">
           <div className="min-w-0">
             <h1 className="font-display-league truncate text-3xl uppercase leading-none text-white md:text-4xl">
               {league.title}

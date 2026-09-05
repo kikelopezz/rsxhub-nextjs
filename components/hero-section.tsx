@@ -28,7 +28,13 @@ export function HeroSection({ driversCount, leaguesCount, simulatorsCount, races
   }, [slides.length])
 
   return (
-    <div className="-mx-10 -mt-[92px] -mb-16 md:-mx-20 md:-mt-[100px] md:-mb-24 w-auto overflow-hidden">
+    // Only the top margin cancels `main`'s own padding here (so the hero bleeds full-bleed
+    // under the fixed header) — there used to be a matching negative bottom margin too, back
+    // when the hero was the last thing on the page. Now HomeNewsSection follows it, and that
+    // negative bottom margin pulled the news section's heading up into the hero's own
+    // gradient tail, visually "cutting" it. `main`'s bottom padding only applies after the
+    // last child anyway, so the hero doesn't need to cancel it.
+    <div className="-mx-10 -mt-[92px] md:-mx-20 md:-mt-[100px] w-auto overflow-hidden">
       {/* Banner de Hero Carousel - Altura completa y ancho de pantalla, por detrás del header */}
       <section className="relative h-screen min-h-[600px] w-full overflow-hidden">
         {/* Contenedor de las Slides (Cross-fade) */}

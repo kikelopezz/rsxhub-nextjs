@@ -11,6 +11,8 @@ import {
   Shield
 } from 'lucide-react'
 import { getLocale } from '@/lib/i18n/get-locale'
+import { getLatestNewsPosts, type NewsPostDTO } from '@/lib/news-data'
+import { HomeNewsSection } from '@/components/home-news-section'
 
 export async function generateMetadata() {
   const locale = await getLocale()
@@ -20,11 +22,15 @@ export async function generateMetadata() {
 }
 
 export default async function AboutPage() {
-  const locale = await getLocale()
-  return <div className="space-y-10 text-white pb-16">{locale === 'en' ? <ContentEn /> : <ContentEs />}</div>
+  const [locale, newsPosts] = await Promise.all([getLocale(), getLatestNewsPosts(3)])
+  return (
+    <div className="space-y-10 text-white pb-16">
+      {locale === 'en' ? <ContentEn newsPosts={newsPosts} /> : <ContentEs newsPosts={newsPosts} />}
+    </div>
+  )
 }
 
-function ContentEs() {
+function ContentEs({ newsPosts }: { newsPosts: NewsPostDTO[] }) {
   return (
     <>
       {/* 1. Hero Section with Daytona background */}
@@ -129,6 +135,9 @@ function ContentEs() {
           </div>
         </div>
       </section>
+
+      {/* News */}
+      <HomeNewsSection posts={newsPosts} />
 
       {/* 3. Our Services Section */}
       <section className="space-y-6">
@@ -250,7 +259,7 @@ function ContentEs() {
   )
 }
 
-function ContentEn() {
+function ContentEn({ newsPosts }: { newsPosts: NewsPostDTO[] }) {
   return (
     <>
       {/* 1. Hero Section with Daytona background */}
@@ -356,6 +365,9 @@ function ContentEn() {
           </div>
         </div>
       </section>
+
+      {/* News */}
+      <HomeNewsSection posts={newsPosts} />
 
       {/* 3. Our Services Section */}
       <section className="space-y-6">

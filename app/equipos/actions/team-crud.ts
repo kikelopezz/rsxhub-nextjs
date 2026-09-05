@@ -42,6 +42,10 @@ export async function createTeam(formData: FormData) {
   const slogan = String(formData.get('slogan') || '').trim()
   const discordUrl = String(formData.get('discordUrl') || '').trim()
   const youtubeUrl = String(formData.get('youtubeUrl') || '').trim()
+  const instagramUrl = String(formData.get('instagramUrl') || '').trim()
+  const twitterUrl = String(formData.get('twitterUrl') || '').trim()
+  const twitchUrl = String(formData.get('twitchUrl') || '').trim()
+  const tiktokUrl = String(formData.get('tiktokUrl') || '').trim()
 
   if (!name) redirect('/equipos?error=name-required')
 
@@ -61,6 +65,10 @@ export async function createTeam(formData: FormData) {
       slogan: slogan || null,
       discordUrl: discordUrl || null,
       youtubeUrl: youtubeUrl || null,
+      instagramUrl: instagramUrl || null,
+      twitterUrl: twitterUrl || null,
+      twitchUrl: twitchUrl || null,
+      tiktokUrl: tiktokUrl || null,
       status: 'pending',
       skinAssignments: {
         create: skinProfiles.map((p) => ({ leagueSlug: p.leagueSlug, skinUrl: p.skinUrl, carNumber: p.carNumber || null })),
@@ -70,7 +78,7 @@ export async function createTeam(formData: FormData) {
           userId: session.userId,
           role: 'owner',
           displayName: session.steamDisplayName || 'Team Leader',
-          steamId: session.userId.replace('steam_', ''),
+          steamId: session.steamId,
           avatarUrl: session.avatarUrl || null,
         },
       },

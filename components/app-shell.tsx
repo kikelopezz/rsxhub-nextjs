@@ -11,16 +11,28 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   // other — run them together instead of one after another. Fetching notifications here
   // (instead of only client-side on mount) means the nav bell doesn't need to make its
   // own network round-trip on every single page load.
-  const [access, profile, notifications] = await Promise.all([
+  const [access, profile, notifications, teamMembership, ownedTeam] = await Promise.all([
     getAdminAccessContext(user?.userId),
     user
       ? db.profile.findUnique({ where: { userId: user.userId } }).catch(() => null)
       : Promise.resolve(null),
     user ? getUserNotifications(user.userId) : Promise.resolve([]),
+    user ? db.teamMember.findFirst({ where: { userId: user.userId }, select: { id: true } }).catch(() => null) : Promise.resolve(null),
+    user ? db.team.findFirst({ where: { ownerUserId: user.userId }, select: { id: true } }).catch(() => null) : Promise.resolve(null),
   ])
 
   const displayName = profile?.displayName || user?.steamDisplayName
   const avatarUrl = profile?.avatarUrl || user?.avatarUrl
+
+  // The market nav badge only makes sense for drivers without a team — a team owner
+  // already manages invites/applications from their own team page, so counting pending
+  // team invites here (the thing that would actually pull a driverless user into /market)
+  // is only worth the extra query when it can show something.
+  const hasTeam = Boolean(teamMembership || ownedTeam)
+  const marketBadgeCount =
+    user && !hasTeam
+      ? await db.teamInvite.count({ where: { invitedUserId: user.userId, status: 'pending' } }).catch(() => 0)
+      : 0
 
   return (
     <div className="min-h-screen bg-shell flex flex-col">
@@ -41,6 +53,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               displayName={displayName}
               avatarUrl={avatarUrl}
               notifications={notifications}
+              marketBadgeCount={marketBadgeCount}
             />
           </div>
         </header>

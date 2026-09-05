@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, X, Send, Shield, User, Check, AlertCircle } from 'lucide-react'
+import { toast } from 'sonner'
+import { Plus, X, Send, Shield, User, Check, AlertCircle, MessageSquare, Trash2 } from 'lucide-react'
+import Image from 'next/image'
 import {
   createMarketListing,
   deleteMarketListing,
@@ -12,6 +14,9 @@ import {
 } from './actions'
 import { MarketDriverCards, Listing, ManagedTeam } from './components/market-driver-cards'
 import { MarketTeamOffers, MarketApplication } from './components/market-team-offers'
+import { ClassBadge } from '@/components/class-badge'
+import { simulatorLabel } from '@/lib/utils'
+import { getCountryFlagUrl, getCountryName } from '@/lib/countries'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
 type MarketInvite = {
@@ -37,6 +42,8 @@ type Props = {
   applications: MarketApplication[]
   invites: MarketInvite[]
   belongsToTeam?: boolean
+  leagues?: { id: string; title: string }[]
+  isAdmin?: boolean
 }
 
 const CLASS_OPTIONS = ['ALL', 'GT3', 'HYPERCAR', 'FORMULA', 'LMP2']
@@ -47,7 +54,9 @@ export default function MarketPageContent({
   myTeams,
   applications,
   invites,
-  belongsToTeam = false
+  belongsToTeam = false,
+  leagues = [],
+  isAdmin = false
 }: Props) {
   const router = useRouter()
   const tr = useDictionary().market.content
@@ -74,6 +83,7 @@ export default function MarketPageContent({
 
   const [formSim, setFormSim] = useState<'ac' | 'lmu'>('ac')
   const [selectedClasses, setSelectedClasses] = useState<string[]>(['GT3'])
+  const [formLeagueId, setFormLeagueId] = useState<string>('')
   const [formTeamId, setFormTeamId] = useState(myTeams[0]?.id || '')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -83,6 +93,7 @@ export default function MarketPageContent({
   const [applyMessage, setApplyMessage] = useState('')
   const [activeInviteListingId, setActiveInviteListingId] = useState<string | null>(null)
   const [inviteMessage, setInviteMessage] = useState('')
+  const [viewingListing, setViewingListing] = useState<Listing | null>(null)
 
   const handleClassToggle = (tag: string) => {
     setSelectedClasses((prev) => {
@@ -121,6 +132,7 @@ export default function MarketPageContent({
     formData.set('type', formType)
     formData.set('mainSim', formSim)
     formData.set('classTag', selectedClasses.join(','))
+    if (formLeagueId) formData.set('leagueId', formLeagueId)
     if (formType === 'team_seeking_driver') {
       formData.set('teamId', formTeamId || myTeams[0]?.id || '')
     }
@@ -128,6 +140,8 @@ export default function MarketPageContent({
     try {
       await createMarketListing(formData)
       setIsModalOpen(false)
+      toast.success('Listing published')
+      router.refresh()
     } catch (err: any) {
       setErrorMessage(err.message || tr.createListingFailed)
     } finally {
@@ -139,6 +153,9 @@ export default function MarketPageContent({
     if (confirm(tr.deleteListingConfirm)) {
       try {
         await deleteMarketListing(id)
+        setViewingListing((prev) => (prev?.id === id ? null : prev))
+        toast.success('Listing deleted')
+        router.refresh()
       } catch (err) {
         alert(tr.deleteListingFailed)
       }
@@ -153,6 +170,7 @@ export default function MarketPageContent({
       await applyToTeamListingAction(applyingListingId, applyMessage)
       setApplyingListingId(null)
       setApplyMessage('')
+      toast.success('Application sent')
     } catch (err: any) {
       alert(err.message || tr.applyErrorGeneric)
     } finally {
@@ -168,6 +186,7 @@ export default function MarketPageContent({
       await inviteDriverFromListingAction(activeInviteListingId, myTeams[0].id, inviteMessage)
       setActiveInviteListingId(null)
       setInviteMessage('')
+      toast.success('Invitation sent')
     } catch (err: any) {
       alert(err.message || tr.inviteErrorGeneric)
     } finally {
@@ -322,9 +341,11 @@ export default function MarketPageContent({
           currentUserId={currentUser?.userId}
           applications={myApps}
           belongsToTeam={belongsToTeam || hasOwnedTeam}
+          isAdmin={isAdmin}
           onDeleteListing={handleDelete}
           onApplyClick={(id) => setApplyingListingId(id)}
           onWithdrawApplication={handleWithdrawApplication}
+          onViewListing={setViewingListing}
         />
       ) : (
         <MarketDriverCards
@@ -332,8 +353,10 @@ export default function MarketPageContent({
           currentUserId={currentUser?.userId}
           myTeams={myTeams}
           invites={invites}
+          isAdmin={isAdmin}
           onDeleteListing={handleDelete}
           onInviteClick={(id) => setActiveInviteListingId(id)}
+          onViewListing={setViewingListing}
         />
       )}
 
@@ -459,6 +482,24 @@ export default function MarketPageContent({
                   </div>
                 </div>
               </div>
+
+              {leagues.length > 0 && (
+                <div>
+                  <label className="mb-0.5 block text-[11px] text-slate-300 uppercase font-bold tracking-wider">{tr.championship}</label>
+                  <select
+                    value={formLeagueId}
+                    onChange={(e) => setFormLeagueId(e.target.value)}
+                    className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-1.5 text-xs text-white outline-none font-bold focus:border-accent transition-colors"
+                  >
+                    <option value="">{tr.championshipNone}</option>
+                    {leagues.map((lg) => (
+                      <option key={lg.id} value={lg.id}>
+                        {lg.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="mb-0.5 block text-[11px] text-slate-300 uppercase font-bold tracking-wider">{tr.bioDescription}</label>
@@ -605,6 +646,142 @@ export default function MarketPageContent({
           </div>
         </div>
       )}
+
+      {/* Listing Detail Modal — full, untruncated view of a listing, who posted it, which
+          team it belongs to (for team offers), and an admin-only delete for moderation. */}
+      {viewingListing && (() => {
+        const listing = viewingListing
+        const isOwner = currentUser?.userId === listing.user_id
+        const isTeamListing = listing.type === 'team_seeking_driver'
+        const classes = String(listing.class_tag || '')
+          .split(',')
+          .map((t) => t.trim().toUpperCase())
+          .filter(Boolean)
+        const flagUrl = getCountryFlagUrl(listing.country_code || listing.countryCode || 'ES')
+
+        return (
+          <div className="fixed inset-0 z-50 overflow-y-auto flex justify-center items-start md:items-center bg-black/85 p-4 backdrop-blur-sm animate-fade-in">
+            <div className="shell-panel border border-shell-line bg-[#090d16] max-w-lg w-full p-6 text-white rounded-lg relative shadow-2xl space-y-5 my-auto">
+              <button onClick={() => setViewingListing(null)} className="absolute top-5 right-5 text-slate-400 hover:text-white cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+
+              {isTeamListing ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-shell-line bg-black/40 p-1.5">
+                    {listing.team_logo ? (
+                      <Image src={listing.team_logo} alt={listing.team_name || ''} width={48} height={48} unoptimized className="h-full w-full object-contain" />
+                    ) : (
+                      <Shield className="h-5 w-5 text-accent" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-white">{listing.team_name || 'Equipo'}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500">Equipo que publica</p>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-shell-line bg-slate-800">
+                  <Image
+                    src={listing.user_avatar || `https://placehold.co/36x36/0a1220/ffffff?text=${(listing.user_name || 'D').slice(0, 2).toUpperCase()}`}
+                    alt={listing.user_name}
+                    width={36}
+                    height={36}
+                    unoptimized
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-bold text-white">{listing.user_name}</p>
+                  <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500">
+                    {flagUrl && (
+                      <span className="relative h-2.5 w-3.5 shrink-0 overflow-hidden rounded-sm">
+                        <Image src={flagUrl} alt="" fill className="object-cover" />
+                      </span>
+                    )}
+                    {isTeamListing ? 'Publicado por' : getCountryName(listing.country_code || listing.countryCode || 'ES')}
+                  </p>
+                </div>
+                <span
+                  className="font-mono-data text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border border-accent/40 text-accent"
+                >
+                  {simulatorLabel(listing.main_sim)}
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold tracking-tight text-white">{listing.title}</h3>
+                <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-slate-300">{listing.description}</p>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {classes.map((cls) => (
+                  <ClassBadge key={cls} classTag={cls} />
+                ))}
+                {listing.league_title && (
+                  <span className="inline-flex items-center rounded px-2 py-0.5 font-mono-data text-[10px] font-semibold uppercase tracking-wider text-slate-300 border border-white/15 bg-white/5">
+                    {listing.league_title}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 rounded-lg border border-shell-line bg-black/30 px-3 py-2.5 text-xs text-slate-300 font-mono-data">
+                <MessageSquare className="h-3.5 w-3.5 shrink-0 text-accent" />
+                <span className="truncate">{listing.contact_info}</span>
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-3 border-t border-shell-line pt-4">
+                {(isOwner || isAdmin) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(listing.id)}
+                    className="mr-auto flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs font-bold uppercase text-rose-300 transition-colors hover:bg-rose-500/20 cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {isAdmin && !isOwner ? tr.deleteListingAdmin : tr.deleteListing}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setViewingListing(null)}
+                  className="rounded-lg border border-shell-line px-4 py-2 text-xs font-bold uppercase hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  {tr.cancel}
+                </button>
+                {!isOwner && currentUser && (
+                  isTeamListing ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setViewingListing(null)
+                        setApplyingListingId(listing.id)
+                      }}
+                      className="rounded-lg bg-[#1274de] hover:bg-[#1f82ee] text-white font-bold px-5 py-2 text-xs uppercase transition-colors cursor-pointer"
+                    >
+                      {tr.applyToTeamOffer}
+                    </button>
+                  ) : (
+                    hasOwnedTeam && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setViewingListing(null)
+                          setActiveInviteListingId(listing.id)
+                        }}
+                        className="rounded-lg bg-[#1274de] hover:bg-[#1f82ee] text-white font-bold px-5 py-2 text-xs uppercase transition-colors cursor-pointer"
+                      >
+                        {tr.inviteDriverToTeam}
+                      </button>
+                    )
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

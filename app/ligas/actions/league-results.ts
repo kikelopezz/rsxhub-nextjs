@@ -86,3 +86,33 @@ export async function updateTeamPointsAction(formData: FormData) {
     revalidatePath(`/ligas/${slug}`)
   }
 }
+
+export async function updateCarPhotoAction(formData: FormData) {
+  const session = await getCurrentUser()
+  if (!session) throw new Error('Unauthorized')
+
+  const access = await getAdminAccessContext(session.userId)
+  const isSteward = canStewardLeague(access.platformRole)
+  if (!access.canAccessPlatformAdmin && !isSteward) {
+    throw new Error('Unauthorized: Only Admins and Stewards can change car photos.')
+  }
+
+  const leagueId = String(formData.get('leagueId') || '').trim()
+  const classTag = String(formData.get('classTag') || 'GT3').trim().toUpperCase()
+  const teamId = String(formData.get('teamId') || '').trim()
+  const carNumber = String(formData.get('carNumber') || '').trim()
+  const imageUrl = String(formData.get('imageUrl') || '').trim()
+  const slug = String(formData.get('slug') || '')
+
+  if (!leagueId || !teamId || !imageUrl) throw new Error('Missing parameters')
+
+  await db.leagueCarPhoto.upsert({
+    where: { leagueId_classTag_teamId_carNumber: { leagueId, classTag, teamId, carNumber } },
+    create: { leagueId, classTag, teamId, carNumber, imageUrl, updatedBy: session.userId },
+    update: { imageUrl, updatedBy: session.userId },
+  })
+
+  if (slug) {
+    revalidatePath(`/ligas/${slug}`)
+  }
+}

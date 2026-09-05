@@ -312,7 +312,7 @@ export default function LigasPageContent({
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-semibold uppercase text-slate-300">Color de liga</label>
+                      <label className="mb-1 block text-xs font-semibold uppercase text-slate-300">Color de campeonato</label>
                       <div className="space-y-2 rounded-lg border border-white/10 bg-black/40 p-2.5">
                         <div className="flex flex-wrap items-center gap-2">
                           {[
@@ -408,7 +408,7 @@ export default function LigasPageContent({
                     </h3>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <ImagePicker name="bannerUrl" defaultValue="" label={t.createModal.bannerLabel} entityName={newLeagueTitle} />
-                      <ImagePicker name="logoUrl" defaultValue="" label={t.createModal.logoLabel} entityName={newLeagueTitle} />
+                      <ImagePicker name="logoUrl" defaultValue="" label={t.createModal.logoLabel} entityName={newLeagueTitle} square />
                     </div>
                   </div>
 

@@ -1,10 +1,32 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Search, Check, ChevronRight, ChevronLeft, Gauge, Flag, Zap, LayoutGrid } from 'lucide-react'
+import { Search, Check, ChevronRight, ChevronLeft, Gauge, Flag, Zap, LayoutGrid, Download, FolderArchive } from 'lucide-react'
 import { CenterModal } from '@/components/center-modal'
+import { listCarCatalogFilesAction } from '@/app/admin/actions/admin-catalog'
+import type { CatalogFile } from '@/lib/admin-catalog'
 import type { VehicleModelOption } from './team-cars-editor/types'
+
+function normalizeForMatch(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+// Best-effort match between a car model and an uploaded catalog file — the catalog is just
+// admin-uploaded ZIPs named however the admin named them, so this can't be a guaranteed FK
+// join. Matching on the AC folder name (a stable, unique identifier) first, falling back to
+// the display name, covers the common "named the zip after the mod" case without being
+// fooled by short substrings.
+function findCatalogMatch(vehicle: VehicleModelOption, files: CatalogFile[]): CatalogFile | null {
+  const folder = normalizeForMatch(vehicle.acFolder)
+  const name = normalizeForMatch(vehicle.name)
+  return (
+    files.find((f) => {
+      const fileName = normalizeForMatch(f.name)
+      return (folder.length > 3 && fileName.includes(folder)) || (name.length > 3 && fileName.includes(name))
+    }) || null
+  )
+}
 
 // Default list of car models with their real Assetto Corsa folder names — this is the
 // actual "ACF" pack the league races on. Folder names were verified one by one against
@@ -14,18 +36,14 @@ import type { VehicleModelOption } from './team-cars-editor/types'
 export const DEFAULT_VEHICLE_MODELS: VehicleModelOption[] = [
   // GT3 — raced in both ERC and ERC NEXT GEN
   { id: 'gt3_aston_vantage_evo', name: 'Aston Martin Vantage GT3 EVO 2024', acFolder: 'acf_aston_martin_vantage_gt3_evo', category: 'GT3', manufacturer: 'Aston Martin', imageUrl: '/vehicles/gt3_aston_vantage_evo.jpg' },
-  { id: 'gt3_audi_r8_lms_evo2', name: 'Audi R8 LMS EVO II 2021', acFolder: 'fsr_audi_lms_evo_2_gt3', category: 'GT3', manufacturer: 'Audi', imageUrl: '/vehicles/gt3_audi_r8_lms_evo2.jpg' },
-  { id: 'gt3_bentley_continental', name: 'Bentley Continental GT3 2018', acFolder: 'bentley_continental_gt3_18', category: 'GT3', manufacturer: 'Bentley', imageUrl: '/vehicles/gt3_bentley_continental.jpg' },
   { id: 'gt3_bmw_m4', name: 'BMW M4 GT3 2021', acFolder: 'ks_bmw_m4_gt3_2022', category: 'GT3', manufacturer: 'BMW', imageUrl: '/vehicles/gt3_bmw_m4.jpg' },
   { id: 'gt3_corvette_z06', name: 'Chevrolet Corvette Z06 GT3R 2024', acFolder: 'corvette_z06_gt3_2024', category: 'GT3', manufacturer: 'Chevrolet', imageUrl: '/vehicles/gt3_corvette_z06.jpg' },
   { id: 'gt3_ferrari_296', name: 'Ferrari 296 GT3 2023', acFolder: 'ks_ferrari_296_gt3_2023', category: 'GT3', manufacturer: 'Ferrari', imageUrl: '/vehicles/gt3_ferrari_296.jpg' },
   { id: 'gt3_ford_mustang', name: 'Ford Mustang GT3 2024', acFolder: 'ford_mustang_gt3_2024', category: 'GT3', manufacturer: 'Ford', imageUrl: '/vehicles/gt3_ford_mustang.jpg' },
-  { id: 'gt3_honda_nsx_evo', name: 'Honda NSX GT3 EVO 2019', acFolder: 'ac_friends_honda_nsx_gt3_evo', category: 'GT3', manufacturer: 'Honda', imageUrl: '/vehicles/gt3_honda_nsx_evo.jpg' },
   { id: 'gt3_lamborghini_huracan_evo2', name: 'Lamborghini Huracan GT3 EVO II 2023', acFolder: 'lamborghini_huracan_evo2_gt3', category: 'GT3', manufacturer: 'Lamborghini', imageUrl: '/vehicles/gt3_lamborghini_huracan_evo2.jpg' },
   { id: 'gt3_lexus_rcf', name: 'Lexus RC F GT3 2016', acFolder: 'ng_lexus_r_cf_gt3', category: 'GT3', manufacturer: 'Lexus', imageUrl: '/vehicles/gt3_lexus_rcf.jpg' },
   { id: 'gt3_mclaren_720s_evo', name: 'McLaren 720S GT3 EVO 2023', acFolder: 'mclaren_720s_gt3_evo', category: 'GT3', manufacturer: 'McLaren', imageUrl: '/vehicles/gt3_mclaren_720s_evo.jpg' },
   { id: 'gt3_mercedes_amg_evo', name: 'Mercedes-AMG GT3 EVO 2020', acFolder: 'bm_amg_evo_2020_gt3', category: 'GT3', manufacturer: 'Mercedes', imageUrl: '/vehicles/gt3_mercedes_amg_evo.jpg' },
-  { id: 'gt3_nissan_gtr', name: 'Nissan GT-R GT3 2018', acFolder: 'bm_nissan_gtr_gt3', category: 'GT3', manufacturer: 'Nissan', imageUrl: '/vehicles/gt3_nissan_gtr.jpg' },
   { id: 'gt3_porsche_992', name: 'Porsche 992 GT3 R 2023', acFolder: 'porsche_992_gt3_r_2023', category: 'GT3', manufacturer: 'Porsche', imageUrl: '/vehicles/gt3_porsche_992.jpg' },
 
   // HYPERCAR — ERC only
@@ -75,6 +93,13 @@ export function VehicleSelectorModal({
   // "Seleccionar este coche". Identity-based (not an index) so it survives search filtering.
   const [previewId, setPreviewId] = useState<string | null>(null)
 
+  const [catalogFiles, setCatalogFiles] = useState<CatalogFile[]>([])
+  useEffect(() => {
+    listCarCatalogFilesAction()
+      .then(setCatalogFiles)
+      .catch(() => {})
+  }, [])
+
   const selectedVehicle = customVehicles.find((v) => v.acFolder === selectedModelFolder || v.name === selectedModelName)
 
   const counts = useMemo(() => {
@@ -110,6 +135,7 @@ export function VehicleSelectorModal({
     null
   const activeIdx = activeVehicle ? filteredVehicles.findIndex((v) => v.id === activeVehicle.id) : -1
   const isActiveSelected = !!activeVehicle && (selectedModelFolder === activeVehicle.acFolder || selectedModelName === activeVehicle.name)
+  const activeCatalogMatch = activeVehicle ? findCatalogMatch(activeVehicle, catalogFiles) : null
 
   const flip = (delta: number) => {
     if (filteredVehicles.length === 0) return
@@ -286,6 +312,19 @@ export function VehicleSelectorModal({
                       <span className="font-mono-data text-[11px] text-slate-500">
                         Usa las flechas o el carrete de abajo para cambiar de coche
                       </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {activeCatalogMatch && (
+                          <a
+                            href={activeCatalogMatch.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={activeCatalogMatch.name}
+                            className="flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 font-display-condensed text-xs font-bold text-cyan-300 transition-colors hover:bg-cyan-500/20 cursor-pointer"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Descargar coche
+                          </a>
+                        )}
                       {isActiveSelected ? (
                         <div className="flex shrink-0 items-center gap-3">
                           <span
@@ -319,6 +358,7 @@ export function VehicleSelectorModal({
                           Seleccionar este coche
                         </button>
                       )}
+                      </div>
                     </div>
                   </div>
 
@@ -379,6 +419,31 @@ export function VehicleSelectorModal({
                 })}
               </div>
             </div>
+
+            {/* Not every model in this list has a matching upload — fall back to the whole
+                catalog so the file is still reachable, even when the name doesn't line up. */}
+            {catalogFiles.length > 0 && (
+              <details className="rounded-lg border border-slate-800 bg-[#0e1626]">
+                <summary className="flex cursor-pointer items-center gap-2 px-4 py-2.5 font-mono-data text-[11px] uppercase tracking-wider text-slate-400 hover:text-white">
+                  <FolderArchive className="h-3.5 w-3.5" />
+                  Catálogo completo de archivos de coches ({catalogFiles.length})
+                </summary>
+                <div className="max-h-40 space-y-1 overflow-y-auto border-t border-slate-800 p-2">
+                  {catalogFiles.map((f) => (
+                    <a
+                      key={f.key}
+                      href={f.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-xs text-slate-300 transition-colors hover:bg-white/5 hover:text-cyan-300"
+                    >
+                      <span className="truncate">{f.name}</span>
+                      <Download className="h-3.5 w-3.5 shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </details>
+            )}
           </>
         )}
       </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { Calendar, Clock, Trash2, Edit2, X, Play, ChevronLeft, ChevronRight, Grid, ListFilter, Tag } from 'lucide-react'
 import { saveCalendarEvent, deleteCalendarEvent, createCalendarNoteAction, deleteCalendarNoteAction } from './actions'
 import { ImagePicker } from '@/components/image-picker'
@@ -52,6 +53,9 @@ type LeagueEvent = {
   hasQualy?: boolean
   qualyStartsAt?: string | null
   qualyEndsAt?: string | null
+  color?: string | null
+  maxDrivers?: number | null
+  classLimits?: Record<string, number> | null
 }
 
 type League = {
@@ -97,8 +101,8 @@ const EVENT_TYPE_COLOR: Record<string, string> = {
   'TIME ATTACK': '#f59e0b',
 }
 
-function getEventColor(_event: LeagueEvent, league?: League) {
-  return league?.accentColor || '#4ea1ff'
+function getEventColor(event: LeagueEvent, league?: League) {
+  return event.color || league?.accentColor || '#4ea1ff'
 }
 
 function getSimLogo(league?: League) {
@@ -198,12 +202,16 @@ function DayCell({
             style={{ background: eventCellGradient(color) }}
           >
             <div className="flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1.5 rounded-md bg-black/25 px-2 py-1">
-                <span className="font-mono-data text-[13px] font-black text-white">{date.getUTCDate()}</span>
-                <span className="text-[9.5px] font-black uppercase tracking-wide text-white">
+              <div className="flex items-center gap-1">
+                <span className="flex h-6 min-w-[22px] items-center justify-center rounded-md bg-black/25 px-1.5 font-mono-data text-[13px] font-black text-white">
+                  {date.getUTCDate()}
+                </span>
+                <span className="flex h-6 items-center rounded-md bg-black/25 px-1.5 text-[9.5px] font-black uppercase tracking-wide text-white">
                   {EVENT_TYPE_DISPLAY_LABEL[type]}
                 </span>
-                <span className="font-mono-data text-[10.5px] font-bold text-white">{formatTime(event.startsAt)}</span>
+                <span className="flex h-6 items-center rounded-md bg-black/25 px-1.5 font-mono-data text-[10.5px] font-bold text-white">
+                  {formatTime(event.startsAt)}
+                </span>
               </div>
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white p-1 shadow-sm">
                 <Image src={getSimLogo(league)} alt="" width={18} height={18} className="h-full w-full object-contain" />
@@ -249,16 +257,20 @@ function DayCell({
   const noteFace = hasNotes ? (
     <div
       onClick={onCellClick}
-      className="flex h-full cursor-pointer flex-col justify-between overflow-hidden p-2.5 text-white"
-      style={{ background: 'linear-gradient(135deg, #7a5200 0%, #d97706 100%)' }}
+      className="flex h-full cursor-pointer flex-col gap-1.5 overflow-hidden p-2.5 text-white"
+      style={{ background: 'linear-gradient(135deg, #92400e 0%, #ea580c 100%)' }}
     >
-      <div className="flex items-center justify-between gap-1">
-        <span className="font-mono-data text-[13px] font-bold text-white">{date.getUTCDate()}</span>
-        <Tag className="h-4 w-4 text-white/80" />
+      <div className="flex items-center gap-1">
+        <span className="flex h-6 min-w-[22px] items-center justify-center rounded-md bg-black/30 px-1.5 font-mono-data text-[13px] font-black text-white">
+          {date.getUTCDate()}
+        </span>
+        <span className="flex h-6 items-center rounded-md bg-black/30 px-1.5 text-[9.5px] font-black uppercase tracking-wide text-white">
+          Nota
+        </span>
       </div>
-      <div className="space-y-1">
-        {dayNotes.slice(0, 2).map((note) => (
-          <p key={note.id} className="truncate text-[12px] font-black uppercase leading-tight text-white [text-shadow:0_1px_4px_rgba(0,0,0,.4)]">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden rounded-lg bg-black/15 p-2.5">
+        {dayNotes.slice(0, 4).map((note) => (
+          <p key={note.id} className="truncate text-[12px] font-black uppercase italic leading-tight text-white [text-shadow:0_1px_4px_rgba(0,0,0,.4)]">
             {note.title}
           </p>
         ))}
@@ -462,7 +474,15 @@ export default function CalendarContent({
     setFormCountryCode('ES')
   }
 
-  const handleEditClick = (event: LeagueEvent) => {
+  const handleEditClick = (clickedEvent: LeagueEvent) => {
+    // "Scheduled Events" also lists a virtual qualy session (id `${realId}_qualy`,
+    // see expandedSessions) so admins can see qualy start times at a glance. It isn't
+    // a real LeagueEvent row — editing it directly used to submit that fake id, miss
+    // the upsert's `where`, and silently create a duplicate event. Always resolve back
+    // to the real round before opening the editor.
+    const realId = clickedEvent.id.endsWith('_qualy') ? clickedEvent.id.slice(0, -'_qualy'.length) : clickedEvent.id
+    const event = events.find((ev) => ev.id === realId) || clickedEvent
+
     setEditingEvent(event)
     setFormLeagueId(event.leagueId)
     setFormTitle(event.title || '')
@@ -537,6 +557,21 @@ export default function CalendarContent({
     formData.set('eventType', formEventType)
     formData.set('countryCode', formCountryCode)
 
+    // This modal has no UI for qualy session times, round color, driver cap or
+    // per-class car limits — pass through whatever the round already had so saving
+    // through this simpler editor doesn't silently wipe them (saveCalendarEvent
+    // treats missing fields as "unset").
+    if (editingEvent) {
+      formData.set('hasQualy', editingEvent.hasQualy ? 'true' : 'false')
+      if (editingEvent.qualyStartsAt) formData.set('qualyStartsAt', editingEvent.qualyStartsAt)
+      if (editingEvent.qualyEndsAt) formData.set('qualyEndsAt', editingEvent.qualyEndsAt)
+      formData.set('color', editingEvent.color || '#00f2fe')
+      if (editingEvent.maxDrivers) formData.set('maxDrivers', String(editingEvent.maxDrivers))
+      for (const [tag, limit] of Object.entries(editingEvent.classLimits || {})) {
+        formData.set(`max_cars_${tag}`, String(limit))
+      }
+    }
+
     try {
       const res = await saveCalendarEvent(formData)
       if (res && !res.success) {
@@ -567,6 +602,9 @@ export default function CalendarContent({
         hasQualy: editingEvent?.hasQualy ?? false,
         qualyStartsAt: editingEvent?.qualyStartsAt ?? null,
         qualyEndsAt: editingEvent?.qualyEndsAt ?? null,
+        color: editingEvent?.color ?? null,
+        maxDrivers: editingEvent?.maxDrivers ?? null,
+        classLimits: editingEvent?.classLimits ?? null,
       }
       setEvents((prev) =>
         wasEditing ? prev.map((ev) => (ev.id === optimisticEvent.id ? { ...ev, ...optimisticEvent } : ev)) : [...prev, optimisticEvent],
@@ -577,6 +615,7 @@ export default function CalendarContent({
       setFormCircuit('')
       setFormImageUrl('')
       setFormServerLink('')
+      toast.success(wasEditing ? 'Event updated' : 'Event created')
       router.refresh()
 
       // After updating an existing event, close the manager instead of silently
@@ -604,6 +643,7 @@ export default function CalendarContent({
         if (editingEvent?.id === eventId) {
           setEditingEvent(null)
         }
+        toast.success('Event deleted')
         router.refresh()
       } catch (err: any) {
         alert(err.message || 'Failed to delete event.')
@@ -629,6 +669,7 @@ export default function CalendarContent({
       }
       setNotes((prev) => [...prev, { id: `optimistic-${Date.now()}`, title: newNoteTitle.trim(), date: dateKeyUTC(selectedDate) }])
       setNewNoteTitle('')
+      toast.success('Note added')
       router.refresh()
     } catch (err: any) {
       alert(err.message || 'Failed to add note.')

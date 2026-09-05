@@ -43,6 +43,14 @@ export function NotificationsNav({
     }
   }, [open, fetchNotifications])
 
+  // Background poll (same pattern as the league page's live standings refresh) so the
+  // bell's unread badge updates on its own while the tab is open, instead of only ever
+  // reflecting what was on the page at the last full navigation.
+  useEffect(() => {
+    const id = setInterval(fetchNotifications, 20_000)
+    return () => clearInterval(id)
+  }, [fetchNotifications])
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

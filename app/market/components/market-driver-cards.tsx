@@ -20,6 +20,8 @@ export type Listing = {
   team_name: string | null
   team_logo: string | null
   team_color?: string | null
+  league_id?: string | null
+  league_title?: string | null
   title: string
   description: string
   main_sim: 'ac' | 'lmu'
@@ -39,8 +41,10 @@ interface MarketDriverCardsProps {
   currentUserId?: string
   myTeams: ManagedTeam[]
   invites: Array<{ listingId: string; teamId?: string; status: string; teamName: string }>
+  isAdmin?: boolean
   onDeleteListing: (id: string) => void
   onInviteClick: (listingId: string) => void
+  onViewListing?: (listing: Listing) => void
 }
 
 // No team color to draw on here (this is an individual driver, not a team), so the
@@ -57,8 +61,10 @@ export function MarketDriverCards({
   currentUserId,
   myTeams,
   invites,
+  isAdmin = false,
   onDeleteListing,
   onInviteClick,
+  onViewListing,
 }: MarketDriverCardsProps) {
   const tr = useDictionary().market.driverCards
   const myTeamIds = myTeams.map((t) => t.id)
@@ -122,7 +128,7 @@ export function MarketDriverCards({
                     </span>
                   </div>
                 </div>
-                {isOwner && (
+                {(isOwner || isAdmin) && (
                   <button
                     onClick={() => onDeleteListing(item.id)}
                     className="shrink-0 p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors"
@@ -134,20 +140,32 @@ export function MarketDriverCards({
               </div>
 
               {/* Listing title & description */}
-              <div>
+              <button
+                type="button"
+                onClick={() => onViewListing?.(item)}
+                className="block w-full text-left cursor-pointer"
+              >
                 <h3 className="text-base font-bold text-white leading-snug">
                   {item.title}
                 </h3>
                 <p className="text-xs text-slate-400 mt-1.5 line-clamp-3 leading-relaxed">
                   {item.description}
                 </p>
-              </div>
+                <span className="mt-1 inline-block text-[10px] font-bold uppercase tracking-wider text-accent hover:underline">
+                  Ver anuncio completo
+                </span>
+              </button>
 
               {/* Class Badges */}
               <div className="flex flex-wrap gap-1.5">
                 {classes.map((cls) => (
                   <ClassBadge key={cls} classTag={cls} />
                 ))}
+                {item.league_title && (
+                  <span className="inline-flex items-center rounded px-2 py-0.5 font-mono-data text-[10px] font-semibold uppercase tracking-wider text-slate-300 border border-white/15 bg-white/5">
+                    {item.league_title}
+                  </span>
+                )}
               </div>
             </div>
 

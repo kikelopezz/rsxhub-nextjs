@@ -133,6 +133,7 @@ export async function TeamBannerStats({
                     label={t.teamLogo}
                     defaultValue={team.logoUrl || ''}
                     entityName={team.name}
+                    square
                   />
                   <ImagePicker
                     name="bannerUrl"

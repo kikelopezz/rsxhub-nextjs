@@ -332,6 +332,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                   onChange={setFormLogoUrl}
                   label={t.logoLabel}
                   entityName={formTitle}
+                  square
                 />
               </div>
             </div>

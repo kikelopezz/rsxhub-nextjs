@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { Roboto, Barlow_Condensed, JetBrains_Mono, Anton } from 'next/font/google'
+import { Toaster } from 'sonner'
 import { AppShell } from '@/components/app-shell'
 import { TopLoadingBar } from '@/components/top-loading-bar'
 
@@ -62,6 +63,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body className={`${roboto.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} ${anton.variable} font-body`}>
         <LocaleProvider locale={locale} dictionary={dictionary}>
           <TopLoadingBar />
+          <Toaster theme="dark" position="top-right" richColors closeButton />
           <AppShell>{children}</AppShell>
         </LocaleProvider>
       </body>

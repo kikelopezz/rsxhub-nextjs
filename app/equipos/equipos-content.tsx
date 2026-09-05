@@ -232,6 +232,7 @@ export default function EquiposContent({
                       label={trModal.teamLogo}
                       defaultValue=""
                       entityName={newTeamName}
+                      square
                     />
                     <ImagePicker
                       name="bannerUrl"
@@ -313,32 +314,30 @@ export default function EquiposContent({
                       </div>
                     </div>
 
+                    <label className="mb-1 block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                      {trModal.socialLinksTitle}
+                    </label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Discord Link */}
-                      <div>
-                        <label className="mb-1 block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
-                          {trModal.discordLink}
-                        </label>
-                        <input
-                          type="url"
-                          name="discordUrl"
-                          placeholder={trModal.discordPlaceholder}
-                          className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-accent rounded-lg transition-colors"
-                        />
-                      </div>
-
-                      {/* YouTube Channel */}
-                      <div>
-                        <label className="mb-1 block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
-                          {trModal.youtubeLink}
-                        </label>
-                        <input
-                          type="url"
-                          name="youtubeUrl"
-                          placeholder={trModal.youtubePlaceholder}
-                          className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-accent rounded-lg transition-colors"
-                        />
-                      </div>
+                      {[
+                        { name: 'discordUrl', label: trModal.discordLink, placeholder: trModal.discordPlaceholder },
+                        { name: 'youtubeUrl', label: trModal.youtubeLink, placeholder: trModal.youtubePlaceholder },
+                        { name: 'instagramUrl', label: trModal.instagramLink, placeholder: trModal.instagramPlaceholder },
+                        { name: 'twitterUrl', label: trModal.twitterLink, placeholder: trModal.twitterPlaceholder },
+                        { name: 'twitchUrl', label: trModal.twitchLink, placeholder: trModal.twitchPlaceholder },
+                        { name: 'tiktokUrl', label: trModal.tiktokLink, placeholder: trModal.tiktokPlaceholder },
+                      ].map((field) => (
+                        <div key={field.name}>
+                          <label className="mb-1 block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                            {field.label}
+                          </label>
+                          <input
+                            type="url"
+                            name={field.name}
+                            placeholder={field.placeholder}
+                            className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-accent rounded-lg transition-colors"
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
 

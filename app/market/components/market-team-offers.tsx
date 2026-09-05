@@ -25,9 +25,11 @@ interface MarketTeamOffersProps {
   currentUserId?: string
   applications: MarketApplication[]
   belongsToTeam?: boolean
+  isAdmin?: boolean
   onDeleteListing: (id: string) => void
   onApplyClick: (listingId: string) => void
   onWithdrawApplication: (listingId: string, applicationId?: string) => void
+  onViewListing?: (listing: Listing) => void
 }
 
 export function MarketTeamOffers({
@@ -35,9 +37,11 @@ export function MarketTeamOffers({
   currentUserId,
   applications,
   belongsToTeam = false,
+  isAdmin = false,
   onDeleteListing,
   onApplyClick,
   onWithdrawApplication,
+  onViewListing,
 }: MarketTeamOffersProps) {
   const tr = useDictionary().market.teamOffers
   return (
@@ -93,7 +97,7 @@ export function MarketTeamOffers({
                     {simulatorLabel(item.main_sim)}
                   </span>
                 </div>
-                {isOwner && (
+                {(isOwner || isAdmin) && (
                   <button
                     onClick={() => onDeleteListing(item.id)}
                     className="shrink-0 p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors"
@@ -104,21 +108,51 @@ export function MarketTeamOffers({
                 )}
               </div>
 
+              {/* Who actually posted this — distinct from the team identity above, since
+                  any team member (not just the owner) can be the one who published it. */}
+              <div className="flex items-center gap-2 -mt-1">
+                <div className="h-5 w-5 shrink-0 overflow-hidden rounded-full border border-white/10 bg-slate-800">
+                  <Image
+                    src={item.user_avatar || `https://placehold.co/20x20/0a1220/ffffff?text=${(item.user_name || 'D').slice(0, 1).toUpperCase()}`}
+                    alt={item.user_name}
+                    width={20}
+                    height={20}
+                    unoptimized
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <span className="truncate text-[10px] text-slate-500">
+                  Publicado por <span className="font-semibold text-slate-400">{item.user_name}</span>
+                </span>
+              </div>
+
               {/* Listing title & description */}
-              <div>
+              <button
+                type="button"
+                onClick={() => onViewListing?.(item)}
+                className="block w-full text-left cursor-pointer"
+              >
                 <h3 className="text-base font-bold text-white leading-snug">
                   {item.title}
                 </h3>
                 <p className="text-xs text-slate-400 mt-1.5 line-clamp-3 leading-relaxed">
                   {item.description}
                 </p>
-              </div>
+                <span className="mt-1 inline-block text-[10px] font-bold uppercase tracking-wider" style={{ color: accent }}>
+                  Ver anuncio completo
+                </span>
+              </button>
 
               {/* Class Badges */}
               <div className="flex flex-wrap gap-1.5">
                 {classes.map((cls) => (
                   <ClassBadge key={cls} classTag={cls} />
                 ))}
+                {item.league_title && (
+                  <span className="inline-flex items-center rounded px-2 py-0.5 font-mono-data text-[10px] font-semibold uppercase tracking-wider text-slate-300 border border-white/15 bg-white/5">
+                    {item.league_title}
+                  </span>
+                )}
               </div>
             </div>
 

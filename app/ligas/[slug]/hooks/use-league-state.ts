@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { updateCarPhotoAction } from '@/app/ligas/actions'
 
 export type League = {
   id: string
@@ -61,6 +62,7 @@ export type ManagedTeam = {
   id: string
   name: string
   logoUrl: string | null
+  status?: string
   cars?: any[]
   members: Array<{ userId: string; displayName: string; steamId?: string }>
 }
@@ -100,7 +102,8 @@ export function useLeagueState({
   myManagedTeams,
   teamInfo = {},
   initialConfirmations = [],
-  initialPointsOverrides = {}
+  initialPointsOverrides = {},
+  initialCarPhotos = {}
 }: {
   league: League
   initialEvents: LeagueEvent[]
@@ -109,6 +112,7 @@ export function useLeagueState({
   teamInfo?: Record<string, { name: string; primaryColor: string | null; logoUrl: string | null }>
   initialConfirmations?: EventConfirmation[]
   initialPointsOverrides?: Record<string, number>
+  initialCarPhotos?: Record<string, string>
 }) {
   const router = useRouter()
   const [events, setEvents] = useState<LeagueEvent[]>(initialEvents)
@@ -189,32 +193,25 @@ export function useLeagueState({
     setStandingsIndices(initialIndices)
   }, [initialRegistrations, classTags, myManagedTeams, teamInfo, initialPointsOverrides])
 
-  // Custom car images per team
-  const [customCarImages, setCustomCarImages] = useState<Record<string, string>>({})
+  // Custom car images per car (`${classTag}_${teamId}_${carNumber}`, matching the
+  // TeamStanding row id) — seeded from the server (LeagueCarPhoto, persisted per league)
+  // so every viewer sees the same photo, not just whoever uploaded it in their own browser.
+  const [customCarImages, setCustomCarImages] = useState<Record<string, string>>(initialCarPhotos)
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('team_car_images')
-      if (saved) {
-        setCustomCarImages(JSON.parse(saved))
-      }
-    } catch (e) {}
-  }, [])
+    setCustomCarImages(initialCarPhotos)
+  }, [initialCarPhotos])
 
-  const handleCarImageUpload = async (teamId: string, file: File) => {
+  const handleCarImageUpload = async (tag: string, teamId: string, carNumber: string, file: File) => {
+    const carKey = `${tag}_${teamId}_${carNumber}`
+
+    // Instant local preview via a data URL while the real upload is in flight, so the
+    // admin doesn't stare at the old photo during the round-trip.
     const reader = new FileReader()
     reader.onload = (e) => {
       const result = e.target?.result as string
       if (result) {
-        setCustomCarImages((prev) => {
-          const next = { ...prev, [teamId]: result }
-          try {
-            const saved = JSON.parse(localStorage.getItem('team_car_images') || '{}')
-            saved[teamId] = result
-            localStorage.setItem('team_car_images', JSON.stringify(saved))
-          } catch (err) {}
-          return next
-        })
+        setCustomCarImages((prev) => ({ ...prev, [carKey]: result }))
       }
     }
     reader.readAsDataURL(file)
@@ -230,15 +227,17 @@ export function useLeagueState({
       if (res.ok) {
         const data = await res.json()
         if (data.url) {
-          setCustomCarImages((prev) => {
-            const next = { ...prev, [teamId]: data.url }
-            try {
-              const saved = JSON.parse(localStorage.getItem('team_car_images') || '{}')
-              saved[teamId] = data.url
-              localStorage.setItem('team_car_images', JSON.stringify(saved))
-            } catch (err) {}
-            return next
-          })
+          setCustomCarImages((prev) => ({ ...prev, [carKey]: data.url }))
+
+          const photoForm = new FormData()
+          photoForm.set('leagueId', league.id)
+          photoForm.set('classTag', tag)
+          photoForm.set('teamId', teamId)
+          photoForm.set('carNumber', carNumber)
+          photoForm.set('imageUrl', data.url)
+          photoForm.set('slug', league.slug)
+          await updateCarPhotoAction(photoForm)
+          router.refresh()
         }
       }
     } catch (err) {

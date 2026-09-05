@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -140,6 +141,7 @@ export default function PerfilContent({
         return
       }
       setIsEditOpen(false)
+      toast.success('Profile updated')
       router.refresh()
     } catch (err: any) {
       console.error('Failed to update profile:', err)

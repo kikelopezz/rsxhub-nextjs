@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, unstable_rethrow } from 'next/navigation'
+import { toast } from 'sonner'
 import { X, AlertCircle, Play, Clock, ChevronDown } from 'lucide-react'
 import { useLeagueState, League, LeagueEvent, Registration, ManagedTeam, LeagueCar, EventConfirmation } from './hooks/use-league-state'
 import { LeagueBanner } from './components/league-banner'
@@ -15,7 +16,7 @@ import { LeagueStandings } from './components/league-standings'
 const FinishRoundModal = dynamic(() => import('./components/finish-round-modal').then((m) => m.FinishRoundModal), { ssr: false })
 const ViewResultsModal = dynamic(() => import('./components/view-results-modal').then((m) => m.ViewResultsModal), { ssr: false })
 const LeagueEditModal = dynamic(() => import('./components/league-edit-modal').then((m) => m.LeagueEditModal), { ssr: false })
-import { deleteLeagueAction, registerTeamAction, unregisterTeamAction, updateTeamPointsAction } from '@/app/ligas/actions'
+import { deleteLeagueAction, registerTeamAction, unregisterTeamAction, updateTeamPointsAction, updateCarPhotoAction } from '@/app/ligas/actions'
 import { saveCalendarEvent, deleteCalendarEvent } from '@/app/calendario/actions'
 import { ClassBadge } from '@/components/class-badge'
 import { ImagePicker } from '@/components/image-picker'
@@ -62,6 +63,7 @@ type Props = {
   teamInfo?: Record<string, { name: string; primaryColor: string | null; logoUrl: string | null }>
   initialConfirmations?: EventConfirmation[]
   initialPointsOverrides?: Record<string, number>
+  initialCarPhotos?: Record<string, string>
 }
 
 export default function LeagueDetailPageContent({
@@ -76,7 +78,8 @@ export default function LeagueDetailPageContent({
   leagueCars,
   teamInfo = {},
   initialConfirmations = [],
-  initialPointsOverrides = {}
+  initialPointsOverrides = {},
+  initialCarPhotos = {}
 }: Props) {
   const router = useRouter()
   const tr = useDictionary().ligas.detailPage
@@ -103,7 +106,8 @@ export default function LeagueDetailPageContent({
     myManagedTeams,
     teamInfo,
     initialConfirmations,
-    initialPointsOverrides
+    initialPointsOverrides,
+    initialCarPhotos
   })
 
   const handleUpdateTeamPoints = async (tag: string, teamId: string, carNumber: string, newPoints: number) => {
@@ -159,6 +163,7 @@ export default function LeagueDetailPageContent({
   const [selectedClassTag, setSelectedClassTag] = useState<string>(classTags[0] || 'GT3')
   const [isRegSubmitting, setIsRegSubmitting] = useState(false)
   const [regErrorMessage, setRegErrorMessage] = useState('')
+  const selectedTeam = myManagedTeams.find((t) => t.id === selectedTeamId)
 
   // Lock body scrolling when any modal is open to prevent double scrollbars
   useEffect(() => {
@@ -255,7 +260,9 @@ export default function LeagueDetailPageContent({
       setFormEventTitle('')
       setFormEventCircuit('Circuit de la Sarthe, Le Mans')
       setFormEventCountryCode('FRA')
-      setFormEventColor('#00f2fe')
+      // Defaults to the championship's own color so a new round matches its calendar
+      // cells unless the admin deliberately picks a different one from the palette below.
+      setFormEventColor(league.accentColor || '#4ea1ff')
       setFormEventType('race')
       setFormHasQualy(true)
       setFormQualyDate(todayStr)
@@ -318,6 +325,7 @@ export default function LeagueDetailPageContent({
       }
 
       setIsEventModalOpen(false)
+      toast.success(editingEvent ? 'Round updated' : 'Round created')
       router.refresh()
     } catch (err: any) {
       setEventErrorMessage(err.message || tr.saveEventFailed)
@@ -331,6 +339,7 @@ export default function LeagueDetailPageContent({
     try {
       await deleteCalendarEvent(eventId)
       setEvents((prev) => prev.filter((ev) => ev.id !== eventId))
+      toast.success('Round deleted')
       router.refresh()
     } catch (err: any) {
       alert(err.message || tr.deleteRoundFailed)
@@ -346,6 +355,7 @@ export default function LeagueDetailPageContent({
       formData.set('teamId', teamId)
       formData.set('classTag', classTag)
       await unregisterTeamAction(formData)
+      toast.success('Withdrawn from championship')
       router.refresh()
     } catch (e: any) {
       alert(e.message || tr.withdrawFailed)
@@ -368,6 +378,7 @@ export default function LeagueDetailPageContent({
 
       await registerTeamAction(formData)
       setIsRegisterOpen(false)
+      toast.success('Team registered')
       router.refresh()
     } catch (err: any) {
       setRegErrorMessage(err.message || tr.registerTeamFailed)
@@ -841,11 +852,19 @@ export default function LeagueDetailPageContent({
                   className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-[#4ea1ff]"
                 >
                   {myManagedTeams.map((team) => (
-                    <option key={team.id} value={team.id}>
+                    <option key={team.id} value={team.id} disabled={team.status !== 'approved'}>
                       {team.name}
+                      {team.status === 'pending' ? ' (pendiente de aprobación)' : team.status === 'rejected' ? ' (rechazado)' : ''}
                     </option>
                   ))}
                 </select>
+                {selectedTeam && selectedTeam.status !== 'approved' && (
+                  <p className="mt-1.5 text-[11px] font-semibold text-amber-400">
+                    {selectedTeam.status === 'rejected'
+                      ? 'Este equipo ha sido rechazado y no puede inscribirse en campeonatos.'
+                      : 'Este equipo todavía está pendiente de aprobación por un admin — no puede inscribirse hasta entonces.'}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase text-slate-300">{trReg.selectCategory}</label>
@@ -872,8 +891,8 @@ export default function LeagueDetailPageContent({
                 </button>
                 <button
                   type="submit"
-                  disabled={isRegSubmitting}
-                  className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-5 py-2 text-xs font-bold uppercase text-white shadow-[0_0_15px_rgba(78,161,255,0.4)] transition-all hover:bg-[#1f82ee] disabled:opacity-50"
+                  disabled={isRegSubmitting || !selectedTeam || selectedTeam.status !== 'approved'}
+                  className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-5 py-2 text-xs font-bold uppercase text-white shadow-[0_0_15px_rgba(78,161,255,0.4)] transition-all hover:bg-[#1f82ee] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isRegSubmitting ? trReg.registering : trReg.confirmRegistration}
                 </button>

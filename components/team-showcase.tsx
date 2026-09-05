@@ -96,14 +96,10 @@ export function TeamShowcase({
           </button>
         )}
 
-        <div className="absolute inset-x-4 bottom-3">
-          <h3 className="truncate font-display-league text-[26px] leading-[0.95] text-white [text-shadow:0_2px_10px_rgba(0,0,0,.5)]">
-            {teamName}
-          </h3>
-        </div>
       </div>
 
-      {/* Logo badge, overlapping the band/body seam */}
+      {/* Logo badge, straddling the band/body seam — sits above the team name row below
+          it instead of on top of the banner text, so the two never overlap. */}
       <div
         className="absolute left-4 top-[136px] z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 bg-[#0a0a0c] p-1"
         style={{ borderColor: accent, boxShadow: `0 0 16px ${accent}70, 0 8px 18px rgba(0,0,0,.4)` }}
@@ -122,8 +118,11 @@ export function TeamShowcase({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col justify-between gap-3 px-4 pb-4 pt-9">
+      <div className="flex flex-1 flex-col justify-between gap-3 px-4 pb-4 pt-3">
         <div className="space-y-2">
+          <h3 className="truncate pl-[68px] font-display-league text-[22px] leading-tight text-white">
+            {teamName}
+          </h3>
           {slogan && (
             <p className="truncate font-display-condensed text-[12px] italic text-slate-400" title={slogan}>
               &quot;{slogan}&quot;

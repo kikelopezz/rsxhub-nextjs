@@ -20,7 +20,15 @@ export const getCurrentUser = cache(async () => {
   const session = await getSession()
   if (session) {
     if (!session.userId) {
-      session.userId = `steam_${session.steamId}`
+      // A session cookie issued before userId was part of the JWT payload. Resolve the
+      // real id from the DB by steamId instead of fabricating one (e.g. `steam_<id>`) —
+      // minting an unverified id here is exactly how a Steam account ended up with two
+      // User rows in the past: a legacy one under the fabricated id, and a second, real
+      // one created the next time upsertUserFromSteam ran a proper login. If there's no
+      // matching account at all, treat the session as invalid rather than inventing one.
+      const steamAccount = await db.steamAccount.findUnique({ where: { steamId: session.steamId } })
+      if (!steamAccount) return null
+      session.userId = steamAccount.userId
     }
     // If we have a generic name or are missing the avatar, try to resolve it dynamically from
     // Steam. This hits an external, uncached API — without a TTL cache it would mean a live

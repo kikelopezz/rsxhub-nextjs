@@ -1,5 +1,6 @@
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { getTeamsDashboard } from '@/lib/team-data'
+import { getLeagues } from '@/lib/platform-data'
 import { db } from '@/lib/db'
 import type { SessionUser } from '@/types'
 import MarketPageContent from './market-content'
@@ -43,6 +44,8 @@ async function fetchListings(): Promise<any[]> {
       team_name: data.teamName,
       team_logo: data.teamLogo,
       team_color: data.teamId ? teamsColors.get(data.teamId) || null : null,
+      league_id: data.leagueId,
+      league_title: data.leagueTitle,
       title: data.title,
       description: data.description,
       main_sim: data.mainSim,
@@ -141,11 +144,15 @@ async function fetchMarketAppsAndInvites(session: SessionUser | null): Promise<{
 export default async function MarketPage() {
   const session = await getCurrentUser()
 
-  const [listings, { myTeams, belongsToTeam }, { applications, invites }] = await Promise.all([
+  const [listings, { myTeams, belongsToTeam }, { applications, invites }, leagues, access] = await Promise.all([
     fetchListings(),
     fetchUserTeamStatus(session),
     fetchMarketAppsAndInvites(session),
+    getLeagues(),
+    getAdminAccessContext(session?.userId),
   ])
+
+  const leagueOptions = leagues.map((l) => ({ id: l.id, title: l.title }))
 
   const currentUser = session
     ? {
@@ -164,6 +171,8 @@ export default async function MarketPage() {
         applications={applications}
         invites={invites}
         belongsToTeam={belongsToTeam}
+        leagues={leagueOptions}
+        isAdmin={access.canAccessPlatformAdmin}
       />
     </div>
   )
