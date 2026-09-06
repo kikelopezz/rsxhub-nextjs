@@ -68,9 +68,18 @@ export function LeagueRegistration({
     return isManaged || isMember
   })
 
-  const hasUnregisteredTeams = myManagedTeams.some(
-    (t) => !groupedRegistrations.some((group) => group.teamId === t.id)
-  )
+  // A team can still register when it hasn't claimed every category the league
+  // offers yet (e.g. it's in GT3 but the league also runs LMP2) — not just when
+  // it has zero registrations at all, otherwise the button vanishes for good
+  // after the team's first category and blocks adding more.
+  const leagueClassTags = league.classTags || []
+  const hasUnregisteredTeams = myManagedTeams.some((t) => {
+    const group = groupedRegistrations.find((g) => g.teamId === t.id)
+    if (!group) return true
+    if (leagueClassTags.length === 0) return false
+    const registeredTags = new Set(group.categories.map((c) => c.tag))
+    return leagueClassTags.some((tag) => !registeredTags.has(tag))
+  })
 
   return (
     <div className="flex flex-col items-end gap-2.5">
