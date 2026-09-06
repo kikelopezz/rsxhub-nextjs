@@ -145,6 +145,33 @@ export async function registerTeamAction(formData: FormData) {
 
     const regCarNumber = resolveFreeNumber(carToReg.classTag, carToReg.carNumber)
 
+    // getRegistrations() only shows a registration once it finds a TeamCar with a
+    // matching category+dorsal bound to this league (or unbound) — it's how stale
+    // rows get hidden after a car's number changes elsewhere. A team's cars are
+    // normally bound to whichever league they were first registered for, so this
+    // team joining a *second* league with no car of its own here yet would create
+    // a registration with no matching car, and getRegistrations would silently
+    // drop it everywhere (it'd show as "approved" in the DB but invisible in the UI).
+    // Make sure this league always has its own bound car to match against.
+    const existingLeagueCar = (team?.cars || []).find(
+      (c) => c.leagueId === leagueId && c.category.toUpperCase() === carToReg.classTag.toUpperCase()
+    )
+    if (existingLeagueCar) {
+      if (existingLeagueCar.dorsal !== String(regCarNumber)) {
+        await db.teamCar.update({ where: { id: existingLeagueCar.id }, data: { dorsal: String(regCarNumber) } })
+      }
+    } else {
+      await db.teamCar.create({
+        data: {
+          teamId,
+          category: carToReg.classTag,
+          dorsal: String(regCarNumber),
+          modelName: carToReg.carModel || null,
+          leagueId,
+        },
+      })
+    }
+
     for (const info of driverInfos) {
       rowsToInsert.push({
         leagueId,
