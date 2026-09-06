@@ -30,7 +30,7 @@ type CarCardProps = {
   activeTab: string
   leaguesOptions: LeagueOption[]
   teamMembers: TeamMemberOption[]
-  assignedDriverUserIds: Set<string>
+  getAssignedDriverIdsForLeague: (leagueKey: string) => Set<string>
   uploadingCarId: string | null
   onRemove: (id: string) => void
   onUpdateField: (id: string, field: keyof CarEntry, value: any) => void
@@ -49,7 +49,7 @@ export function CarCard({
   activeTab,
   leaguesOptions,
   teamMembers,
-  assignedDriverUserIds,
+  getAssignedDriverIdsForLeague,
   uploadingCarId,
   onRemove,
   onUpdateField,
@@ -69,6 +69,7 @@ export function CarCard({
   const maxSlots = MAX_DRIVERS_PER_CAR
   const carDrivers = getCarDriversForLeague(car, currentLeagueKey)
   const reserveDrivers = getCarReserveDriversForLeague(car, currentLeagueKey)
+  const assignedDriverUserIds = getAssignedDriverIdsForLeague(currentLeagueKey)
 
   return (
     <div

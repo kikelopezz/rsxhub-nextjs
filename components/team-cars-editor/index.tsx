@@ -36,7 +36,7 @@ export function TeamCarsEditor({
     serialized,
     filteredCars,
     availableCategories,
-    assignedDriverUserIds,
+    getAssignedDriverIdsForLeague,
     uploadingCarId,
     addCar,
     removeCar,
@@ -107,7 +107,7 @@ export function TeamCarsEditor({
                     activeTab={activeTab}
                     leaguesOptions={leaguesOptions}
                     teamMembers={teamMembers}
-                    assignedDriverUserIds={assignedDriverUserIds}
+                    getAssignedDriverIdsForLeague={getAssignedDriverIdsForLeague}
                     uploadingCarId={uploadingCarId}
                     onRemove={removeCar}
                     onUpdateField={updateCarField}

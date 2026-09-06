@@ -96,21 +96,27 @@ export function useCarEditor({
     [activeLeague],
   )
 
-  const assignedDriverUserIds = useMemo(() => {
-    const set = new Set<string>()
-    for (const car of cars) {
-      // Resolve each car's own league the same way CarCard does for its label/dropdowns
-      // (activeTab when a specific league tab is open, else the car's own leagueId) —
-      // using the raw `activeTab` here instead meant that on the "all" tab, a driver
-      // already in one league's car got treated as "taken" for every other league's
-      // car too, hiding every team member from a brand-new car for a second league.
-      const carLeagueKey = activeTab !== 'all' ? activeTab : car.leagueId || 'general'
-      for (const driverId of getCarDriversForLeague(car, carLeagueKey)) {
-        if (driverId && driverId.trim()) set.add(driverId.trim())
+  // "Taken" only means something relative to a specific league: a driver already
+  // driving a GT3 car in Endurance is fair game to also drive a GT3 car in ERC Next
+  // Gen — they're different championships. So a car's drivers can only make another
+  // car's slot look "taken" when both cars actually belong to the *same* league;
+  // this used to compare every car against a single global set of active drivers,
+  // which meant a driver already used in league A appeared unavailable while
+  // building a car for league B too.
+  const getAssignedDriverIdsForLeague = useCallback(
+    (leagueKey: string) => {
+      const set = new Set<string>()
+      for (const car of cars) {
+        const carLeagueKey = car.leagueId || 'general'
+        if (carLeagueKey !== leagueKey) continue
+        for (const driverId of getCarDriversForLeague(car, leagueKey)) {
+          if (driverId && driverId.trim()) set.add(driverId.trim())
+        }
       }
-    }
-    return set
-  }, [cars, activeTab, getCarDriversForLeague])
+      return set
+    },
+    [cars, getCarDriversForLeague],
+  )
 
   const carValidation = useMemo(
     () => computeCarValidation(cars, takenDorsals, currentTeamId, carEditorDict),
@@ -305,7 +311,7 @@ export function useCarEditor({
     serialized,
     filteredCars,
     availableCategories,
-    assignedDriverUserIds,
+    getAssignedDriverIdsForLeague,
     addCar,
     removeCar,
     updateCarField,
