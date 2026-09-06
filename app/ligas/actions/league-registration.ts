@@ -93,11 +93,21 @@ export async function registerTeamAction(formData: FormData) {
       fallbackClassTag = (leagueClassTags[0] || 'GT3').toUpperCase()
     }
 
+    // No car of the team's is bound to *this* league yet (its GT3/HYPERCAR car
+    // lives on whichever league it first registered for) — but the team may
+    // already run this same category elsewhere. Reuse that car's default roster
+    // so every driver already racing this class for the team gets entered here
+    // too, instead of only whoever clicked "Register team".
+    const templateCar = (team?.cars || []).find((c) => c.category.toUpperCase() === fallbackClassTag)
+    const templateDrivers = templateCar
+      ? templateCar.drivers.filter((d) => !d.leagueId).map((d) => d.userId)
+      : []
+
     carsToRegister.push({
       classTag: fallbackClassTag,
-      carModel,
+      carModel: carModel || templateCar?.modelName || '',
       carNumber: carNumberInput,
-      driverUserIds: driverUserIds.length > 0 ? driverUserIds : [session.userId],
+      driverUserIds: driverUserIds.length > 0 ? driverUserIds : templateDrivers.length > 0 ? templateDrivers : [session.userId],
     })
   }
 
