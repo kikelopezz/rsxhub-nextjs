@@ -66,15 +66,21 @@ const POS_CHIP: Record<number, string> = {
 
 type ChampionshipId = 'erc' | 'erc-next-gen'
 
-// Only 5 real servers exist upstream (indices 0-4) — an out-of-range index (5+) doesn't
-// error, it silently falls back to server 0's data, which made the old 3rd "ERC NEXT GEN"
-// slot show a duplicate of the 1st ERC server instead of a genuinely offline server.
+// ERC and ERC Next Gen are two separate physical servers/domains, each with its own
+// server=0/1/2 — not one shared pool split by index range. The API route resolves
+// `source` (the championship id) to the right upstream domain, so the same server
+// index (e.g. 0) means something different depending on which championship it's for.
 const CHAMPIONSHIPS: { id: ChampionshipId; label: string; servers: number[] }[] = [
   { id: 'erc', label: 'ERC', servers: [0, 1, 2] },
-  { id: 'erc-next-gen', label: 'ERC NEXT GEN', servers: [3, 4] },
+  { id: 'erc-next-gen', label: 'ERC NEXT GEN', servers: [0, 1, 2] },
 ]
 
-const ALL_SERVERS = CHAMPIONSHIPS.flatMap((c) => c.servers)
+// Server indices repeat across championships, so status entries are keyed by
+// "championshipId_server" rather than just the raw index to avoid ERC's server 0
+// and ERC Next Gen's server 0 overwriting each other's status.
+const serverStatusKey = (championshipId: ChampionshipId, server: number) => `${championshipId}_${server}`
+
+const ALL_SERVERS = CHAMPIONSHIPS.flatMap((c) => c.servers.map((server) => ({ championshipId: c.id, server })))
 
 function isServerLive(json: LeaderboardResponse | null) {
   return Boolean(json && (json.ServerName || json.ConnectedDrivers || json.DisconnectedDrivers))
@@ -88,7 +94,7 @@ export default function LiveTimingPage() {
   const activeServers = CHAMPIONSHIPS.find((c) => c.id === championship)?.servers ?? CHAMPIONSHIPS[0].servers
   const [selectedServer, setSelectedServer] = useState(activeServers[0])
   const [data, setData] = useState<LeaderboardResponse | null>(null)
-  const [serverStatus, setServerStatus] = useState<Record<number, LeaderboardResponse | null>>({})
+  const [serverStatus, setServerStatus] = useState<Record<string, LeaderboardResponse | null>>({})
   const [stints, setStints] = useState<Record<string, number>>({})
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'Position', dir: 'asc' })
@@ -102,38 +108,40 @@ export default function LiveTimingPage() {
   }, [])
 
   const poll = useCallback(async () => {
+    const key = serverStatusKey(championship, selectedServer)
     try {
       const [stintsMap, res] = await Promise.all([
         fetchOfficialStints(),
-        fetch(`/api/live-timing/leaderboard?server=${selectedServer}`, { cache: 'no-store' }),
+        fetch(`/api/live-timing/leaderboard?server=${selectedServer}&source=${championship}`, { cache: 'no-store' }),
       ])
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json: LeaderboardResponse = await res.json()
       setStints(stintsMap)
       setData(json)
-      setServerStatus((prev) => ({ ...prev, [selectedServer]: json }))
+      setServerStatus((prev) => ({ ...prev, [key]: json }))
       setStatus(isServerLive(json) ? 'online' : 'offline')
     } catch {
       // A single failed poll (e.g. the upstream's rate limit) shouldn't blank the page if we
       // already have a recent snapshot of this server from the status sweep — fall back to
       // that instead of leaving the board empty until the next successful poll.
-      setData((prev) => prev ?? serverStatus[selectedServer] ?? prev)
+      setData((prev) => prev ?? serverStatus[key] ?? prev)
       setStatus('offline')
     }
-  }, [selectedServer, serverStatus])
+  }, [championship, selectedServer, serverStatus])
 
   // Lightweight status check across all servers (both championships), to populate the selector cards.
   // Fired one at a time with a small gap instead of all 6 at once — the upstream source has a
   // tight per-IP rate limit, and 6 simultaneous requests (plus the selected-server poll landing
   // at the same instant) was tripping a 429 that left the whole page blank until the next retry.
   const pollAllStatuses = useCallback(async () => {
-    for (const server of ALL_SERVERS) {
+    for (const { championshipId, server } of ALL_SERVERS) {
+      const key = serverStatusKey(championshipId, server)
       try {
-        const res = await fetch(`/api/live-timing/leaderboard?server=${server}`, { cache: 'no-store' })
+        const res = await fetch(`/api/live-timing/leaderboard?server=${server}&source=${championshipId}`, { cache: 'no-store' })
         const json = res.ok ? ((await res.json()) as LeaderboardResponse) : null
-        setServerStatus((prev) => ({ ...prev, [server]: json }))
+        setServerStatus((prev) => ({ ...prev, [key]: json }))
       } catch {
-        setServerStatus((prev) => ({ ...prev, [server]: null }))
+        setServerStatus((prev) => ({ ...prev, [key]: null }))
       }
       await new Promise((resolve) => setTimeout(resolve, 350))
     }
@@ -332,7 +340,7 @@ export default function LiveTimingPage() {
 
           <div className="space-y-1.5">
             {activeServers.map((server, idx) => {
-              const info = serverStatus[server]
+              const info = serverStatus[serverStatusKey(championship, server)]
               const live = isServerLive(info)
               const isSelected = server === selectedServer
               return (
