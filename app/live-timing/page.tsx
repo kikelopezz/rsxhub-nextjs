@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 import { ClassBadge, getCategoryStyles } from '@/components/class-badge'
-import { Signal, SignalZero } from 'lucide-react'
+import { HelpCircle, Signal, SignalZero } from 'lucide-react'
 import {
   CLASS_COLORS,
   fetchOfficialStints,
@@ -99,6 +99,7 @@ export default function LiveTimingPage() {
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'Position', dir: 'asc' })
   const [clock, setClock] = useState('')
+  const [showLegend, setShowLegend] = useState(false)
 
   useEffect(() => {
     const tick = () => setClock(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
@@ -312,8 +313,91 @@ export default function LiveTimingPage() {
               ))}
             </div>
             <div className="font-mono-data border border-white/10 bg-black/40 px-3 py-1.5 text-sm font-bold tabular-nums text-white">{clock}</div>
+            <button
+              type="button"
+              onClick={() => setShowLegend((v) => !v)}
+              title={t.legend.title}
+              aria-label={t.legend.title}
+              className={`flex h-9 w-9 items-center justify-center border transition-colors ${
+                showLegend ? 'border-[#4ea1ff] text-[#4ea1ff]' : 'border-white/10 text-slate-400 hover:border-white/30 hover:text-white'
+              }`}
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
           </div>
         </div>
+
+        {showLegend && (
+          <div className="border-t border-white/10 bg-[#060a12] px-5 py-4">
+            <div className="grid gap-6 md:grid-cols-3">
+              <div>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.legend.columns}</p>
+                <dl className="space-y-1 text-[11px]">
+                  {Object.entries(t.col).map(([key, label]) => (
+                    <div key={key} className="flex items-baseline gap-2">
+                      <dt className="w-16 shrink-0 font-mono-data font-bold text-[#4ea1ff]">{label}</dt>
+                      <dd className="text-slate-400">{(t.legend.colDesc as Record<string, string>)[key]}</dd>
+                    </div>
+                  ))}
+                  <div className="flex items-baseline gap-2">
+                    <dt className="w-16 shrink-0 font-mono-data font-bold text-[#4ea1ff]">S1 / S2 / S3</dt>
+                    <dd className="text-slate-400">{t.legend.sector}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.legend.positions}</p>
+                  <div className="space-y-1.5 text-[11px]">
+                    {[1, 2, 3].map((pos) => (
+                      <div key={pos} className="flex items-center gap-2">
+                        <span className={`inline-flex h-5 w-5 items-center justify-center font-display-league text-xs ${POS_CHIP[pos]}`}>{pos}</span>
+                        <span className="text-slate-400">{`P${pos}`}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.legend.connection}</p>
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-rose-500" />
+                      <span className="text-slate-400">{t.legend.live}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-slate-600" />
+                      <span className="text-slate-400">{t.legend.offline}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.legend.colors}</p>
+                <div className="space-y-3">
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-fuchsia-400" />
+                      <span className="text-slate-400">{t.legend.sessionBest}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+                      <span className="text-slate-400">{t.legend.personalBest}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-[11px]">
+                    {Object.entries(CLASS_COLORS).map(([cls, color]) => (
+                      <span key={cls} className="flex items-center gap-1.5 text-slate-400">
+                        <span className="h-2 w-3 shrink-0" style={{ background: color }} /> {cls}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[320px_1fr] lg:items-start">
