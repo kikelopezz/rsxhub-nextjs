@@ -119,7 +119,7 @@ export async function registerTeamAction(formData: FormData) {
     userId: string
     teamId: string
     displayName: string
-    status: 'pending'
+    status: 'approved'
     classTag: string
     assignedNumber: number
   }[] = []
@@ -151,7 +151,7 @@ export async function registerTeamAction(formData: FormData) {
         userId: info.userId,
         teamId,
         displayName: info.displayName,
-        status: 'pending',
+        status: 'approved',
         classTag: carToReg.classTag,
         assignedNumber: regCarNumber,
       })
