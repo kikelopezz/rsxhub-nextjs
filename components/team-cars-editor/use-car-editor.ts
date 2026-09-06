@@ -99,7 +99,13 @@ export function useCarEditor({
   const assignedDriverUserIds = useMemo(() => {
     const set = new Set<string>()
     for (const car of cars) {
-      for (const driverId of getCarDriversForLeague(car, activeTab)) {
+      // Resolve each car's own league the same way CarCard does for its label/dropdowns
+      // (activeTab when a specific league tab is open, else the car's own leagueId) —
+      // using the raw `activeTab` here instead meant that on the "all" tab, a driver
+      // already in one league's car got treated as "taken" for every other league's
+      // car too, hiding every team member from a brand-new car for a second league.
+      const carLeagueKey = activeTab !== 'all' ? activeTab : car.leagueId || 'general'
+      for (const driverId of getCarDriversForLeague(car, carLeagueKey)) {
         if (driverId && driverId.trim()) set.add(driverId.trim())
       }
     }
