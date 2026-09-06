@@ -18,6 +18,48 @@ import {
   sameDriverSet,
 } from '@/lib/lineup-rules'
 
+/** Turns per-car driver diffs into a readable admin notification, e.g.
+ * "SpeedHackTeam ha modificado la alineación. GT3 #13 (ERC Next Gen): DarkAngelRX → Ricardo Nevirkovets" */
+async function buildLineupChangeMessage(
+  teamName: string,
+  teamId: string,
+  changes: Array<{ category: string; dorsal: string; leagueId: string | null; added: string[]; removed: string[] }>,
+): Promise<string> {
+  const userIds = Array.from(new Set(changes.flatMap((c) => [...c.added, ...c.removed])))
+  const leagueIds = Array.from(new Set(changes.map((c) => c.leagueId).filter((id): id is string => Boolean(id))))
+
+  const [members, profiles, steamAccounts, leagues] = await Promise.all([
+    userIds.length > 0
+      ? db.teamMember.findMany({ where: { teamId, userId: { in: userIds } }, select: { userId: true, displayName: true } })
+      : Promise.resolve([]),
+    userIds.length > 0 ? db.profile.findMany({ where: { userId: { in: userIds } } }) : Promise.resolve([]),
+    userIds.length > 0 ? db.steamAccount.findMany({ where: { userId: { in: userIds } } }) : Promise.resolve([]),
+    leagueIds.length > 0 ? db.league.findMany({ where: { id: { in: leagueIds } }, select: { id: true, title: true } }) : Promise.resolve([]),
+  ])
+
+  const memberNameById = new Map(members.map((m) => [m.userId, m.displayName]))
+  const profileNameById = new Map(profiles.map((p) => [p.userId, p.displayName]))
+  const steamNameById = new Map(steamAccounts.map((s) => [s.userId, s.steamDisplayName]))
+  const leagueTitleById = new Map(leagues.map((l) => [l.id, l.title]))
+
+  const nameOf = (userId: string) =>
+    memberNameById.get(userId) || profileNameById.get(userId) || steamNameById.get(userId) || `Piloto ${userId.slice(0, 4)}`
+
+  const lines = changes.map((c) => {
+    const label = `${c.category} #${c.dorsal}${c.leagueId ? ` (${leagueTitleById.get(c.leagueId) || 'liga'})` : ''}`
+    // A clean 1-for-1 swap reads better as "old → new" than as separate +/- lists.
+    if (c.added.length === 1 && c.removed.length === 1) {
+      return `${label}: ${nameOf(c.removed[0])} → ${nameOf(c.added[0])}`
+    }
+    const parts: string[] = []
+    if (c.added.length > 0) parts.push(`+ ${c.added.map(nameOf).join(', ')}`)
+    if (c.removed.length > 0) parts.push(`- ${c.removed.map(nameOf).join(', ')}`)
+    return parts.length > 0 ? `${label}: ${parts.join(', ')}` : label
+  })
+
+  return `${teamName} ha modificado la alineación. ${lines.join(' | ')}`
+}
+
 export async function createTeam(formData: FormData) {
   const session = await guardSession()
 
@@ -201,6 +243,7 @@ export async function updateTeam(formData: FormData) {
   // unrelated team-details save), then enforce the Friday race-week lock and
   // the 3-changes-per-day limit before writing anything.
   const changedCarKeys: string[] = []
+  const carChangeDetails: Array<{ category: string; dorsal: string; leagueId: string | null; added: string[]; removed: string[] }> = []
   if (teamCars) {
     const oldDriversByKey = new Map<string, string[]>()
     for (const oldCar of existingTeam.cars) {
@@ -246,6 +289,13 @@ export async function updateTeam(formData: FormData) {
         redirect(`${redirectTo}?error=lineup-rate-limited`)
       }
       changedCarKeys.push(carKey)
+      carChangeDetails.push({
+        category: car.category,
+        dorsal,
+        leagueId: car.leagueId,
+        added: newDrivers.filter((id) => !oldDrivers.includes(id)),
+        removed: oldDrivers.filter((id) => !newDrivers.includes(id)),
+      })
     }
   }
 
@@ -322,11 +372,12 @@ export async function updateTeam(formData: FormData) {
 
       const adminUserIds = await getAdminUserIds()
       if (adminUserIds.length > 0) {
+        const message = await buildLineupChangeMessage(name, teamId, carChangeDetails)
         await db.userNotification.createMany({
           data: adminUserIds.map((userId) => ({
             userId,
             title: 'Cambio de alineación',
-            message: `${name} ha modificado la alineación de ${changedCarKeys.length === 1 ? 'un coche' : `${changedCarKeys.length} coches`}.`,
+            message,
             link: `/equipos/${teamId}`,
           })),
         })
