@@ -40,6 +40,7 @@ export async function fetchTeamProfileData(
       const displayName = account.steamDisplayName || account.userId || 'Driver'
       inviteCandidates.push({ userId: account.userId, label: `${displayName} (${account.steamId || account.userId})` })
     }
+    inviteCandidates.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
 
     for (const member of team.members) {
       const profile = memberProfileByUserId.get(member.userId)

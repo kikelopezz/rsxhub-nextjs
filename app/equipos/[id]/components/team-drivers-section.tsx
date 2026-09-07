@@ -5,6 +5,7 @@ import { MessageSquare, Users, UserPlus } from 'lucide-react'
 import { updateTeamMemberRole, updateTeamMemberTags, removeTeamMember, invitePilot } from '@/app/equipos/actions/team-membership'
 import { acceptDriverApplicationAction, declineDriverApplicationAction } from '@/app/equipos/actions/team-market'
 import { TEAM_ROLE_TAGS, type TeamPilot, type PendingApplication } from '../team-utils'
+import { InvitePilotPicker } from './invite-pilot-picker'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
@@ -189,16 +190,12 @@ export async function TeamDriversSection({
                         <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                           {t.inviteExistingLabel}
                         </label>
-                        <select
-                          name="invitedUserId"
-                          defaultValue=""
-                          className="w-full bg-[#141d31] border border-slate-700 focus:border-cyan-400 text-slate-200 text-xs font-semibold rounded-lg px-3 py-2 outline-none cursor-pointer"
-                        >
-                          <option value="">{t.inviteExistingPlaceholder}</option>
-                          {inviteCandidates.map((candidate) => (
-                            <option key={candidate.userId} value={candidate.userId}>{candidate.label}</option>
-                          ))}
-                        </select>
+                        <InvitePilotPicker
+                          candidates={inviteCandidates}
+                          searchPlaceholder={t.inviteSearchPlaceholder}
+                          selectPlaceholder={t.inviteExistingPlaceholder}
+                          noResultsText={t.inviteNoSearchResults}
+                        />
                       </div>
                     ) : (
                       <p className="text-xs text-slate-500 italic">{t.noCandidates}</p>

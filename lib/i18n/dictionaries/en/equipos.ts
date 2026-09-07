@@ -158,6 +158,8 @@ const equipos: typeof es = {
     inviteTitle: 'Invite a member',
     inviteExistingLabel: 'Choose from the platform',
     inviteExistingPlaceholder: 'Select a driver...',
+    inviteSearchPlaceholder: 'Search driver by name...',
+    inviteNoSearchResults: 'No drivers match that search.',
     inviteOr: 'or',
     inviteSteamIdLabel: 'Invite by Steam ID',
     inviteSteamIdPlaceholder: '17-digit Steam ID',

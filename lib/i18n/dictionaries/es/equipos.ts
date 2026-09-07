@@ -156,6 +156,8 @@ const equipos = {
     inviteTitle: 'Invitar miembro',
     inviteExistingLabel: 'Elegir de la plataforma',
     inviteExistingPlaceholder: 'Selecciona un piloto...',
+    inviteSearchPlaceholder: 'Buscar piloto por nombre...',
+    inviteNoSearchResults: 'Ningún piloto coincide con esa búsqueda.',
     inviteOr: 'o',
     inviteSteamIdLabel: 'Invitar por Steam ID',
     inviteSteamIdPlaceholder: 'ID de Steam de 17 dígitos',
