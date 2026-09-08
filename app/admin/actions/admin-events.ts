@@ -4,13 +4,16 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { zonedWallTimeToUtc } from '@/lib/utils'
 import { guardLeaguePermission } from './admin-league'
 
-function addMinutesToIso(startsAt: string, durationMinutes: number) {
-  const start = new Date(startsAt)
-  if (Number.isNaN(start.getTime())) return null
-  const end = new Date(start.getTime() + durationMinutes * 60 * 1000)
-  return end.toISOString()
+// `startsAt` comes from an `<input type="datetime-local">` as a naive `YYYY-MM-DDTHH:mm`
+// string — always Spanish wall-clock time as typed by the admin — so it's converted via
+// the league timezone rather than `new Date()`, which would parse it in whatever timezone
+// the Node process happens to run under (UTC on Vercel).
+function parseSessionStart(startsAt: string): Date {
+  const [dateStr, timeStr] = startsAt.split('T')
+  return zonedWallTimeToUtc(dateStr, timeStr)
 }
 
 function parseClassLimits(formData: FormData) {
@@ -30,12 +33,16 @@ export async function createEvent(formData: FormData) {
   const { session } = await guardLeaguePermission(leagueId, 'manage')
 
   const title = String(formData.get('title') || '').trim()
-  const startsAt = String(formData.get('startsAt') || '').trim()
+  const startsAtRaw = String(formData.get('startsAt') || '').trim()
   const durationMinutes = Number(formData.get('durationMinutes') || 0)
-  const endsAt = addMinutesToIso(startsAt, Number.isFinite(durationMinutes) ? durationMinutes : 0)
-  if (!title || !startsAt || !endsAt || !Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+  if (!title || !startsAtRaw || !Number.isInteger(durationMinutes) || durationMinutes <= 0) {
     redirect(`/admin/ligas/${leagueId}?eventError=missing-fields`)
   }
+  const startsAtDate = parseSessionStart(startsAtRaw)
+  if (Number.isNaN(startsAtDate.getTime())) {
+    redirect(`/admin/ligas/${leagueId}?eventError=missing-fields`)
+  }
+  const endsAtDate = new Date(startsAtDate.getTime() + durationMinutes * 60 * 1000)
 
   const selectedCircuitId = String(formData.get('circuitId') || '')
   const customCircuitName = String(formData.get('customCircuitName') || '').trim()
@@ -87,8 +94,8 @@ export async function createEvent(formData: FormData) {
         title,
         circuitId,
         circuitName,
-        startsAt: new Date(startsAt),
-        endsAt: new Date(endsAt),
+        startsAt: startsAtDate,
+        endsAt: endsAtDate,
         maxDrivers,
         status: (String(formData.get('status') || 'scheduled')) as any,
       },
@@ -119,14 +126,18 @@ export async function updateEvent(formData: FormData) {
 
   const title = String(formData.get('title') || '').trim()
   const circuitName = String(formData.get('circuitName') || '').trim()
-  const startsAt = String(formData.get('startsAt') || '').trim()
+  const startsAtRaw = String(formData.get('startsAt') || '').trim()
   const durationMinutes = Number(formData.get('durationMinutes') || 0)
-  const endsAt = addMinutesToIso(startsAt, Number.isFinite(durationMinutes) ? durationMinutes : 0)
   const status = String(formData.get('status') || 'scheduled').trim()
 
-  if (!eventId || !title || !circuitName || !startsAt || !endsAt || !Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+  if (!eventId || !title || !circuitName || !startsAtRaw || !Number.isInteger(durationMinutes) || durationMinutes <= 0) {
     redirect(`/admin/ligas/${leagueId}?eventError=update-missing-fields`)
   }
+  const startsAtDate = parseSessionStart(startsAtRaw)
+  if (Number.isNaN(startsAtDate.getTime())) {
+    redirect(`/admin/ligas/${leagueId}?eventError=update-missing-fields`)
+  }
+  const endsAtDate = new Date(startsAtDate.getTime() + durationMinutes * 60 * 1000)
 
   const maxDriversRaw = formData.get('maxDrivers')
   const maxDrivers = maxDriversRaw ? Number(maxDriversRaw) : null
@@ -138,8 +149,8 @@ export async function updateEvent(formData: FormData) {
       data: {
         title,
         circuitName,
-        startsAt: new Date(startsAt),
-        endsAt: new Date(endsAt),
+        startsAt: startsAtDate,
+        endsAt: endsAtDate,
         maxDrivers,
         status: status as any,
       },

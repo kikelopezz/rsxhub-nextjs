@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, unstable_rethrow } from 'next/navigation'
 import { toast } from 'sonner'
-import { X, AlertCircle, Play, Clock, ChevronDown } from 'lucide-react'
+import { X, AlertCircle, Play, Clock, ChevronDown, Trophy, Calendar } from 'lucide-react'
 import { useLeagueState, League, LeagueEvent, Registration, ManagedTeam, LeagueCar, EventConfirmation } from './hooks/use-league-state'
 import { LeagueBanner } from './components/league-banner'
 import { LeagueRegistration } from './components/league-registration'
@@ -22,6 +22,7 @@ import { ClassBadge } from '@/components/class-badge'
 import { ImagePicker } from '@/components/image-picker'
 import { TimeInput24 } from '@/components/time-input-24'
 import { useDictionary } from '@/lib/i18n/locale-provider'
+import { utcToZonedDatetimeLocal } from '@/lib/utils'
 
 function hexToRgba(hex: string, alpha: number) {
   if (!hex || typeof hex !== 'string') return `rgba(18, 116, 222, ${alpha})`
@@ -92,10 +93,8 @@ export default function LeagueDetailPageContent({
     confirmations,
     classTags,
     standings,
-    standingsIndices,
     customCarImages,
     handleCarImageUpload,
-    scrollStandings,
     updateTeamPoints,
     registeredCars,
     groupedRegistrations
@@ -128,6 +127,9 @@ export default function LeagueDetailPageContent({
 
   // Accent color hex
   const accentHex = league.accentColor || '#1274de'
+
+  // Top section switcher: standings vs. schedule
+  const [activeSection, setActiveSection] = useState<'standings' | 'schedule'>('standings')
 
   // Modals visibility
   const [isEditLeagueOpen, setIsEditLeagueOpen] = useState(false)
@@ -201,28 +203,20 @@ export default function LeagueDetailPageContent({
     }
   }
 
+  // Events are stored as absolute UTC instants, so re-populating the edit form has to
+  // convert back through the league's own timezone (Madrid) rather than slicing the ISO
+  // string directly — otherwise the modal would show the UTC hour instead of the hour the
+  // admin originally typed.
   const formatLocalTimeInput = (isoStr?: string | null, fallback = '20:00') => {
     if (!isoStr) return fallback
-    if (isoStr.includes('T')) {
-      const timePart = isoStr.split('T')[1]?.substring(0, 5)
-      if (timePart && /^\d{2}:\d{2}$/.test(timePart)) return timePart
-    }
-    return fallback
+    const zoned = utcToZonedDatetimeLocal(isoStr)
+    return zoned ? zoned.split('T')[1] : fallback
   }
 
   const formatLocalDateInput = (isoStr?: string | null, fallback = '') => {
     if (!isoStr) return fallback
-    if (isoStr.includes('T')) {
-      const datePart = isoStr.split('T')[0]
-      if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart
-    }
-    return fallback
-  }
-
-  const createLocalISO = (dateStr: string, timeStr: string) => {
-    const d = dateStr || '2026-08-08'
-    const t = timeStr || '20:00'
-    return `${d}T${t}:00`
+    const zoned = utcToZonedDatetimeLocal(isoStr)
+    return zoned ? zoned.split('T')[0] : fallback
   }
 
   const handleOpenEventModal = (event?: LeagueEvent) => {
@@ -288,11 +282,9 @@ export default function LeagueDetailPageContent({
     setEventErrorMessage('')
 
     try {
-      const startsAtFull = createLocalISO(formEventDate, formEventStartsTime || '20:15')
-      const endsAtFull = createLocalISO(formEventDate, formEventEndsTime || '22:00')
-      const qualyStartsAtFull = formHasQualy ? createLocalISO(formQualyDate || formEventDate, formQualyStartsTime || '19:30') : null
-      const qualyEndsAtFull = formHasQualy ? createLocalISO(formQualyDate || formEventDate, formQualyEndsTime || '20:00') : null
-
+      // The server derives startsAt/endsAt/qualyStartsAt/qualyEndsAt itself from these raw
+      // date + time-of-day fields (interpreted as Spanish wall-clock time) rather than from
+      // a pre-combined ISO string, so it isn't at the mercy of the Node process's own timezone.
       const formData = new FormData(e.currentTarget)
       formData.set('leagueId', league.id)
       formData.set('circuitName', formEventCircuit || 'Circuit')
@@ -301,14 +293,12 @@ export default function LeagueDetailPageContent({
       formData.set('color', formEventColor)
       formData.set('eventType', formEventType)
       formData.set('date', formEventDate)
+      formData.set('startsAtTime', formEventStartsTime || '20:15')
+      formData.set('endsAtTime', formEventEndsTime || '22:00')
       formData.set('hasQualy', formHasQualy ? 'true' : 'false')
       formData.set('qualyDate', formQualyDate || formEventDate)
-      formData.set('qualyStartsAtTime', formQualyStartsTime)
-      formData.set('qualyEndsAtTime', formQualyEndsTime)
-      formData.set('qualyStartsAt', qualyStartsAtFull || '')
-      formData.set('qualyEndsAt', qualyEndsAtFull || '')
-      formData.set('startsAt', startsAtFull)
-      formData.set('endsAt', endsAtFull)
+      formData.set('qualyStartsAtTime', formQualyStartsTime || '19:30')
+      formData.set('qualyEndsAtTime', formQualyEndsTime || '20:00')
       formData.set('maxDrivers', formEventMaxDrivers)
       for (const tag of classTags) {
         formData.set(`max_cars_${tag}`, formEventClassLimits[tag] || '')
@@ -411,36 +401,62 @@ export default function LeagueDetailPageContent({
         }
       />
 
-      {/* 2. Championship Ladder — full-width, dominant */}
-      <LeagueStandings
-        isAdmin={isAdmin}
-        canEditPoints={canEditPoints}
-        classTags={classTags}
-        standings={standings}
-        standingsIndices={standingsIndices}
-        customCarImages={customCarImages}
-        onScrollStandings={scrollStandings}
-        onCarImageUpload={handleCarImageUpload}
-        onUpdateTeamPoints={handleUpdateTeamPoints}
-      />
+      {/* 2. Section switcher — pick between standings and schedule */}
+      <div className="flex gap-1 rounded-xl border border-white/10 bg-[#0d1420] p-1.5">
+        <button
+          type="button"
+          onClick={() => setActiveSection('standings')}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+            activeSection === 'standings' ? 'bg-[#1274de] text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+          }`}
+        >
+          <Trophy className="h-4 w-4" />
+          {tr.standingsTab}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection('schedule')}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+            activeSection === 'schedule' ? 'bg-[#1274de] text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+          }`}
+        >
+          <Calendar className="h-4 w-4" />
+          {tr.scheduleTab}
+        </button>
+      </div>
 
-      {/* 3. Race Trail — horizontal schedule timeline */}
-      <LeagueSchedule
-        league={league}
-        events={events}
-        isAdmin={isAdmin}
-        isSteward={isSteward}
-        classTags={classTags}
-        confirmations={confirmations}
-        initialRegistrations={initialRegistrations}
-        myManagedTeams={myManagedTeams}
-        teamInfo={teamInfo}
-        standings={standings}
-        onOpenEventModal={handleOpenEventModal}
-        onDeleteEvent={handleEventDelete}
-        onFinishRound={(ev, initialSessionType) => setFinishingEventData({ event: ev, initialSessionType })}
-        onViewResults={(ev) => setViewingResultsEvent(ev)}
-      />
+      {/* 3. Championship Ladder — full-width, dominant */}
+      {activeSection === 'standings' && (
+        <LeagueStandings
+          isAdmin={isAdmin}
+          canEditPoints={canEditPoints}
+          classTags={classTags}
+          standings={standings}
+          customCarImages={customCarImages}
+          onCarImageUpload={handleCarImageUpload}
+          onUpdateTeamPoints={handleUpdateTeamPoints}
+        />
+      )}
+
+      {/* 4. Race Trail — horizontal schedule timeline */}
+      {activeSection === 'schedule' && (
+        <LeagueSchedule
+          league={league}
+          events={events}
+          isAdmin={isAdmin}
+          isSteward={isSteward}
+          classTags={classTags}
+          confirmations={confirmations}
+          initialRegistrations={initialRegistrations}
+          myManagedTeams={myManagedTeams}
+          teamInfo={teamInfo}
+          standings={standings}
+          onOpenEventModal={handleOpenEventModal}
+          onDeleteEvent={handleEventDelete}
+          onFinishRound={(ev, initialSessionType) => setFinishingEventData({ event: ev, initialSessionType })}
+          onViewResults={(ev) => setViewingResultsEvent(ev)}
+        />
+      )}
 
       {/* View Results Modal (Read-Only for Pilots & Users) */}
       {viewingResultsEvent && (

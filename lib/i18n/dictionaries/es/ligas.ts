@@ -8,11 +8,8 @@ const ligas = {
   },
   standings: {
     title: 'Clasificación de equipos',
-    subtitle: 'Clasificación del campeonato. Usa las flechas para navegar.',
+    subtitle: 'Clasificación del campeonato.',
     category: 'CATEGORÍA:',
-    scrollUp: 'Subir',
-    scrollDown: 'Bajar',
-    ofRange: '{from}-{to} de {total}',
     noTeams: 'No hay equipos inscritos en esta categoría.',
     uploadCarPhoto: 'Haz clic para subir/cambiar la foto del coche',
     change: 'Cambiar',
@@ -211,6 +208,8 @@ const ligas = {
     create: 'Crear campeonato',
   },
   detailPage: {
+    standingsTab: 'Clasificación de coches',
+    scheduleTab: 'Calendario del campeonato',
     deleteLeagueConfirm: '¿Seguro que quieres eliminar este campeonato? Esta acción no se puede deshacer.',
     deleteLeagueFailed: 'Error al eliminar el campeonato.',
     updateSettingsFailed: 'Error al actualizar los ajustes del campeonato.',

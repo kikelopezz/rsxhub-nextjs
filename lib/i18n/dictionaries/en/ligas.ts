@@ -10,11 +10,8 @@ const ligas: typeof es = {
   },
   standings: {
     title: 'Teams Standings',
-    subtitle: 'Championship standings. Use scroll arrows to navigate.',
+    subtitle: 'Championship standings.',
     category: 'CATEGORY:',
-    scrollUp: 'Scroll Up',
-    scrollDown: 'Scroll Down',
-    ofRange: '{from}-{to} of {total}',
     noTeams: 'No teams registered in this class.',
     uploadCarPhoto: 'Click to upload/change car photo',
     change: 'Change',
@@ -213,6 +210,8 @@ const ligas: typeof es = {
     create: 'Create Championship',
   },
   detailPage: {
+    standingsTab: 'Car Standings',
+    scheduleTab: 'Championship Schedule',
     deleteLeagueConfirm: 'Are you sure you want to delete this championship? This action cannot be undone.',
     deleteLeagueFailed: 'Error deleting championship.',
     updateSettingsFailed: 'Error updating league settings.',

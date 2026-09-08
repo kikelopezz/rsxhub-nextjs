@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Trophy, ChevronUp, ChevronDown, Upload } from 'lucide-react'
+import { Trophy, Upload } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
 import { TeamStanding } from '../hooks/use-league-state'
 import { useDictionary } from '@/lib/i18n/locale-provider'
@@ -13,9 +13,7 @@ interface LeagueStandingsProps {
   canEditPoints?: boolean
   classTags: string[]
   standings: Record<string, TeamStanding[]>
-  standingsIndices: Record<string, number>
   customCarImages: Record<string, string>
-  onScrollStandings: (tag: string, direction: 'up' | 'down') => void
   onCarImageUpload: (classTag: string, teamId: string, carNumber: string, file: File) => void
   onUpdateTeamPoints?: (tag: string, teamId: string, carNumber: string, newPoints: number) => void
 }
@@ -27,9 +25,7 @@ export function LeagueStandings({
   canEditPoints = false,
   classTags,
   standings,
-  standingsIndices,
   customCarImages,
-  onScrollStandings,
   onCarImageUpload,
   onUpdateTeamPoints,
 }: LeagueStandingsProps) {
@@ -38,8 +34,7 @@ export function LeagueStandings({
   const tag = classTags.includes(activeTag) ? activeTag : classTags[0]
 
   const teamList = standings[tag] || []
-  const startIndex = standingsIndices[tag] || 0
-  const visibleTeams = teamList.slice(startIndex, startIndex + 5)
+  const visibleTeams = teamList
   const maxPoints = teamList[0]?.points || 0
 
   return (
@@ -50,49 +45,20 @@ export function LeagueStandings({
           {t.title}
         </h2>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1 rounded-lg border border-white/10 bg-[#0a0f18] p-1">
-            {classTags.map((tg) => (
-              <button
-                key={tg}
-                type="button"
-                onClick={() => setActiveTag(tg)}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors ${
-                  tg === tag ? 'bg-[#1274de]' : 'hover:bg-white/5'
-                }`}
-              >
-                <ClassBadge classTag={tg} className="text-[10px] font-black" />
-                <span className="font-mono-data text-[10px] font-bold text-slate-400">{(standings[tg] || []).length}</span>
-              </button>
-            ))}
-          </div>
-
-          {teamList.length > 5 && (
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => onScrollStandings(tag, 'up')}
-                disabled={startIndex === 0}
-                className="rounded-md border border-white/10 bg-black/40 p-1 text-slate-400 transition-colors hover:border-[#4ea1ff] hover:text-[#4ea1ff] disabled:opacity-30 disabled:hover:border-white/10 disabled:hover:text-slate-400"
-                title={t.scrollUp}
-              >
-                <ChevronUp className="h-3.5 w-3.5" />
-              </button>
-              <span className="font-mono-data px-1 text-[10px] uppercase text-slate-500">
-                {t.ofRange
-                  .replace('{from}', String(startIndex + 1))
-                  .replace('{to}', String(Math.min(startIndex + 5, teamList.length)))
-                  .replace('{total}', String(teamList.length))}
-              </span>
-              <button
-                onClick={() => onScrollStandings(tag, 'down')}
-                disabled={startIndex >= teamList.length - 5}
-                className="rounded-md border border-white/10 bg-black/40 p-1 text-slate-400 transition-colors hover:border-[#4ea1ff] hover:text-[#4ea1ff] disabled:opacity-30 disabled:hover:border-white/10 disabled:hover:text-slate-400"
-                title={t.scrollDown}
-              >
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
+        <div className="flex gap-1 rounded-lg border border-white/10 bg-[#0a0f18] p-1">
+          {classTags.map((tg) => (
+            <button
+              key={tg}
+              type="button"
+              onClick={() => setActiveTag(tg)}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors ${
+                tg === tag ? 'bg-[#1274de]' : 'hover:bg-white/5'
+              }`}
+            >
+              <ClassBadge classTag={tg} className="text-[10px] font-black" />
+              <span className="font-mono-data text-[10px] font-bold text-slate-400">{(standings[tg] || []).length}</span>
+            </button>
+          ))}
         </div>
       </div>
 

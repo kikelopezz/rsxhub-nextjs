@@ -12,7 +12,7 @@ import {
 } from '@/lib/auth'
 import { getCircuits, getLeagueCars, getLeagueEvents, getLeagues, getRegistrations } from '@/lib/platform-data'
 import { db } from '@/lib/db'
-import { formatDateTime } from '@/lib/utils'
+import { formatDateTime, utcToZonedDatetimeLocal } from '@/lib/utils'
 import { FormattedDate } from '@/components/formatted-date'
 import {
   addLeagueCar,
@@ -28,9 +28,9 @@ import { getDictionary } from '@/lib/i18n/get-dictionary'
 
 function toDatetimeLocal(value?: string | null) {
   if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toISOString().slice(0, 16)
+  // Shows the admin the Madrid wall-clock time they originally entered, not the raw
+  // UTC instant — otherwise re-opening the edit form silently shifts the session time.
+  return utcToZonedDatetimeLocal(value)
 }
 
 function durationMinutesForEvent(startsAt?: string | null, endsAt?: string | null) {

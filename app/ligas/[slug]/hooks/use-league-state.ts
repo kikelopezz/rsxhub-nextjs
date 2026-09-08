@@ -140,11 +140,9 @@ export function useLeagueState({
   )
 
   const [standings, setStandings] = useState<Record<string, TeamStanding[]>>({})
-  const [standingsIndices, setStandingsIndices] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const initialStandings: Record<string, TeamStanding[]> = {}
-    const initialIndices: Record<string, number> = {}
 
     classTags.forEach((tag) => {
       const uniqueKeys = new Set<string>()
@@ -186,11 +184,9 @@ export function useLeagueState({
       // Sort descending by points so positions order dynamically
       list.sort((a, b) => b.points - a.points)
 
-      initialIndices[tag] = 0
       initialStandings[tag] = list
     })
     setStandings(initialStandings)
-    setStandingsIndices(initialIndices)
   }, [initialRegistrations, classTags, myManagedTeams, teamInfo, initialPointsOverrides])
 
   // Custom car images per car (`${classTag}_${teamId}_${carNumber}`, matching the
@@ -243,19 +239,6 @@ export function useLeagueState({
     } catch (err) {
       console.error('Failed to upload car image:', err)
     }
-  }
-
-  // Scroll standings
-  const scrollStandings = (tag: string, direction: 'up' | 'down') => {
-    setStandingsIndices((prev) => {
-      const current = prev[tag] || 0
-      const total = (standings[tag] || []).length
-      if (direction === 'up') {
-        return { ...prev, [tag]: Math.max(0, current - 5) }
-      } else {
-        return { ...prev, [tag]: Math.min(Math.max(0, total - 5), current + 5) }
-      }
-    })
   }
 
   // Track registrations grouped by team & category across all teams in league
@@ -329,10 +312,8 @@ export function useLeagueState({
     setConfirmations,
     classTags,
     standings,
-    standingsIndices,
     customCarImages,
     handleCarImageUpload,
-    scrollStandings,
     updateTeamPoints,
     registeredCars: allRegisteredCars,
     uniqueRegisteredCars,

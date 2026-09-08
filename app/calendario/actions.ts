@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentUser, getAdminAccessContext, getLeagueRole, canStewardLeague } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { zonedWallTimeToUtc } from '@/lib/utils'
 
 export async function createCalendarNoteAction(formData: FormData) {
   const session = await getCurrentUser()
@@ -100,18 +101,12 @@ export async function saveCalendarEvent(formData: FormData) {
 
     const hasQualy = formData.get('hasQualy') === 'on' || formData.get('hasQualy') === 'true' || formData.get('hasQualy') === '1'
     const qualyDateStr = String(formData.get('qualyDate') || dateStr).trim()
-    const qualyStartsAtTime = String(formData.get('qualyStartsAtTime') || '').trim()
-    const qualyEndsAtTime = String(formData.get('qualyEndsAtTime') || '').trim()
+    const qualyStartsAtTime = String(formData.get('qualyStartsAtTime') || '19:30').trim()
+    const qualyEndsAtTime = String(formData.get('qualyEndsAtTime') || '20:00').trim()
 
-    const startsAt = formData.get('startsAt') ? String(formData.get('startsAt')).trim() : `${dateStr}T${startsAtTime}:00`
-    const endsAt = formData.get('endsAt') ? String(formData.get('endsAt')).trim() : `${dateStr}T${endsAtTime}:00`
-
-    const rawQualyStarts = formData.get('qualyStartsAt') ? String(formData.get('qualyStartsAt')).trim() : null
-    const rawQualyEnds = formData.get('qualyEndsAt') ? String(formData.get('qualyEndsAt')).trim() : null
-
-    const qualyStartsAt = hasQualy ? rawQualyStarts || `${qualyDateStr}T${qualyStartsAtTime || '19:30'}:00` : null
-    const qualyEndsAt = hasQualy ? rawQualyEnds || `${qualyDateStr}T${qualyEndsAtTime || '20:00'}:00` : null
-
+    // Always derived from the raw date + time-of-day fields (entered as Spanish wall-clock
+    // time) rather than the pre-combined ISO strings the client also sends — those are naive
+    // and would get parsed in whatever timezone the Node process happens to run under.
     const payload = {
       leagueId,
       title: title || null,
@@ -123,10 +118,10 @@ export async function saveCalendarEvent(formData: FormData) {
       color: color || null,
       maxDrivers,
       hasQualy,
-      qualyStartsAt: qualyStartsAt ? new Date(qualyStartsAt) : null,
-      qualyEndsAt: qualyEndsAt ? new Date(qualyEndsAt) : null,
-      startsAt: new Date(startsAt),
-      endsAt: new Date(endsAt),
+      qualyStartsAt: hasQualy ? zonedWallTimeToUtc(qualyDateStr, qualyStartsAtTime) : null,
+      qualyEndsAt: hasQualy ? zonedWallTimeToUtc(qualyDateStr, qualyEndsAtTime) : null,
+      startsAt: zonedWallTimeToUtc(dateStr, startsAtTime),
+      endsAt: zonedWallTimeToUtc(dateStr, endsAtTime),
     }
 
     const event = eventId
