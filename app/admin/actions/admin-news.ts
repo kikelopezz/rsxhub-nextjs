@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { notifyNewsPublished } from '@/lib/notifications-data'
 import { guardPlatformAdmin } from './admin-league'
 
 export async function createNewsPostAction(formData: FormData) {
@@ -18,13 +19,14 @@ export async function createNewsPostAction(formData: FormData) {
   }
 
   try {
-    await db.newsPost.create({
+    const post = await db.newsPost.create({
       data: { title, excerpt, body, imageUrl: imageUrl || null, authorId: session.userId },
     })
     invalidateCache(['news_posts', 'home_news_posts'])
     revalidatePath('/admin')
     revalidatePath('/noticias')
     revalidatePath('/')
+    await notifyNewsPublished({ newsId: post.id, title })
     return { success: true }
   } catch (error) {
     console.error('Failed to create news post:', error)

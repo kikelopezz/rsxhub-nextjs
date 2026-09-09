@@ -164,6 +164,33 @@ export async function notifyLeagueRegistrationStatus({
   }
 }
 
+export async function notifyNewsPublished({
+  newsId,
+  title,
+}: {
+  newsId: string
+  title: string
+}) {
+  try {
+    const users = await db.user.findMany({ select: { id: true } })
+    if (users.length === 0) return
+
+    // A single bulk insert instead of the usual createNotification() (which does a
+    // per-row duplicate lookup) — broadcasting to every pilot on the platform makes that
+    // N+N round trips, and a freshly created newsId can't already have a notification.
+    await db.userNotification.createMany({
+      data: users.map((u) => ({
+        userId: u.id,
+        title: 'New Article Published',
+        message: title,
+        link: `/noticias#${newsId}`,
+      })),
+    })
+  } catch (err) {
+    console.error('Failed to notify pilots of new news post:', err)
+  }
+}
+
 export async function notifyRaceEventScheduled({
   userIds,
   eventTitle,
