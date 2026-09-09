@@ -365,8 +365,8 @@ export async function TeamDriversSection({
         </div>
       )}
 
-      {/* Drivers display list — poster cards in a horizontal strip */}
-      <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+      {/* Drivers display list — poster cards that wrap onto new rows once the row is full */}
+      <div className="mt-3 flex flex-wrap gap-3">
         {displayPilots.length === 0 ? (
           <p className="text-sm text-slate-300">{t.noDriversRegistered}</p>
         ) : (
