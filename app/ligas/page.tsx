@@ -71,14 +71,20 @@ export default async function LigasPage({ searchParams }: Props) {
         return
       }
       const pointsMap = await getTeamPointsOverrides(league.id)
-      const seenTeams = new Set<string>()
+      // Dedupe per car (team + dorsal), not per team — a team can field more than one car
+      // in the same class, and the real standings ladder ranks cars independently. Deduping
+      // by team alone kept only whichever car happened to register first, so a team's actual
+      // best-scoring car could lose the "leader" comparison to its own weaker entry.
+      const seenCars = new Set<string>()
       let best: { name: string; logoUrl: string | null; points: number } | null = null
       for (const reg of registrations) {
         if (reg.leagueId !== league.id || reg.status === 'rejected') continue
         if (reg.classTag && reg.classTag !== primaryClass) continue
-        if (!reg.teamId || seenTeams.has(reg.teamId) || !validTeamIds.has(reg.teamId)) continue
-        seenTeams.add(reg.teamId)
+        if (!reg.teamId || !validTeamIds.has(reg.teamId)) continue
         const dorsal = reg.assignedNumber != null ? String(reg.assignedNumber) : ''
+        const carKey = `${reg.teamId}_${dorsal}`
+        if (seenCars.has(carKey)) continue
+        seenCars.add(carKey)
         const points = pointsMap[`${primaryClass.toUpperCase()}_${reg.teamId}_${dorsal}`] || 0
         const team = teamById.get(reg.teamId)
         if (!team) continue
