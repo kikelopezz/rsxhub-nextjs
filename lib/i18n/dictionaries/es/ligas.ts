@@ -228,6 +228,8 @@ const ligas = {
       circuitName: 'Nombre del circuito',
       circuitNamePlaceholder: 'ej. Circuit de la Sarthe, Le Mans',
       countryFlag: 'Bandera del país',
+      countrySearchPlaceholder: 'Buscar país...',
+      countryNoResults: 'Sin resultados',
       roundColor: 'Color visual de la ronda (paleta de colores)',
       custom: 'Personalizado:',
       sessionSchedules: 'Horarios de las sesiones de la ronda',

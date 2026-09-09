@@ -204,10 +204,24 @@ export const COUNTRIES: Country[] = [
   { code: 'ZW', name: 'Zimbabue' },
 ].sort((a, b) => a.name.localeCompare(b.name))
 
-export function getCountryName(code: string): string {
+// Some older records (and race-org-style circuit data) use 3-letter codes instead of
+// ISO 3166-1 alpha-2 — map those onto the real 2-letter code every helper below expects.
+const LEGACY_THREE_LETTER_CODES: Record<string, string> = {
+  ESP: 'ES', ITA: 'IT', FRA: 'FR', GER: 'DE', GBR: 'GB', BEL: 'BE', USA: 'US',
+  JPN: 'JP', BRA: 'BR', QAT: 'QA', POR: 'PT', ARG: 'AR', MEX: 'MX', CHI: 'CL',
+  COL: 'CO', AUS: 'AU', NED: 'NL', CAN: 'CA', AUT: 'AT', SGP: 'SG', ARE: 'AE',
+}
+
+export function normalizeCountryCode(code: string): string {
   const cleanCode = (code || '').trim().toUpperCase()
-  const found = COUNTRIES.find((c) => c.code === cleanCode)
-  return found ? found.name : cleanCode
+  if (!cleanCode) return ''
+  return LEGACY_THREE_LETTER_CODES[cleanCode] || cleanCode.slice(0, 2)
+}
+
+export function getCountryName(code: string): string {
+  const twoLetter = normalizeCountryCode(code)
+  const found = COUNTRIES.find((c) => c.code === twoLetter)
+  return found ? found.name : (code || '').trim().toUpperCase()
 }
 
 // Windows Chrome/Edge don't render regional-indicator flag emoji as pictures (shows the
@@ -215,63 +229,13 @@ export function getCountryName(code: string): string {
 // only way to show a flag. This resolves to a real SVG asset (public/flags/<code>.svg,
 // copied from the flag-icons package) that renders identically on every platform.
 export function getCountryFlagUrl(code: string): string | null {
-  const cleanCode = (code || '').trim().toUpperCase()
-  if (!cleanCode) return null
-  const twoLetter =
-    cleanCode === 'ESP' ? 'ES' :
-    cleanCode === 'ITA' ? 'IT' :
-    cleanCode === 'FRA' ? 'FR' :
-    cleanCode === 'GER' ? 'DE' :
-    cleanCode === 'GBR' ? 'GB' :
-    cleanCode === 'BEL' ? 'BE' :
-    cleanCode === 'USA' ? 'US' :
-    cleanCode === 'JPN' ? 'JP' :
-    cleanCode === 'BRA' ? 'BR' :
-    cleanCode === 'QAT' ? 'QA' :
-    cleanCode === 'POR' ? 'PT' :
-    cleanCode === 'ARG' ? 'AR' :
-    cleanCode === 'MEX' ? 'MX' :
-    cleanCode === 'CHI' ? 'CL' :
-    cleanCode === 'COL' ? 'CO' :
-    cleanCode === 'AUS' ? 'AU' :
-    cleanCode === 'NED' ? 'NL' :
-    cleanCode === 'CAN' ? 'CA' :
-    cleanCode === 'AUT' ? 'AT' :
-    cleanCode === 'SGP' ? 'SG' :
-    cleanCode === 'ARE' ? 'AE' :
-    cleanCode.slice(0, 2)
-
+  const twoLetter = normalizeCountryCode(code)
   if (twoLetter.length !== 2) return null
   return `/flags/${twoLetter.toLowerCase()}.svg`
 }
 
 export function getCountryFlag(code: string): string {
-  const cleanCode = (code || '').trim().toUpperCase()
-  if (!cleanCode) return ''
-  const twoLetter =
-    cleanCode === 'ESP' ? 'ES' :
-    cleanCode === 'ITA' ? 'IT' :
-    cleanCode === 'FRA' ? 'FR' :
-    cleanCode === 'GER' ? 'DE' :
-    cleanCode === 'GBR' ? 'GB' :
-    cleanCode === 'BEL' ? 'BE' :
-    cleanCode === 'USA' ? 'US' :
-    cleanCode === 'JPN' ? 'JP' :
-    cleanCode === 'BRA' ? 'BR' :
-    cleanCode === 'QAT' ? 'QA' :
-    cleanCode === 'POR' ? 'PT' :
-    cleanCode === 'ARG' ? 'AR' :
-    cleanCode === 'MEX' ? 'MX' :
-    cleanCode === 'CHI' ? 'CL' :
-    cleanCode === 'COL' ? 'CO' :
-    cleanCode === 'AUS' ? 'AU' :
-    cleanCode === 'NED' ? 'NL' :
-    cleanCode === 'CAN' ? 'CA' :
-    cleanCode === 'AUT' ? 'AT' :
-    cleanCode === 'SGP' ? 'SG' :
-    cleanCode === 'ARE' ? 'AE' :
-    cleanCode.slice(0, 2)
-
+  const twoLetter = normalizeCountryCode(code)
   if (twoLetter.length !== 2) return ''
   const codePoints = twoLetter
     .split('')

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useRouter, unstable_rethrow } from 'next/navigation'
 import { toast } from 'sonner'
@@ -23,6 +24,7 @@ import { ImagePicker } from '@/components/image-picker'
 import { TimeInput24 } from '@/components/time-input-24'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 import { utcToZonedDatetimeLocal } from '@/lib/utils'
+import { COUNTRIES, getCountryFlagUrl, normalizeCountryCode } from '@/lib/countries'
 
 function hexToRgba(hex: string, alpha: number) {
   if (!hex || typeof hex !== 'string') return `rgba(18, 116, 222, ${alpha})`
@@ -36,20 +38,6 @@ function hexToRgba(hex: string, alpha: number) {
   const b = parseInt(c.substring(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
-
-const COUNTRY_OPTIONS = [
-  { value: 'FRA', label: '🇫🇷 France (FRA)' },
-  { value: 'ESP', label: '🇪🇸 Spain (ESP)' },
-  { value: 'ITA', label: '🇮🇹 Italy (ITA)' },
-  { value: 'GER', label: '🇩🇪 Germany (GER)' },
-  { value: 'GBR', label: '🇬🇧 United Kingdom (GBR)' },
-  { value: 'BEL', label: '🇧🇪 Belgium (BEL)' },
-  { value: 'USA', label: '🇺🇸 United States (USA)' },
-  { value: 'JPN', label: '🇯🇵 Japan (JPN)' },
-  { value: 'BRA', label: '🇧🇷 Brazil (BRA)' },
-  { value: 'ARG', label: '🇦🇷 Argentina (ARG)' },
-  { value: 'MEX', label: '🇲🇽 Mexico (MEX)' },
-]
 
 type Props = {
   league: League
@@ -142,7 +130,7 @@ export default function LeagueDetailPageContent({
   const [editingEvent, setEditingEvent] = useState<LeagueEvent | null>(null)
   const [formEventTitle, setFormEventTitle] = useState('')
   const [formEventCircuit, setFormEventCircuit] = useState('')
-  const [formEventCountryCode, setFormEventCountryCode] = useState('ESP')
+  const [formEventCountryCode, setFormEventCountryCode] = useState('ES')
   const [formEventColor, setFormEventColor] = useState('#00f2fe')
   const [formEventType, setFormEventType] = useState<'race' | 'qualifying' | 'time_attack'>('race')
   const [formHasQualy, setFormHasQualy] = useState(true)
@@ -157,6 +145,7 @@ export default function LeagueDetailPageContent({
   const [formEventMaxDrivers, setFormEventMaxDrivers] = useState<string>('')
   const [formEventClassLimits, setFormEventClassLimits] = useState<Record<string, string>>({})
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false)
+  const [countrySearch, setCountrySearch] = useState('')
   const [isEventSubmitting, setIsEventSubmitting] = useState(false)
   const [eventErrorMessage, setEventErrorMessage] = useState('')
 
@@ -191,6 +180,12 @@ export default function LeagueDetailPageContent({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isCountryDropdownOpen])
 
+  const filteredCountries = useMemo(() => {
+    const s = countrySearch.trim().toLowerCase()
+    if (!s) return COUNTRIES
+    return COUNTRIES.filter((c) => c.name.toLowerCase().includes(s) || c.code.toLowerCase().includes(s))
+  }, [countrySearch])
+
   // Handlers
   const handleLeagueDelete = async () => {
     if (!confirm(tr.deleteLeagueConfirm)) return
@@ -224,7 +219,7 @@ export default function LeagueDetailPageContent({
       setEditingEvent(event)
       setFormEventTitle(event.title || '')
       setFormEventCircuit(event.circuitName || '')
-      setFormEventCountryCode((event as any).countryCode || 'FRA')
+      setFormEventCountryCode(normalizeCountryCode((event as any).countryCode) || 'FR')
       setFormEventColor((event as any).color || '#00f2fe')
       setFormEventType((event as any).eventType || 'race')
       setFormHasQualy(event.hasQualy ?? true)
@@ -253,7 +248,7 @@ export default function LeagueDetailPageContent({
       setEditingEvent(null)
       setFormEventTitle('')
       setFormEventCircuit('Circuit de la Sarthe, Le Mans')
-      setFormEventCountryCode('FRA')
+      setFormEventCountryCode('FR')
       // Defaults to the championship's own color so a new round matches its calendar
       // cells unless the admin deliberately picks a different one from the palette below.
       setFormEventColor(league.accentColor || '#4ea1ff')
@@ -551,28 +546,61 @@ export default function LeagueDetailPageContent({
                     onClick={() => setIsCountryDropdownOpen((open) => !open)}
                     className="w-full flex items-center justify-between border border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-cyan-400 font-mono cursor-pointer"
                   >
-                    <span>{COUNTRY_OPTIONS.find((c) => c.value === formEventCountryCode)?.label || formEventCountryCode}</span>
+                    <span className="flex items-center gap-2">
+                      {getCountryFlagUrl(formEventCountryCode) && (
+                        <span className="relative h-3.5 w-5 shrink-0 overflow-hidden rounded-sm border border-white/10">
+                          <Image src={getCountryFlagUrl(formEventCountryCode)!} alt="" fill className="object-cover" />
+                        </span>
+                      )}
+                      {(() => {
+                        const selected = COUNTRIES.find((c) => c.code === formEventCountryCode)
+                        return selected ? `${selected.name} (${selected.code})` : formEventCountryCode
+                      })()}
+                    </span>
                     <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${isCountryDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isCountryDropdownOpen && (
-                    <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto border border-shell-line bg-[#090d16] rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
-                      {COUNTRY_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => {
-                            setFormEventCountryCode(opt.value)
-                            setIsCountryDropdownOpen(false)
-                          }}
-                          className={`w-full text-left px-3 py-2 text-xs font-mono cursor-pointer transition-colors ${
-                            opt.value === formEventCountryCode
-                              ? 'bg-cyan-500/15 text-cyan-300'
-                              : 'text-white hover:bg-white/5'
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
+                    <div className="absolute z-20 mt-1 w-full border border-shell-line bg-[#090d16] rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={countrySearch}
+                        onChange={(e) => setCountrySearch(e.target.value)}
+                        placeholder={trEvent.countrySearchPlaceholder}
+                        className="w-full border-b border-shell-line bg-black/40 px-3 py-2 text-xs text-white outline-none font-mono"
+                      />
+                      <div className="max-h-44 overflow-y-auto">
+                        {filteredCountries.length === 0 ? (
+                          <p className="px-3 py-2 text-xs italic text-slate-500">{trEvent.countryNoResults}</p>
+                        ) : (
+                          filteredCountries.map((country) => {
+                            const flagUrl = getCountryFlagUrl(country.code)
+                            return (
+                              <button
+                                key={country.code}
+                                type="button"
+                                onClick={() => {
+                                  setFormEventCountryCode(country.code)
+                                  setIsCountryDropdownOpen(false)
+                                  setCountrySearch('')
+                                }}
+                                className={`flex w-full items-center gap-2 text-left px-3 py-2 text-xs font-mono cursor-pointer transition-colors ${
+                                  country.code === formEventCountryCode
+                                    ? 'bg-cyan-500/15 text-cyan-300'
+                                    : 'text-white hover:bg-white/5'
+                                }`}
+                              >
+                                {flagUrl && (
+                                  <span className="relative h-3.5 w-5 shrink-0 overflow-hidden rounded-sm border border-white/10">
+                                    <Image src={flagUrl} alt="" fill className="object-cover" />
+                                  </span>
+                                )}
+                                {country.name} ({country.code})
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

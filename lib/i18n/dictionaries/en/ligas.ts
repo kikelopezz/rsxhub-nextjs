@@ -230,6 +230,8 @@ const ligas: typeof es = {
       circuitName: 'Circuit Name',
       circuitNamePlaceholder: 'e.g. Circuit de la Sarthe, Le Mans',
       countryFlag: 'Country Flag',
+      countrySearchPlaceholder: 'Search country...',
+      countryNoResults: 'No results',
       roundColor: 'Round Visual Color (Color Palette)',
       custom: 'Custom:',
       sessionSchedules: 'Round Session Schedules',
