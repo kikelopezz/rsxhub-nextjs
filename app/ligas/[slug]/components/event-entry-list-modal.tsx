@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react'
 import { FolderDown, X, Check, Copy } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
+import { carLineupKey } from '@/lib/car-key'
 import type { LeagueEvent, EventConfirmation, Registration, ManagedTeam, TeamStanding } from '../hooks/use-league-state'
 import {
   resolveTeamName as _resolveTeamName,
@@ -21,6 +22,7 @@ type EventEntryListModalProps = {
   myManagedTeams: ManagedTeam[]
   teamInfo?: Record<string, { name: string; primaryColor: string | null; logoUrl: string | null; cars?: any[]; members?: any[]; skinAssignments?: any[] }>
   standings?: Record<string, TeamStanding[]>
+  skinReviewStatus?: Record<string, 'pending' | 'approved' | 'rejected'>
   isAdmin: boolean
   onClose: () => void
 }
@@ -33,6 +35,7 @@ export function EventEntryListModal({
   myManagedTeams,
   teamInfo = {},
   standings,
+  skinReviewStatus = {},
   isAdmin,
   onClose,
 }: EventEntryListModalProps) {
@@ -105,7 +108,12 @@ export function EventEntryListModal({
   const handleDownloadCategorySkins = async (tag: string, teamList: Array<{ teamId: string; teamName: string; dorsal: string }>) => {
     setDownloadingCategory(tag)
     try {
-      const { blob: content, count: downloadedCount } = await buildCategorySkinZip(tag, teamList, myManagedTeams, teamInfo)
+      // Only bundle skins an admin has actually approved — an unreviewed or rejected file
+      // has no business going into the server's content pack for race night.
+      const approvedTeamList = teamList.filter(
+        (t) => skinReviewStatus[carLineupKey(t.teamId, tag, event.leagueId, t.dorsal)] === 'approved'
+      )
+      const { blob: content, count: downloadedCount } = await buildCategorySkinZip(tag, approvedTeamList, myManagedTeams, teamInfo)
 
       if (downloadedCount === 0) {
         alert(tr.noSkinsFound.replace('{tag}', tag))
@@ -199,6 +207,9 @@ export function EventEntryListModal({
                     {teamList.map((t, idx) => {
                       const rowKey = `${tag}_${t.teamId}_${t.dorsal}_${idx}`
                       const skinUrl = resolveCarSkin(t.teamId, tag, t.dorsal)
+                      const skinStatus = skinUrl
+                        ? skinReviewStatus[carLineupKey(t.teamId, tag, event.leagueId, t.dorsal)]
+                        : undefined
 
                       return (
                         <div
@@ -259,14 +270,22 @@ export function EventEntryListModal({
                               </button>
                             )}
 
-                            {skinUrl ? (
+                            {!skinUrl ? (
+                              <span className="rounded-full border border-white/10 bg-black/40 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-400">
+                                {tr.noSkin}
+                              </span>
+                            ) : skinStatus === 'approved' ? (
                               <span className="flex items-center gap-1 rounded-full border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.12)] px-2 py-0.5 text-[10px] font-bold uppercase text-[#4ea1ff]">
                                 <Check className="h-3 w-3" />
                                 {tr.skinOk}
                               </span>
+                            ) : skinStatus === 'rejected' ? (
+                              <span className="rounded-full border border-rose-500/40 bg-rose-950/40 px-2 py-0.5 text-[10px] font-bold uppercase text-rose-400">
+                                {tr.skinRejected}
+                              </span>
                             ) : (
-                              <span className="rounded-full border border-white/10 bg-black/40 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-400">
-                                {tr.noSkin}
+                              <span className="rounded-full border border-amber-500/40 bg-amber-950/40 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">
+                                {tr.skinPending}
                               </span>
                             )}
 

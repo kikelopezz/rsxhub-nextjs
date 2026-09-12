@@ -81,6 +81,8 @@ const ligas = {
     noSteamIds: 'No se encontraron Steam64 ID para los pilotos de este coche.',
     skinOk: 'SKIN OK',
     noSkin: 'SIN SKIN',
+    skinPending: 'SKIN EN REVISIÓN',
+    skinRejected: 'SKIN RECHAZADA',
     confirmed: 'CONFIRMADO',
   },
   schedule: {

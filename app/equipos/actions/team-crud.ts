@@ -358,6 +358,44 @@ export async function updateTeam(formData: FormData) {
           },
         })
       }
+
+      // Keep the skin-approval queue (keyed the same way as LineupChangeLog, since these
+      // TeamCar rows were just deleted and recreated with new ids) in sync with the cars
+      // that now actually carry a skin. A brand-new or changed skin always goes back to
+      // "pending" — it needs a fresh admin look — but re-saving the team without touching
+      // that car's skin must not reset an already-approved one back to pending.
+      const carsWithSkin = teamCars.filter((car) => car.dorsal.trim() && car.skinUrl.trim())
+      const activeSkinKeys = carsWithSkin.map((car) => carLineupKey(teamId, car.category, car.leagueId, car.dorsal))
+      const existingReviews = await db.carSkinReview.findMany({ where: { teamId } })
+      const existingByKey = new Map(existingReviews.map((r) => [r.carKey, r]))
+
+      const staleKeys = existingReviews.map((r) => r.carKey).filter((key) => !activeSkinKeys.includes(key))
+      if (staleKeys.length > 0) {
+        await db.carSkinReview.deleteMany({ where: { carKey: { in: staleKeys } } })
+      }
+
+      for (const car of carsWithSkin) {
+        const carKey = carLineupKey(teamId, car.category, car.leagueId, car.dorsal)
+        const existing = existingByKey.get(carKey)
+        if (!existing) {
+          await db.carSkinReview.create({
+            data: {
+              carKey,
+              teamId,
+              category: car.category,
+              dorsal: car.dorsal,
+              leagueId: car.leagueId,
+              skinUrl: car.skinUrl,
+              skinName: car.skinName || null,
+            },
+          })
+        } else if (existing.skinUrl !== car.skinUrl) {
+          await db.carSkinReview.update({
+            where: { carKey },
+            data: { skinUrl: car.skinUrl, skinName: car.skinName || null, status: 'pending', reviewedBy: null, reviewedAt: null },
+          })
+        }
+      }
     }
 
     syncedLeagueSlugs = await syncLeagueRegistrations(teamId).catch((err) => {

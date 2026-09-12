@@ -1,10 +1,7 @@
 import { db } from '@/lib/db'
+export { carLineupKey } from './car-key'
 
 export const MAX_LINEUP_CHANGES_PER_DAY = 3
-
-export function carLineupKey(teamId: string, category: string, leagueId: string | null, dorsal: string) {
-  return `${teamId}_${category}_${leagueId || 'general'}_${dorsal}`
-}
 
 /** Locked starting at 00:00 UTC of the event's qualifying day (or race day, if it has no qualy). */
 export function isLineupLockedForRace(

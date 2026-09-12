@@ -83,6 +83,8 @@ const ligas: typeof es = {
     noSteamIds: 'No Steam 64 IDs found for drivers in this car.',
     skinOk: 'SKIN OK',
     noSkin: 'NO SKIN',
+    skinPending: 'SKIN IN REVIEW',
+    skinRejected: 'SKIN REJECTED',
     confirmed: 'CONFIRMED',
   },
   schedule: {

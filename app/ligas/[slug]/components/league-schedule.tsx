@@ -24,6 +24,7 @@ interface LeagueScheduleProps {
   myManagedTeams: ManagedTeam[]
   teamInfo?: Record<string, { name: string; primaryColor: string | null; logoUrl: string | null; cars?: any[]; skinAssignments?: any[] }>
   standings?: Record<string, TeamStanding[]>
+  skinReviewStatus?: Record<string, 'pending' | 'approved' | 'rejected'>
   onOpenEventModal: (event?: LeagueEvent) => void
   onDeleteEvent: (eventId: string) => void
   onFinishRound?: (event: LeagueEvent, initialSessionType?: 'qualifying' | 'race') => void
@@ -41,6 +42,7 @@ export function LeagueSchedule({
   myManagedTeams,
   teamInfo,
   standings,
+  skinReviewStatus,
   onOpenEventModal,
   onDeleteEvent,
   onFinishRound,
@@ -524,6 +526,7 @@ export function LeagueSchedule({
           myManagedTeams={myManagedTeams}
           teamInfo={teamInfo}
           standings={standings}
+          skinReviewStatus={skinReviewStatus}
           isAdmin={isAdmin}
           onClose={() => setViewingEntryListEvent(null)}
         />

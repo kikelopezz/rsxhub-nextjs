@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getCurrentUser, getAdminAccessContext, canStewardLeague } from '@/lib/auth'
 import { getLeagueBySlug, getLeagueCars, getLeagueEvents, getRegistrations, getEventConfirmations, getTeamPointsOverrides, getCarPhotoOverrides } from '@/lib/platform-data'
-import { getTeamsDashboard } from '@/lib/team-data'
+import { getTeamsDashboard, getSkinReviewStatusByLeague } from '@/lib/team-data'
 import LeagueDetailPageContent from './page-content'
 
 export const revalidate = 0
@@ -18,7 +18,7 @@ export default async function LigaDetailPage({
   if (!league) return notFound()
 
   // All of these only depend on `league`/`session` above, not on each other — run concurrently.
-  const [access, events, leagueCars, registrations, confirmations, initialPointsOverrides, initialCarPhotos, teamsDashboard] = await Promise.all([
+  const [access, events, leagueCars, registrations, confirmations, initialPointsOverrides, initialCarPhotos, teamsDashboard, skinReviewStatus] = await Promise.all([
     getAdminAccessContext(session?.userId),
     getLeagueEvents(league.id),
     getLeagueCars(league.id),
@@ -27,6 +27,7 @@ export default async function LigaDetailPage({
     getTeamPointsOverrides(league.id),
     getCarPhotoOverrides(league.id),
     getTeamsDashboard(session?.userId),
+    getSkinReviewStatusByLeague(league.id),
   ])
   const isAdmin = access.canAccessPlatformAdmin
   const isSteward = canStewardLeague(access.platformRole) || access.managedLeagueIds.includes(league.id)
@@ -176,6 +177,7 @@ export default async function LigaDetailPage({
       initialConfirmations={serializableConfirmations}
       initialPointsOverrides={initialPointsOverrides}
       initialCarPhotos={initialCarPhotos}
+      skinReviewStatus={skinReviewStatus}
     />
   )
 }

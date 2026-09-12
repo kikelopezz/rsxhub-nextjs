@@ -3,7 +3,7 @@ import NextImage from 'next/image'
 import { redirect } from 'next/navigation'
 import { getAdminAccessContext, getCurrentUser, getConfiguredAdminSteamIds } from '@/lib/auth'
 import { getLeagueEvents, getLeagues, getRegistrations, getAllRegisteredDrivers } from '@/lib/platform-data'
-import { getTeamsDashboard } from '@/lib/team-data'
+import { getTeamsDashboard, getSkinReviewQueue } from '@/lib/team-data'
 import { getUnseenLineupChangeTeamIds, getRecentLineupChanges } from '@/lib/admin-lineup-log'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
 import { db } from '@/lib/db'
@@ -15,7 +15,7 @@ import { DeleteLeagueButton } from '@/components/delete-league-button'
 import { DeleteTeamButtonDouble } from '@/components/delete-team-button-double'
 import { DeleteUserButtonDouble } from '@/components/delete-user-button-double'
 import { AdminGallery } from '@/components/admin-gallery'
-import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive, GitMerge } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive, GitMerge, Palette } from 'lucide-react'
 import {
   adminDeleteMarketListing,
   quickUpdateLeagueStatusAction,
@@ -31,6 +31,7 @@ import { AdminTeamsTab } from './components/admin-teams-tab'
 import { AdminCatalogTab } from './components/admin-catalog-tab'
 import { AdminAdminsTab } from './components/admin-admins-tab'
 import { AdminNewsTab } from './components/admin-news-tab'
+import { AdminSkinsTab } from './components/admin-skins-tab'
 import { AdminUserMergeTab } from './components/admin-user-merge-tab'
 import { getNewsPosts } from '@/lib/news-data'
 import { getLocale } from '@/lib/i18n/get-locale'
@@ -125,7 +126,7 @@ export default async function AdminPage({
   // Load all baseline data in parallel — these reads are independent of each other
   const fixedAdminSteamIds = getConfiguredAdminSteamIds()
 
-  const [leagues, events, registrations, { teams }, drivers, listings, grants, newsPosts, unseenLineupChangeTeamIds, recentLineupChanges] = await Promise.all([
+  const [leagues, events, registrations, { teams }, drivers, listings, grants, newsPosts, unseenLineupChangeTeamIds, recentLineupChanges, skinReviews] = await Promise.all([
     getLeagues(),
     getLeagueEvents(),
     getRegistrations(),
@@ -136,7 +137,9 @@ export default async function AdminPage({
     getNewsPosts(),
     getUnseenLineupChangeTeamIds(session.userId),
     getRecentLineupChanges(),
+    getSkinReviewQueue(),
   ])
+  const pendingSkinCount = skinReviews.filter((r) => r.status === 'pending').length
   const hasUnseenLineupChanges = unseenLineupChangeTeamIds.size > 0
 
   const visibleLeagues = access.canAccessPlatformAdmin
@@ -306,6 +309,19 @@ export default async function AdminPage({
         >
           <Newspaper className="h-3.5 w-3.5 text-cyan-400" />
           Noticias ({newsPosts.length})
+        </Link>
+        <Link
+          href="/admin?tab=skins"
+          className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
+            activeTab === 'skins'
+              ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
+              : pendingSkinCount > 0
+                ? 'animate-pulse bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Palette className="h-3.5 w-3.5 text-cyan-400" />
+          Skins ({pendingSkinCount})
         </Link>
         <Link
           href="/admin?tab=merge"
@@ -611,6 +627,9 @@ export default async function AdminPage({
 
       {/* TAB CONTENT: NEWS */}
       {activeTab === 'news' && <AdminNewsTab posts={newsPosts} />}
+
+      {/* TAB CONTENT: SKINS */}
+      {activeTab === 'skins' && <AdminSkinsTab reviews={skinReviews} />}
 
       {/* TAB CONTENT: DUPLICATE PROFILE MERGE */}
       {activeTab === 'merge' && <AdminUserMergeTab />}

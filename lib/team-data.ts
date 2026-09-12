@@ -169,3 +169,65 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
 
   return { teams, myTeamIds, mode: 'ok' as const }
 })
+
+export type SkinReviewDTO = {
+  id: string
+  teamId: string
+  teamName: string
+  teamLogoUrl: string | null
+  category: string
+  dorsal: string
+  leagueTitle: string | null
+  skinUrl: string
+  skinName: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  createdAt: string
+  reviewedAt: string | null
+}
+
+// Keyed by the same carLineupKey() composite used everywhere else a car's identity has to
+// survive updateTeam()'s delete-and-recreate of TeamCar rows. Powers the "delivered" badge
+// on a league's entry list — only an approved skin counts, not just an uploaded one.
+export async function getSkinReviewStatusByLeague(leagueId: string): Promise<Record<string, 'pending' | 'approved' | 'rejected'>> {
+  try {
+    const rows = await db.carSkinReview.findMany({ where: { leagueId }, select: { carKey: true, status: true } })
+    return Object.fromEntries(rows.map((r) => [r.carKey, r.status]))
+  } catch (error) {
+    console.error('Failed to get skin review status for league:', error)
+    return {}
+  }
+}
+
+// Not cached with fetchWithTTLCache like the dashboard above — this only powers the admin
+// review queue, which needs to reflect a just-submitted or just-reviewed skin immediately.
+export async function getSkinReviewQueue(): Promise<SkinReviewDTO[]> {
+  try {
+    const rows = await db.carSkinReview.findMany({
+      include: { team: { select: { name: true, logoUrl: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (rows.length === 0) return []
+
+    const leagueIds = Array.from(new Set(rows.map((r) => r.leagueId).filter((id): id is string => Boolean(id))))
+    const leagues = leagueIds.length > 0 ? await db.league.findMany({ where: { id: { in: leagueIds } }, select: { id: true, title: true } }) : []
+    const leagueTitleById = new Map(leagues.map((l) => [l.id, l.title]))
+
+    return rows.map((r) => ({
+      id: r.id,
+      teamId: r.teamId,
+      teamName: r.team.name,
+      teamLogoUrl: r.team.logoUrl,
+      category: r.category,
+      dorsal: r.dorsal,
+      leagueTitle: r.leagueId ? leagueTitleById.get(r.leagueId) || null : null,
+      skinUrl: r.skinUrl,
+      skinName: r.skinName,
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+      reviewedAt: r.reviewedAt ? r.reviewedAt.toISOString() : null,
+    }))
+  } catch (error) {
+    console.error('Failed to get skin review queue:', error)
+    return []
+  }
+}

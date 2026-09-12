@@ -53,6 +53,7 @@ type Props = {
   initialConfirmations?: EventConfirmation[]
   initialPointsOverrides?: Record<string, number>
   initialCarPhotos?: Record<string, string>
+  skinReviewStatus?: Record<string, 'pending' | 'approved' | 'rejected'>
 }
 
 export default function LeagueDetailPageContent({
@@ -68,7 +69,8 @@ export default function LeagueDetailPageContent({
   teamInfo = {},
   initialConfirmations = [],
   initialPointsOverrides = {},
-  initialCarPhotos = {}
+  initialCarPhotos = {},
+  skinReviewStatus = {}
 }: Props) {
   const router = useRouter()
   const tr = useDictionary().ligas.detailPage
@@ -446,6 +448,7 @@ export default function LeagueDetailPageContent({
           myManagedTeams={myManagedTeams}
           teamInfo={teamInfo}
           standings={standings}
+          skinReviewStatus={skinReviewStatus}
           onOpenEventModal={handleOpenEventModal}
           onDeleteEvent={handleEventDelete}
           onFinishRound={(ev, initialSessionType) => setFinishingEventData({ event: ev, initialSessionType })}

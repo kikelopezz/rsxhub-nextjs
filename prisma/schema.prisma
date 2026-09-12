@@ -520,6 +520,7 @@ model Team {
   league             League?                   @relation(fields: [leagueId], references: [id], onDelete: SetNull)
   cars               TeamCar[]
   skinAssignments    TeamSkinAssignment[]
+  skinReviews        CarSkinReview[]
   members            TeamMember[]
   invites            TeamInvite[]
   registrations      LeagueRegistration[]
@@ -594,6 +595,38 @@ model TeamSkinAssignment {
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@map("team_skin_assignments")
+}
+
+enum SkinReviewStatus {
+  pending
+  approved
+  rejected
+}
+
+// Skin approval queue. Keyed by the same synthetic `carKey` (teamId+category+leagueId+dorsal)
+// that LineupChangeLog uses — not the TeamCar row id — because updateTeam() deletes and
+// recreates every TeamCar on any team save, so a status column on TeamCar itself would get
+// wiped the next time the team saved an unrelated change (e.g. a driver swap).
+model CarSkinReview {
+  id         String           @id @default(cuid())
+  carKey     String           @unique @map("car_key")
+  teamId     String           @map("team_id")
+  category   String
+  dorsal     String
+  leagueId   String?          @map("league_id")
+  skinUrl    String           @map("skin_url")
+  skinName   String?          @map("skin_name")
+  status     SkinReviewStatus @default(pending)
+  reviewedBy String?          @map("reviewed_by")
+  reviewedAt DateTime?        @map("reviewed_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([status])
+  @@map("car_skin_reviews")
 }
 
 enum TeamRoleValue {

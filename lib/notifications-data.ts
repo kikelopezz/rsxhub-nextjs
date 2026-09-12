@@ -164,6 +164,37 @@ export async function notifyLeagueRegistrationStatus({
   }
 }
 
+export async function notifySkinReviewed({
+  userId,
+  teamName,
+  category,
+  dorsal,
+  status,
+}: {
+  userId: string
+  teamName: string
+  category: string
+  dorsal: string
+  status: 'approved' | 'rejected'
+}) {
+  const carLabel = `${category} #${dorsal}`
+  if (status === 'approved') {
+    await createNotification({
+      userId,
+      title: 'Skin Approved',
+      message: `The skin submitted for ${teamName}'s ${carLabel} has been approved and is now marked as delivered.`,
+      link: '/equipos',
+    })
+  } else {
+    await createNotification({
+      userId,
+      title: 'Skin Rejected',
+      message: `The skin submitted for ${teamName}'s ${carLabel} was rejected. Please upload a corrected file.`,
+      link: '/equipos',
+    })
+  }
+}
+
 export async function notifyNewsPublished({
   newsId,
   title,
