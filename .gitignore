@@ -49,3 +49,9 @@ ui-debug.log
 
 # Real production data exports — never commit
 /migration-data/
+
+# Locally-installed Claude/agent skills (npx skills add) — machine-local tooling,
+# not part of the app itself
+/.agents/
+/.claude/
+skills-lock.json
