@@ -1,6 +1,6 @@
 import { CenterModal } from '@/components/center-modal'
 import { CopyVehicleDriverIdsButton } from '@/components/copy-vehicle-driver-ids-button'
-import { TeamCarsEditor, SaveTeamCarsButton } from '@/components/team-cars-editor'
+import { TeamCarsEditor, SaveTeamCarsButton, CarValidationProvider } from '@/components/team-cars-editor'
 import { Download } from 'lucide-react'
 import { updateTeam } from '@/app/equipos/actions/team-crud'
 import type { LeagueOption } from '@/components/team-cars-editor'
@@ -94,22 +94,24 @@ export async function TeamVehiclesSection({
             <form action={updateTeam} className="space-y-5 p-2 bg-[#090d16] text-white">
               <input type="hidden" name="teamId" value={team.id} />
               <input type="hidden" name="redirectTo" value={`/equipos/${team.id}`} />
-              <div className="space-y-2 text-left">
-                <label className="block text-xs text-slate-350 uppercase tracking-wider font-semibold">
-                  {t.configTitle}
-                </label>
-                <p className="text-[11px] text-slate-400">
-                  {t.configHint}
-                </p>
-                <TeamCarsEditor
-                  teamMembers={teamMembersOptions}
-                  initialCars={team.cars || []}
-                  takenDorsals={takenDorsals}
-                  leaguesOptions={leaguesOptions}
-                  currentTeamId={team.id}
-                />
-              </div>
-              <SaveTeamCarsButton />
+              <CarValidationProvider>
+                <div className="space-y-2 text-left">
+                  <label className="block text-xs text-slate-350 uppercase tracking-wider font-semibold">
+                    {t.configTitle}
+                  </label>
+                  <p className="text-[11px] text-slate-400">
+                    {t.configHint}
+                  </p>
+                  <TeamCarsEditor
+                    teamMembers={teamMembersOptions}
+                    initialCars={team.cars || []}
+                    takenDorsals={takenDorsals}
+                    leaguesOptions={leaguesOptions}
+                    currentTeamId={team.id}
+                  />
+                </div>
+                <SaveTeamCarsButton />
+              </CarValidationProvider>
             </form>
           </CenterModal>
         )}

@@ -12,6 +12,9 @@ export function leaguesOverlap(l1?: string | null, l2?: string | null): boolean 
   return l1 === l2
 }
 
+/** A team may field at most this many cars of a given category within the same league. */
+export const MAX_CARS_PER_CATEGORY = 3
+
 /**
  * Computes per-car validation errors.
  * Returns a map of carId -> string[] of error messages.
@@ -45,6 +48,20 @@ export function computeCarValidation(
 
     if (!car.skinUrl) {
       carErrs.push(t.errorSkinRequired)
+    }
+
+    const sameCategoryLeagueCount = cars.filter((other) => {
+      if (String(other.category).toUpperCase() !== String(car.category).toUpperCase()) return false
+      return leaguesOverlap(car.leagueId, other.leagueId)
+    }).length
+
+    if (sameCategoryLeagueCount > MAX_CARS_PER_CATEGORY) {
+      carErrs.push(
+        t.errorMaxCarsPerCategory
+          .replace('{max}', String(MAX_CARS_PER_CATEGORY))
+          .replace('{category}', car.category)
+          .replace('{count}', String(sameCategoryLeagueCount)),
+      )
     }
 
     if (d && /^[0-9]{1,3}$/.test(d)) {

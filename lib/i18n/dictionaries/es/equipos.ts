@@ -21,6 +21,7 @@ const equipos = {
     ownerProtected: 'No puedes eliminar al propietario del equipo.',
     invalidRole: 'Rol no válido.',
     dorsalDuplicate: 'Error: uno de los dorsales seleccionados ya pertenece a otro equipo o está duplicado.',
+    maxCarsPerCategory: 'Error: como máximo puedes tener 3 coches de la misma categoría en el mismo campeonato.',
     actionFailed: 'No se pudo completar la acción.',
   },
   list: {
@@ -239,6 +240,7 @@ const equipos = {
     errorSkinRequired: 'Es obligatorio el archivo de skin comprimido o la URL de descarga.',
     errorDuplicateInternal: 'El número #{dorsal} está duplicado en otro coche de tu equipo para la misma categoría y campeonato.',
     errorDuplicateOther: 'El número #{dorsal} ya está registrado por el equipo "{team}" en esta categoría y campeonato.',
+    errorMaxCarsPerCategory: 'Máximo {max} coches de categoría {category} por campeonato: tienes {count} en este.',
     anotherTeamFallback: 'Otro equipo',
   },
 }

@@ -90,6 +90,7 @@ export function profileStatusMessage(
   if (params.error === 'owner-protected') return { kind: 'warn', text: m.ownerProtected }
   if (params.error === 'invalid-role') return { kind: 'warn', text: m.invalidRole }
   if (params.error === 'dorsal-duplicate') return { kind: 'error', text: m.dorsalDuplicate }
+  if (params.error === 'max-cars-per-category') return { kind: 'error', text: m.maxCarsPerCategory }
   if (params.error) return { kind: 'error', text: m.actionFailed }
   return null
 }

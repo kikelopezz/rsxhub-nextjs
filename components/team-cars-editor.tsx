@@ -13,6 +13,7 @@
 export {
   TeamCarsEditor,
   SaveTeamCarsButton,
+  CarValidationProvider,
   getSkinFileName,
 } from './team-cars-editor/index'
 

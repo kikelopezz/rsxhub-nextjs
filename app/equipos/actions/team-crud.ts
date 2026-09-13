@@ -8,6 +8,7 @@ import { getTeamsDashboard } from '@/lib/team-data'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { cleanupDriverMarketDataOnTeamJoin } from '@/lib/market-cleanup'
 import { guardSession, canManageTeam, cleanPilotName, parseSkinProfilesJson } from './team-parsers'
+import { leaguesOverlap, MAX_CARS_PER_CATEGORY } from '@/components/team-cars-editor/car-validation'
 import { syncLeagueRegistrations } from './team-league-sync'
 import {
   MAX_LINEUP_CHANGES_PER_DAY,
@@ -232,6 +233,44 @@ export async function updateTeam(formData: FormData) {
           const key = `${car.category}_${car.leagueId || 'general'}_${d}`
           if (dorsalsSeen.has(key)) redirect(`${redirectTo}?error=dorsal-duplicate`)
           dorsalsSeen.add(key)
+        }
+
+        // A number free of collisions *within this team's own submission* can still
+        // already belong to another team in the same category/league — the UI warns
+        // about that (errorDuplicateOther) but never actually blocked the save, so a
+        // team could submit a number another team already races under. Re-check
+        // against the DB here, since that's the only check a form submission can't skip.
+        const submittedDorsals = Array.from(new Set(teamCars.map((c) => c.dorsal.trim()).filter(Boolean)))
+        if (submittedDorsals.length > 0) {
+          const otherTeamsCars = await db.teamCar.findMany({
+            where: { teamId: { not: teamId }, dorsal: { in: submittedDorsals } },
+            select: { category: true, dorsal: true, leagueId: true },
+          })
+          for (const car of teamCars) {
+            const d = car.dorsal.trim()
+            if (!d) continue
+            const collides = otherTeamsCars.some(
+              (other) =>
+                other.dorsal.trim() === d &&
+                other.category.toUpperCase() === car.category.toUpperCase() &&
+                leaguesOverlap(car.leagueId, other.leagueId),
+            )
+            if (collides) redirect(`${redirectTo}?error=dorsal-duplicate`)
+          }
+        }
+
+        // A team can field at most MAX_CARS_PER_CATEGORY cars of a given category
+        // within the same league — same rule the UI already warns about, enforced
+        // here since the save button being disabled can't stop a raw form submit.
+        for (const car of teamCars) {
+          const sameCategoryLeagueCount = teamCars.filter(
+            (other) =>
+              other.category.toUpperCase() === car.category.toUpperCase() &&
+              leaguesOverlap(car.leagueId, other.leagueId),
+          ).length
+          if (sameCategoryLeagueCount > MAX_CARS_PER_CATEGORY) {
+            redirect(`${redirectTo}?error=max-cars-per-category`)
+          }
         }
       }
     } catch (e: any) {

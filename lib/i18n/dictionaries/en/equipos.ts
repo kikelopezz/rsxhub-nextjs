@@ -23,6 +23,7 @@ const equipos: typeof es = {
     ownerProtected: 'You cannot remove the team owner.',
     invalidRole: 'Invalid role.',
     dorsalDuplicate: 'Error: One of the selected dorsals already belongs to another team or is duplicated.',
+    maxCarsPerCategory: 'Error: you can have at most 3 cars of the same category in the same championship.',
     actionFailed: 'Could not complete the action.',
   },
   list: {
@@ -241,6 +242,7 @@ const equipos: typeof es = {
     errorSkinRequired: 'Compressed skin file or download URL is required.',
     errorDuplicateInternal: 'Car number #{dorsal} is duplicated in another car of your team for the same category and league.',
     errorDuplicateOther: 'Car number #{dorsal} is already registered by team "{team}" in this category and league.',
+    errorMaxCarsPerCategory: 'Max {max} {category} cars per championship: you have {count} in this one.',
     anotherTeamFallback: 'Another team',
   },
 }

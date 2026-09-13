@@ -1,15 +1,18 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useFormStatus } from 'react-dom'
-import { Plus, ShieldAlert, AlertTriangle, Loader2, Save } from 'lucide-react'
+import { Plus, AlertTriangle, Loader2, Save } from 'lucide-react'
 import type { CarEntry, TeamMemberOption, TakenDorsal, LeagueOption } from './types'
 import { useCarEditor } from './use-car-editor'
 import { CarLeagueTabs } from './car-league-tabs'
 import { CarCard, categoryThemes } from './car-card'
+import { useCarValidationContext } from './car-validation-context'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
 export type { CarEntry, TeamMemberOption, TakenDorsal, LeagueOption }
 export { getSkinFileName } from './types'
+export { CarValidationProvider } from './car-validation-context'
 
 // ─── TeamCarsEditor ───────────────────────────────────────────────────────────
 
@@ -49,6 +52,11 @@ export function TeamCarsEditor({
   } = useCarEditor({ initialCars, leaguesOptions, takenDorsals, currentTeamId })
   const t = useDictionary().equipos.carEditor
 
+  const validationCtx = useCarValidationContext()
+  useEffect(() => {
+    validationCtx?.setHasErrors(hasErrors)
+  }, [hasErrors, validationCtx])
+
   return (
     <div className="space-y-6">
       <input type="hidden" name="teamCarsJson" value={serialized} />
@@ -59,22 +67,6 @@ export function TeamCarsEditor({
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />
-
-      {hasErrors && (
-        <div className="bg-rose-950/40 border border-rose-500/50 p-4 rounded-lg flex items-start gap-3">
-          <ShieldAlert className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
-          <div className="space-y-1 text-xs text-rose-200">
-            <p className="font-bold">{t.completeFieldsAlert}</p>
-            <ul className="list-disc pl-4 space-y-0.5">
-              {Object.entries(carValidation)
-                .flatMap(([_, errs]) => errs)
-                .map((err, idx) => (
-                  <li key={idx}>{err}</li>
-                ))}
-            </ul>
-          </div>
-        </div>
-      )}
 
       {availableCategories.map((category) => {
         const categoryCars = filteredCars.filter((c) => c.category === category)
@@ -155,7 +147,8 @@ export function TeamCarsEditor({
 export function SaveTeamCarsButton({ disabled = false }: { disabled?: boolean }) {
   const { pending } = useFormStatus()
   const t = useDictionary().equipos.carEditor
-  const isBlocked = pending || disabled
+  const validationCtx = useCarValidationContext()
+  const isBlocked = pending || disabled || Boolean(validationCtx?.hasErrors)
 
   return (
     <div className="w-full space-y-2 pt-4 border-t border-shell-line/50">
@@ -170,7 +163,7 @@ export function SaveTeamCarsButton({ disabled = false }: { disabled?: boolean })
             <Loader2 className="h-4 w-4 animate-spin" />
             {t.synchronizing}
           </span>
-        ) : disabled ? (
+        ) : disabled || validationCtx?.hasErrors ? (
           <span className="text-[11px] text-rose-400 font-semibold flex items-center gap-1">
             <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
             {t.completeFieldsHint}
