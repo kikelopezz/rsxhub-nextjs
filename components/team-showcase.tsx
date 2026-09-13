@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Download, Users, ArrowRight, Shield } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
+import { isRemoteImageOptimizable } from '@/lib/image-utils'
 
 type TeamShowcaseProps = {
   teamName: string
@@ -18,11 +19,6 @@ type TeamShowcaseProps = {
   pilotNames: string[]
   profileHref?: string
   skins?: Array<{ skinUrl: string; leagueSlug: string; carNumber?: string | null }>
-}
-
-const isOptimizable = (url?: string | null) => {
-  if (!url) return false
-  return url.includes('supabase.co') || url.includes('steamstatic.com') || url.includes('unsplash.com') || url.startsWith('/')
 }
 
 export function TeamShowcase({
@@ -88,7 +84,7 @@ export function TeamShowcase({
             alt={teamName}
             fill
             sizes="(max-width: 768px) 100vw, 33vw"
-            unoptimized={!isOptimizable(bannerImage)}
+            unoptimized={!isRemoteImageOptimizable(bannerImage)}
             className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
           />
         )}
@@ -120,7 +116,7 @@ export function TeamShowcase({
             alt={teamName}
             width={48}
             height={48}
-            unoptimized={!isOptimizable(teamLogoUrl)}
+            unoptimized={!isRemoteImageOptimizable(teamLogoUrl)}
             className="h-full w-full object-contain"
           />
         ) : (

@@ -7,6 +7,7 @@ import { SubmitButton } from '@/components/submit-button'
 import { FormattedDate } from '@/components/formatted-date'
 import { Sparkles, Youtube, MessageSquare, Trophy, Radio, CalendarClock, Instagram, Twitter, Twitch, Music2 } from 'lucide-react'
 import { updateTeam, deleteTeamAction } from '@/app/equipos/actions/team-crud'
+import { isRemoteImageOptimizable } from '@/lib/image-utils'
 import type { TeamStats, TeamPilot } from '../team-utils'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
@@ -55,15 +56,32 @@ export async function TeamBannerStats({
       <div
         className="relative min-h-[320px] overflow-hidden p-6 md:min-h-[380px] md:p-9"
         style={
-          heroImage
-            ? {
-                backgroundImage: `linear-gradient(112deg, rgba(6,10,17,0.94) 20%, ${accentSoft} 58%, rgba(6,10,17,0.86) 100%), url(${heroImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }
-            : { background: `linear-gradient(115deg, ${accentHex} 0%, ${accentHex} 46%, #0a0a0c 46.6%, #0a0a0c 100%)` }
+          !heroImage
+            ? { background: `linear-gradient(115deg, ${accentHex} 0%, ${accentHex} 46%, #0a0a0c 46.6%, #0a0a0c 100%)` }
+            : undefined
         }
       >
+        {heroImage && (
+          <>
+            {/* A plain CSS background-image here would always fetch straight from the
+                original host on every view. Routing it through next/image instead lets
+                Vercel's edge cache the optimized result (minimumCacheTTL in next.config.js),
+                so only the very first request pays for a slow/uncached origin. */}
+            <Image
+              src={heroImage}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              unoptimized={!isRemoteImageOptimizable(heroImage)}
+              className="object-cover object-center"
+            />
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{ backgroundImage: `linear-gradient(112deg, rgba(6,10,17,0.94) 20%, ${accentSoft} 58%, rgba(6,10,17,0.86) 100%)` }}
+            />
+          </>
+        )}
         {!heroImage && (
           <span className="pointer-events-none absolute right-[2%] top-1/2 -translate-y-1/2 select-none font-display-league text-[230px] leading-none text-white/[0.06]">
             {initials}
@@ -264,7 +282,14 @@ export async function TeamBannerStats({
                 className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-black/25 p-1"
                 style={{ boxShadow: `0 0 14px ${accentHex}80` }}
               >
-                <Image src={team.logoUrl} alt={team.name} width={40} height={40} className="h-full w-full object-contain" />
+                <Image
+                  src={team.logoUrl}
+                  alt={team.name}
+                  width={40}
+                  height={40}
+                  unoptimized={!isRemoteImageOptimizable(team.logoUrl)}
+                  className="h-full w-full object-contain"
+                />
               </span>
             ) : (
               <span
