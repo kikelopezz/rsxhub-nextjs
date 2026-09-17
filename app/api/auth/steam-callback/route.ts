@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
         <body>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_FAILURE', error: 'error' }, '*');
+              window.opener.postMessage({ type: 'OAUTH_AUTH_FAILURE', error: 'error' }, window.location.origin);
               window.close();
             } else {
               window.location.href = '/?login=error';
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         <body>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_FAILURE', error: 'invalid-steam' }, '*');
+              window.opener.postMessage({ type: 'OAUTH_AUTH_FAILURE', error: 'invalid-steam' }, window.location.origin);
               window.close();
             } else {
               window.location.href = '/?login=invalid-steam';
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       <body>
         <script>
           if (window.opener) {
-            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', isNew: ${isNew} }, '*');
+            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', isNew: ${isNew} }, window.location.origin);
             window.close();
           } else {
             window.location.href = ${isNew ? "'/onboarding'" : "'/perfil'"};

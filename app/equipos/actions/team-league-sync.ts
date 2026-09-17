@@ -1,11 +1,14 @@
-'use server'
-
 /**
  * Auto-syncs league_registrations when a team's car list is saved: for every
  * league the team's cars reference (explicitly, or by matching class), it
  * replaces that league's registrations for this team with one row per
  * assigned driver — mirroring what registerTeamAction does, but triggered
  * from the team-editor save instead of an explicit "register" action.
+ *
+ * Deliberately NOT a 'use server' action: this has no auth check of its own and is
+ * only safe because its one caller (team-crud.ts's updateTeam) already verified
+ * canManageTeam first. Dropping the directive keeps it unreachable from the client
+ * by construction — re-add it only alongside its own permission check.
  */
 
 import { db } from '@/lib/db'

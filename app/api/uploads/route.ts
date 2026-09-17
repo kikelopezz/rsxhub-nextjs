@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
-import { getPlatformRole, getCurrentUser } from '@/lib/auth'
+import { canAccessPlatformAdmin, canManageLeague, getCurrentUser, getLeagueRole, getPlatformRole } from '@/lib/auth'
+import { canManageTeam } from '@/app/equipos/actions/team-parsers'
 import { db } from '@/lib/db'
 import { hasR2, uploadBufferToR2, deleteFromR2, listR2Objects, getR2KeyFromUrl } from '@/lib/r2'
 
@@ -63,8 +64,8 @@ export async function GET(req: Request) {
     // Ensure uploads folder exists
     await fs.mkdir(UPLOADS_DIR, { recursive: true })
 
-    // Allows an optional trailing cache-busting query string (see the `cacheBust` logo/
-    // banner suffix added below) after the extension.
+    // Tolerates a trailing `?v=...` query string for old uploads saved before every
+    // filename became unique on its own (see the POST handler below).
     const IMAGE_EXT = /\.(png|jpe?g|gif|svg|webp)(\?.*)?$/i
 
     // Fetch explicit gallery uploads
@@ -137,23 +138,20 @@ export async function POST(req: Request) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '')
 
-    // When we know which team/league this image belongs to, name it deterministically
-    // (e.g. "real-simracing-team-logo") instead of the uploaded file's own name, so two
-    // different teams/leagues uploading a same-named file (e.g. "logo.png") don't overwrite
-    // each other, and re-uploading for the same team correctly replaces its own image.
+    // `entityName` is a label the client sends for readability in the filename (e.g.
+    // "real-simracing-team-logo") — it must NEVER be trusted to point the write at a
+    // shared, deterministic path. It used to: two different users could both upload a
+    // file with the same `entityName`+`type` and silently overwrite each other's
+    // logo/banner on disk/R2, with no check that either of them actually owned that
+    // team/league. Every upload now gets its own unique filename instead, so no upload
+    // can ever collide with (or overwrite) one that isn't its own.
     const slugifiedEntityName = entityName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '')
-    const entityBase =
-      slugifiedEntityName && (type === 'logo' || type === 'banner') ? `${slugifiedEntityName}-${type}` : null
-
-    // A deterministic filename means re-uploading a replacement logo/banner produces the
-    // exact same URL as before — which the browser (and Next/Image's own 1-year cache)
-    // would keep serving stale from cache even though the file on disk/R2 was overwritten
-    // with new bytes. Append a version marker so every upload gets a fresh, cache-safe URL
-    // while the underlying storage key stays the same (still replaces the old file).
-    const cacheBust = entityBase ? `?v=${Date.now().toString(36)}` : ''
+    const entityPrefix =
+      slugifiedEntityName && (type === 'logo' || type === 'banner') ? `${slugifiedEntityName}-${type}-` : ''
+    const uniqueSuffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
 
     const isArchive = /\.(zip|rar|7z|tar|gz|tgz)$/i.test(file.name)
 
@@ -220,11 +218,11 @@ export async function POST(req: Request) {
     }
 
     // Save the original file as-is (no compression/resizing/format conversion)
-    const safeName = `${entityBase || safeBase}${ext.toLowerCase()}`
+    const safeName = `${entityPrefix}${safeBase}-${uniqueSuffix}${ext.toLowerCase()}`
 
     if (hasR2) {
       try {
-        const finalUrl = `${await uploadBufferToR2(`uploads/${safeName}`, inputBuffer, file.type || 'application/octet-stream')}${cacheBust}`
+        const finalUrl = await uploadBufferToR2(`uploads/${safeName}`, inputBuffer, file.type || 'application/octet-stream')
         await removeDeletedAsset(finalUrl)
         if (isGallery) {
           await addGalleryUpload(finalUrl)
@@ -240,7 +238,7 @@ export async function POST(req: Request) {
     try {
       await fs.mkdir(UPLOADS_DIR, { recursive: true })
       await fs.writeFile(targetPath, inputBuffer)
-      const finalUrl = `/uploads/${safeName}${cacheBust}`
+      const finalUrl = `/uploads/${safeName}`
       await removeDeletedAsset(finalUrl)
       if (isGallery) {
         await addGalleryUpload(finalUrl)
@@ -281,6 +279,27 @@ export async function DELETE(req: Request) {
       const role = await getPlatformRole()
       if (role !== 'super_admin' && role !== 'platform_admin') {
         return NextResponse.json({ error: 'Unauthorized: Only platform admins can delete branding assets' }, { status: 403 })
+      }
+    } else {
+      // Anyone logged in may delete an orphaned upload — but if this URL is still the
+      // *active* logo/banner of some team or league, only someone who actually manages
+      // that team/league can delete it. Otherwise any user who simply saw the image on
+      // a public page could break it for the team/league that owns it.
+      const [ownerTeam, ownerLeague] = await Promise.all([
+        db.team.findFirst({ where: { OR: [{ logoUrl: url }, { bannerUrl: url }] }, select: { id: true } }),
+        db.league.findFirst({ where: { OR: [{ logoUrl: url }, { bannerUrl: url }] }, select: { id: true } }),
+      ])
+
+      if (ownerTeam && !(await canManageTeam(ownerTeam.id, currentUser.userId))) {
+        return NextResponse.json({ error: 'No puedes eliminar la imagen activa de otro equipo.' }, { status: 403 })
+      }
+
+      if (ownerLeague) {
+        const platformRole = await getPlatformRole(currentUser.userId)
+        const leagueRole = await getLeagueRole(ownerLeague.id, currentUser.userId)
+        if (!canAccessPlatformAdmin(platformRole) && !canManageLeague(leagueRole)) {
+          return NextResponse.json({ error: 'No puedes eliminar la imagen activa de otra liga.' }, { status: 403 })
+        }
       }
     }
 
