@@ -1,11 +1,12 @@
 import { CenterModal } from '@/components/center-modal'
 import { CopyVehicleDriverIdsButton } from '@/components/copy-vehicle-driver-ids-button'
 import { TeamCarsEditor, SaveTeamCarsButton, CarValidationProvider } from '@/components/team-cars-editor'
-import { Download } from 'lucide-react'
+import { Download, ShieldAlert } from 'lucide-react'
 import { updateTeam } from '@/app/equipos/actions/team-crud'
 import type { LeagueOption } from '@/components/team-cars-editor'
 import type { TeamMemberOption } from '@/components/team-cars-editor'
 import { MAX_DRIVERS_PER_CAR } from '@/components/team-cars-editor/types'
+import { MAX_CARS_PER_CATEGORY } from '@/components/team-cars-editor/car-validation'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
@@ -122,6 +123,17 @@ export async function TeamVehiclesSection({
           const categoryCars = (team.cars || []).filter((car: any) => String(car.category || '').toUpperCase() === category.toUpperCase())
           const theme = CATEGORY_THEMES[category] || DEFAULT_THEME
 
+          // Cars beyond the 3-per-category-per-championship cap (see MAX_CARS_PER_CATEGORY)
+          // may still sit in the DB from before the limit existed, or from a league change —
+          // flag the 4th-and-later car in each championship group so it's clear it can't race.
+          const leagueCarCounts: Record<string, number> = {}
+          const excessCarIds = new Set<string>()
+          categoryCars.forEach((car: any) => {
+            const key = car.leagueId || 'general'
+            leagueCarCounts[key] = (leagueCarCounts[key] || 0) + 1
+            if (leagueCarCounts[key] > MAX_CARS_PER_CATEGORY) excessCarIds.add(car.id)
+          })
+
           return (
             <div key={category} className={`border p-4 rounded-lg space-y-4 transition-all duration-300 ${theme.glow}`}>
               <h3 className={`text-sm font-black uppercase italic tracking-wider border-b pb-2 flex items-center justify-between ${theme.text} ${theme.line}`}>
@@ -136,6 +148,7 @@ export async function TeamVehiclesSection({
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {categoryCars.map((car: any) => {
+                    const exceedsLimit = excessCarIds.has(car.id)
                     const carLeague = car.leagueId ? leagues.find((l) => l.id === car.leagueId || l.slug === car.leagueId) : null
                     const maxSlots = MAX_DRIVERS_PER_CAR
                     const effectiveLeagueKey = car.leagueId || carLeague?.id || carLeague?.slug || 'general'
@@ -160,16 +173,30 @@ export async function TeamVehiclesSection({
                       .filter(Boolean)
 
                     return (
-                      <div key={car.id} className={`border bg-black/40 p-4 rounded-lg space-y-3 transition-all duration-300 ${theme.carBorder}`}>
+                      <div
+                        key={car.id}
+                        className={`border bg-black/40 p-4 rounded-lg space-y-3 transition-all duration-300 ${
+                          exceedsLimit ? 'border-rose-500/70 bg-rose-950/20' : theme.carBorder
+                        }`}
+                      >
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-mono-data text-xs font-semibold uppercase tracking-wider text-white">
-                                {t.carNumber} <span className={`font-display-league text-lg ${theme.carDorsal}`}>#{car.dorsal || 'N/A'}</span>
+                                {t.carNumber} <span className={`font-display-league text-lg ${exceedsLimit ? 'text-rose-400' : theme.carDorsal}`}>#{car.dorsal || 'N/A'}</span>
                               </span>
                               {(car.modelName || car.model_name) && (
                                 <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/60 border border-cyan-500/40 px-2 py-0.5 rounded font-mono">
                                   {car.modelName || car.model_name}
+                                </span>
+                              )}
+                              {exceedsLimit && (
+                                <span
+                                  title={t.wontRaceHint}
+                                  className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-rose-400 bg-rose-950/60 border border-rose-500/40 px-2 py-0.5 rounded"
+                                >
+                                  <ShieldAlert className="h-3 w-3" />
+                                  {t.wontRace}
                                 </span>
                               )}
                             </div>

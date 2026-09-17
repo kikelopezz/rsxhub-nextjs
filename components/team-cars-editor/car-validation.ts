@@ -31,23 +31,14 @@ export function computeCarValidation(
   for (const car of cars) {
     const carErrs: string[] = []
 
-    if (!car.leagueId) {
-      carErrs.push(t.errorLeagueRequired)
-    }
-
+    // Only the car model is mandatory — league, dorsal and skin can be filled in later.
     const d = String(car.dorsal || '').trim()
-    if (!d) {
-      carErrs.push(t.errorDorsalRequired)
-    } else if (!/^[0-9]{1,3}$/.test(d)) {
+    if (d && !/^[0-9]{1,3}$/.test(d)) {
       carErrs.push(t.errorDorsalFormat)
     }
 
     if (!car.modelName) {
       carErrs.push(t.errorModelRequired)
-    }
-
-    if (!car.skinUrl) {
-      carErrs.push(t.errorSkinRequired)
     }
 
     const sameCategoryLeagueCount = cars.filter((other) => {

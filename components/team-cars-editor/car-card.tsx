@@ -121,15 +121,12 @@ export function CarCard({
             {t.assignLeague}
           </label>
           <select
-            required
             value={(() => {
               const match = leaguesOptions.find((l) => l.id === car.leagueId || l.slug === car.leagueId)
               return match ? match.id : car.leagueId || ''
             })()}
             onChange={(e) => onUpdateField(car.id, 'leagueId', e.target.value || null)}
-            className={`w-full bg-[#0a0f1d] border text-xs text-slate-200 rounded-lg px-3 py-2 outline-none cursor-pointer transition-all font-semibold ${
-              !car.leagueId ? 'border-amber-500/60 bg-amber-950/10' : 'border-slate-700 focus:border-cyan-400'
-            }`}
+            className="w-full bg-[#0a0f1d] border border-slate-700 focus:border-cyan-400 text-xs text-slate-200 rounded-lg px-3 py-2 outline-none cursor-pointer transition-all font-semibold"
           >
             <option value="">{t.selectLeague}</option>
             {leaguesOptions.map((l) => (
@@ -145,14 +142,11 @@ export function CarCard({
           </label>
           <input
             type="text"
-            required
             maxLength={3}
             value={car.dorsal}
             onChange={(e) => onUpdateField(car.id, 'dorsal', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
             placeholder={t.dorsalPlaceholder}
-            className={`w-full bg-[#0a0f1d] border text-xs text-white rounded-lg px-3 py-2 outline-none font-mono transition-all shadow-inner ${
-              !car.dorsal ? 'border-amber-500/60 bg-amber-950/10' : 'border-slate-700 focus:border-cyan-400'
-            }`}
+            className="w-full bg-[#0a0f1d] border border-slate-700 focus:border-cyan-400 text-xs text-white rounded-lg px-3 py-2 outline-none font-mono transition-all shadow-inner"
           />
         </div>
 
