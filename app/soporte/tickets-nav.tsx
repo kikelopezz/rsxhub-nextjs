@@ -2,17 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Ticket, Settings, KeyRound } from 'lucide-react'
+import { Ticket, Settings } from 'lucide-react'
 
-export function TicketsNav({ isSuperAdmin }: { isSuperAdmin: boolean }) {
+export function TicketsNav() {
   const pathname = usePathname()
 
   const tabs = [
-    { href: '/admin/tickets', label: 'Tickets', icon: Ticket, active: pathname === '/admin/tickets' },
-    { href: '/admin/tickets/settings', label: 'Configuración', icon: Settings, active: pathname.startsWith('/admin/tickets/settings') },
-    ...(isSuperAdmin
-      ? [{ href: '/admin/tickets/access', label: 'Acceso', icon: KeyRound, active: pathname.startsWith('/admin/tickets/access') }]
-      : []),
+    { href: '/soporte', label: 'Tickets', icon: Ticket, active: pathname === '/soporte' },
+    { href: '/soporte/settings', label: 'Configuración', icon: Settings, active: pathname.startsWith('/soporte/settings') },
   ]
 
   return (

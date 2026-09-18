@@ -13,7 +13,7 @@ import { useDictionary } from '@/lib/i18n/locale-provider'
 interface TopNavProps {
   signedIn: boolean
   showAdmin: boolean
-  showTickets?: boolean
+  showSupport?: boolean
   displayName?: string
   avatarUrl?: string
   notifications?: NotificationItem[]
@@ -44,7 +44,7 @@ function SteamIcon() {
   )
 }
 
-export function TopNav({ signedIn, showAdmin, showTickets = false, displayName, avatarUrl, notifications, marketBadgeCount = 0 }: TopNavProps) {
+export function TopNav({ signedIn, showAdmin, showSupport = false, displayName, avatarUrl, notifications, marketBadgeCount = 0 }: TopNavProps) {
   const pathname = usePathname()
   const dict = useDictionary()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -77,7 +77,7 @@ export function TopNav({ signedIn, showAdmin, showTickets = false, displayName, 
   const links = [
     ...baseLinks,
     ...(showAdmin ? [{ href: '/admin', label: dict.nav.admin }] : []),
-    ...(showTickets ? [{ href: '/admin/tickets', label: 'Tickets' }] : []),
+    ...(showSupport ? [{ href: '/soporte', label: 'Soporte' }] : []),
   ]
 
   // Close the mobile menu on route change

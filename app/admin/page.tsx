@@ -2,7 +2,6 @@ import Link from 'next/link'
 import NextImage from 'next/image'
 import { redirect } from 'next/navigation'
 import { getAdminAccessContext, getCurrentUser, getConfiguredAdminSteamIds } from '@/lib/auth'
-import { getTicketAccess } from '@/lib/ticket-access'
 import { getLeagueEvents, getLeagues, getRegistrations, getAllRegisteredDrivers } from '@/lib/platform-data'
 import { getTeamsDashboard, getSkinReviewQueue } from '@/lib/team-data'
 import { getUnseenLineupChangeTeamIds, getRecentLineupChanges } from '@/lib/admin-lineup-log'
@@ -34,6 +33,7 @@ import { AdminAdminsTab } from './components/admin-admins-tab'
 import { AdminNewsTab } from './components/admin-news-tab'
 import { AdminSkinsTab } from './components/admin-skins-tab'
 import { AdminUserMergeTab } from './components/admin-user-merge-tab'
+import { AdminSupportTab } from './components/admin-support-tab'
 import { getNewsPosts } from '@/lib/news-data'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
@@ -113,6 +113,7 @@ export default async function AdminPage({
     granted?: string
     revoked?: string
     error?: string
+    soporte?: string
   }>
 }) {
   const session = await getCurrentUser()
@@ -123,7 +124,6 @@ export default async function AdminPage({
 
   const access = await getAdminAccessContext(session.userId)
   if (!access.canAccessPlatformAdmin) redirect('/perfil')
-  const ticketAccess = await getTicketAccess()
 
   // Load all baseline data in parallel — these reads are independent of each other
   const fixedAdminSteamIds = getConfiguredAdminSteamIds()
@@ -336,15 +336,17 @@ export default async function AdminPage({
           <GitMerge className="h-3.5 w-3.5 text-cyan-400" />
           Perfiles duplicados
         </Link>
-        {ticketAccess.canAccess && (
-          <Link
-            href="/admin/tickets"
-            className="px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/5"
-          >
-            <Ticket className="h-3.5 w-3.5 text-cyan-400" />
-            Tickets
-          </Link>
-        )}
+        <Link
+          href="/admin?tab=soporte"
+          className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
+            activeTab === 'soporte'
+              ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Ticket className="h-3.5 w-3.5 text-cyan-400" />
+          Soporte
+        </Link>
         <Link
           href="/admin?tab=system"
           className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
@@ -641,6 +643,9 @@ export default async function AdminPage({
 
       {/* TAB CONTENT: SKINS */}
       {activeTab === 'skins' && <AdminSkinsTab reviews={skinReviews} />}
+
+      {/* TAB CONTENT: SUPPORT ACCESS */}
+      {activeTab === 'soporte' && <AdminSupportTab feedback={params.soporte} />}
 
       {/* TAB CONTENT: DUPLICATE PROFILE MERGE */}
       {activeTab === 'merge' && <AdminUserMergeTab />}

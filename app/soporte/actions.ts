@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
-import { guardTicketAccess, guardTicketSuperAdmin } from '@/lib/ticket-access'
+import { guardTicketAccess } from '@/lib/ticket-access'
+import { guardPlatformAdmin } from '@/app/admin/actions/admin-league'
 import * as ticketsApi from '@/lib/tickets-api'
 import type { GuildConfig } from '@/lib/tickets-api'
 
@@ -24,7 +25,7 @@ function backTo(formData: FormData, params: Record<string, string>): never {
   const status = String(formData.get('returnStatus') || '')
   const guild = String(formData.get('guildId') || '')
   const qs = new URLSearchParams({ ...(status ? { status } : {}), ...(GUILD_ID.test(guild) ? { guild } : {}), ...params })
-  redirect(`/admin/tickets?${qs.toString()}`)
+  redirect(`/soporte?${qs.toString()}`)
 }
 
 async function runTicketAction(
@@ -50,7 +51,7 @@ async function runTicketAction(
     error = errorMessage(e)
   }
 
-  revalidatePath('/admin/tickets')
+  revalidatePath('/soporte')
   backTo(formData, error ? { error } : { ok: okKey })
 }
 
@@ -77,7 +78,7 @@ export async function saveTicketSettingsAction(guildId: string, settings: Partia
   if (!GUILD_ID.test(guildId)) return { ok: false, message: 'Servidor no válido.' }
   try {
     await ticketsApi.saveSettings(guildId, settings)
-    revalidatePath('/admin/tickets/settings')
+    revalidatePath('/soporte/settings')
     return { ok: true, message: 'Configuración guardada.' }
   } catch (e) {
     return { ok: false, message: errorMessage(e) }
@@ -89,7 +90,7 @@ export async function publishTicketPanelAction(guildId: string): Promise<ActionR
   if (!GUILD_ID.test(guildId)) return { ok: false, message: 'Servidor no válido.' }
   try {
     await ticketsApi.publishPanel(guildId)
-    revalidatePath('/admin/tickets/settings')
+    revalidatePath('/soporte/settings')
     return { ok: true, message: 'Panel publicado en Discord.' }
   } catch (e) {
     return { ok: false, message: errorMessage(e) }
@@ -97,10 +98,10 @@ export async function publishTicketPanelAction(guildId: string): Promise<ActionR
 }
 
 export async function grantTicketAccessAction(formData: FormData) {
-  const session = await guardTicketSuperAdmin()
+  const session = await guardPlatformAdmin()
 
   const steamId = String(formData.get('steamId') || '').trim()
-  if (!STEAM_ID.test(steamId)) redirect('/admin/tickets/access?error=invalid-steamid')
+  if (!STEAM_ID.test(steamId)) redirect('/admin?tab=soporte&soporte=invalid-steamid')
 
   try {
     const profile = await db.profile.findUnique({ where: { userId: session.userId } })
@@ -112,19 +113,19 @@ export async function grantTicketAccessAction(formData: FormData) {
     })
   } catch (error) {
     console.error('Failed to grant ticket access:', error)
-    redirect('/admin/tickets/access?error=grant-failed')
+    redirect('/admin?tab=soporte&soporte=grant-failed')
   }
 
   invalidateCache(['ticket_access_steam_ids'])
-  revalidatePath('/admin/tickets/access')
-  redirect('/admin/tickets/access?ok=granted')
+  revalidatePath('/admin')
+  redirect('/admin?tab=soporte&soporte=granted')
 }
 
 export async function revokeTicketAccessAction(formData: FormData) {
-  await guardTicketSuperAdmin()
+  await guardPlatformAdmin()
 
   const steamId = String(formData.get('steamId') || '').trim()
-  if (!STEAM_ID.test(steamId)) redirect('/admin/tickets/access?error=invalid-steamid')
+  if (!STEAM_ID.test(steamId)) redirect('/admin?tab=soporte&soporte=invalid-steamid')
 
   try {
     await db.ticketAccessGrant.delete({ where: { steamId } })
@@ -133,6 +134,6 @@ export async function revokeTicketAccessAction(formData: FormData) {
   }
 
   invalidateCache(['ticket_access_steam_ids'])
-  revalidatePath('/admin/tickets/access')
-  redirect('/admin/tickets/access?ok=revoked')
+  revalidatePath('/admin')
+  redirect('/admin?tab=soporte&soporte=revoked')
 }

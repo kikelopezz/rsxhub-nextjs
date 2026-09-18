@@ -1,26 +1,21 @@
+import Link from 'next/link'
 import Image from 'next/image'
 import { AlertTriangle, CheckCircle2, KeyRound, User } from 'lucide-react'
 import { db } from '@/lib/db'
-import { getConfiguredAdminSteamIds } from '@/lib/auth'
-import { guardTicketSuperAdmin } from '@/lib/ticket-access'
 import { SubmitButton } from '@/components/submit-button'
 import { ConfirmForm } from '@/components/confirm-form'
-import { grantTicketAccessAction, revokeTicketAccessAction } from '../actions'
+import { grantTicketAccessAction, revokeTicketAccessAction } from '@/app/soporte/actions'
 
-export const dynamic = 'force-dynamic'
-
-const MESSAGES: Record<string, string> = {
-  'invalid-steamid': 'El Steam ID no es válido (deben ser 10-20 dígitos).',
-  'grant-failed': 'No se pudo conceder el acceso. Inténtalo de nuevo.',
+const FEEDBACK: Record<string, { ok: boolean; message: string }> = {
+  granted: { ok: true, message: 'Permiso concedido.' },
+  revoked: { ok: true, message: 'Permiso revocado.' },
+  'invalid-steamid': { ok: false, message: 'El Steam ID no es válido (deben ser 10-20 dígitos).' },
+  'grant-failed': { ok: false, message: 'No se pudo conceder el permiso. Inténtalo de nuevo.' },
 }
 
-export default async function TicketAccessPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
-  await guardTicketSuperAdmin()
-  const params = await searchParams
-
+export async function AdminSupportTab({ feedback }: { feedback?: string }) {
   const grants = await db.ticketAccessGrant.findMany({ orderBy: { createdAt: 'desc' } })
-  const steamIds = grants.map((g) => g.steamId)
-  const accounts = steamIds.length > 0 ? await db.steamAccount.findMany({ where: { steamId: { in: steamIds } } }) : []
+  const accounts = grants.length > 0 ? await db.steamAccount.findMany({ where: { steamId: { in: grants.map((g) => g.steamId) } } }) : []
   const profiles = accounts.length > 0 ? await db.profile.findMany({ where: { userId: { in: accounts.map((a) => a.userId) } } }) : []
 
   const rows = grants.map((g) => {
@@ -29,27 +24,31 @@ export default async function TicketAccessPage({ searchParams }: { searchParams:
     return { ...g, displayName: profile?.displayName || null, avatarUrl: profile?.avatarUrl || null }
   })
 
+  const message = feedback ? FEEDBACK[feedback] : undefined
+
   return (
     <div className="space-y-6">
-      {params.ok && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100">
-          <CheckCircle2 className="h-4 w-4" /> {params.ok === 'granted' ? 'Acceso concedido.' : 'Acceso revocado.'}
-        </div>
-      )}
-      {params.error && (
-        <div className="flex items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-100">
-          <AlertTriangle className="h-4 w-4" /> {MESSAGES[params.error] || 'Ha ocurrido un error.'}
+      {message && (
+        <div
+          className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold ${
+            message.ok ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100' : 'border-rose-400/40 bg-rose-500/10 text-rose-100'
+          }`}
+        >
+          {message.ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />} {message.message}
         </div>
       )}
 
       <section className="space-y-4 rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
         <div className="border-b border-shell-line pb-3">
           <h2 className="flex items-center gap-2 font-display-condensed text-sm font-bold uppercase tracking-wide text-white">
-            <KeyRound className="h-4 w-4 text-accent" /> Dar acceso a Tickets
+            <KeyRound className="h-4 w-4 text-accent" /> Permiso para la sección Soporte
           </h2>
           <p className="mt-1 text-xs text-slate-400">
-            Estas personas verán y gestionarán los tickets aunque no sean administradores de la plataforma. Los super admins siempre tienen acceso.
+            La sección <strong>Soporte</strong> (tickets de Discord) la ven siempre los administradores. Aquí añades a otras personas que no son admins para que también puedan verla y gestionar tickets.
           </p>
+          <Link href="/soporte" className="mt-2 inline-block text-[11px] font-bold uppercase tracking-wider text-[#4ea1ff] hover:underline">
+            Abrir Soporte →
+          </Link>
         </div>
         <form action={grantTicketAccessAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex-1">
@@ -64,15 +63,15 @@ export default async function TicketAccessPage({ searchParams }: { searchParams:
             />
           </div>
           <SubmitButton
-            label="Conceder acceso"
-            pendingLabel="Concediendo…"
+            label="Dar permiso"
+            pendingLabel="Guardando…"
             className="shrink-0 cursor-pointer rounded-lg bg-[#1274de] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee]"
           />
         </form>
       </section>
 
       <section className="space-y-4 rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
-        <h2 className="border-b border-shell-line pb-3 font-display-condensed text-sm font-bold uppercase tracking-wide text-white">Personas con acceso</h2>
+        <h2 className="border-b border-shell-line pb-3 font-display-condensed text-sm font-bold uppercase tracking-wide text-white">Personas con permiso (además de los admins)</h2>
         <div className="overflow-x-auto rounded-lg border border-shell-line bg-black/10">
           <table className="w-full min-w-[480px] border-collapse text-left">
             <thead>
@@ -87,7 +86,7 @@ export default async function TicketAccessPage({ searchParams }: { searchParams:
             <tbody className="divide-y divide-white/5 text-xs text-slate-300">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center italic text-slate-500">Nadie más tiene acceso todavía.</td>
+                  <td colSpan={5} className="p-8 text-center italic text-slate-500">Nadie más tiene permiso todavía.</td>
                 </tr>
               ) : (
                 rows.map((g) => (
@@ -108,7 +107,7 @@ export default async function TicketAccessPage({ searchParams }: { searchParams:
                     <td className="p-3">{g.grantedByName}</td>
                     <td className="p-3 font-mono text-[11px] text-slate-400">{g.createdAt.toLocaleDateString('es-ES')}</td>
                     <td className="p-3 text-right">
-                      <ConfirmForm action={revokeTicketAccessAction} confirmMessage="¿Quitar el acceso a Tickets a esta persona?">
+                      <ConfirmForm action={revokeTicketAccessAction} confirmMessage="¿Quitar el permiso de Soporte a esta persona?">
                         <input type="hidden" name="steamId" value={g.steamId} />
                         <button type="submit" className="cursor-pointer rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-200 transition-colors hover:bg-rose-700 hover:text-white">
                           Revocar
@@ -120,15 +119,6 @@ export default async function TicketAccessPage({ searchParams }: { searchParams:
               )}
             </tbody>
           </table>
-        </div>
-      </section>
-
-      <section className="space-y-3 rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
-        <h2 className="border-b border-shell-line pb-3 font-display-condensed text-sm font-bold uppercase tracking-wide text-white">Super admins (siempre con acceso)</h2>
-        <div className="flex flex-wrap gap-2">
-          {getConfiguredAdminSteamIds().map((id) => (
-            <span key={id} className="rounded-lg border border-shell-line bg-black/30 px-3 py-1.5 font-mono text-xs text-slate-300">{id}</span>
-          ))}
         </div>
       </section>
     </div>

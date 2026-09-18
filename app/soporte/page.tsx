@@ -106,7 +106,7 @@ function RowActions({ ticket, guildId, returnStatus }: { ticket: TicketRow; guil
         </form>
       )}
       {ticket.status !== 'closed' && (
-        <ConfirmForm action={closeTicketAction} confirmMessage={`¿Cerrar el ticket #${ticket.number}? Se generará la transcripción.`} className="flex items-center gap-1">
+        <ConfirmForm action={closeTicketAction} confirmMessage={`¿Cerrar «${ticket.code || `#${ticket.number}`}»? Se generará la transcripción.`} className="flex items-center gap-1">
           {hidden}
           <input
             type="text"
@@ -120,7 +120,7 @@ function RowActions({ ticket, guildId, returnStatus }: { ticket: TicketRow; guil
       )}
       {ticket.status === 'closed' && ticket.transcript_file && (
         <a
-          href={`/admin/tickets/transcripts/${encodeURIComponent(ticket.transcript_file)}`}
+          href={`/soporte/transcripts/${encodeURIComponent(ticket.transcript_file)}`}
           target="_blank"
           rel="noopener noreferrer"
           className={`${btn} flex items-center gap-1 border-[#4ea1ff]/40 bg-[rgba(78,161,255,.08)] text-[#4ea1ff] hover:bg-[rgba(78,161,255,.18)]`}
@@ -129,7 +129,7 @@ function RowActions({ ticket, guildId, returnStatus }: { ticket: TicketRow; guil
         </a>
       )}
       {ticket.status === 'closed' && (
-        <ConfirmForm action={deleteTicketAction} confirmMessage={`¿Eliminar el canal del ticket #${ticket.number} en Discord? No se puede deshacer.`}>
+        <ConfirmForm action={deleteTicketAction} confirmMessage={`¿Eliminar el canal de «${ticket.code || `#${ticket.number}`}» en Discord? No se puede deshacer.`}>
           {hidden}
           <button type="submit" className={`${btn} border-white/10 text-slate-400 hover:bg-white/5`}>Eliminar canal</button>
         </ConfirmForm>
@@ -172,7 +172,7 @@ export default async function TicketsPage({
   const returnStatus = filter || ''
   const filterHref = (key: string) => {
     const qs = new URLSearchParams({ ...(key !== 'all' ? { status: key } : {}), ...(guildId ? { guild: guildId } : {}) })
-    return `/admin/tickets${qs.size ? `?${qs}` : ''}`
+    return `/soporte${qs.size ? `?${qs}` : ''}`
   }
 
   return (
@@ -206,7 +206,7 @@ export default async function TicketsPage({
               {guilds.map((g) => (
                 <Link
                   key={g.id}
-                  href={`/admin/tickets?guild=${g.id}`}
+                  href={`/soporte?guild=${g.id}`}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-bold ${g.id === guildId ? 'border-[#4ea1ff] text-[#4ea1ff]' : 'border-white/10 text-slate-400 hover:text-white'}`}
                 >
                   {g.name}
@@ -250,7 +250,7 @@ export default async function TicketsPage({
             <table className="w-full min-w-[860px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-shell-line bg-black/40 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  <th className="p-3">#</th>
+                  <th className="p-3">Ticket</th>
                   <th className="p-3">Categoría</th>
                   <th className="p-3">Abierto por</th>
                   <th className="p-3">Fase</th>
@@ -269,7 +269,7 @@ export default async function TicketsPage({
                     const age = ageInfo(ticket)
                     return (
                       <tr key={ticket.id} className="transition-colors hover:bg-white/[0.02]">
-                        <td className="p-3 font-mono-data font-black text-[#4ea1ff]">#{ticket.number}</td>
+                        <td className="p-3 font-mono-data font-black text-[#4ea1ff]">{ticket.code || `#${ticket.number}`}</td>
                         <td className="p-3">{ticket.type_label || '—'}</td>
                         <td className="p-3 font-semibold text-white">{ticket.opener_tag || ticket.opener_id}</td>
                         <td className="p-3"><StageTracker status={ticket.status} /></td>

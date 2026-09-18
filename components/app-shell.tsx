@@ -52,7 +52,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <TopNav
               signedIn={Boolean(user)}
               showAdmin={access.canAccessPlatformAdmin}
-              showTickets={ticketAccess.canAccess && !access.canAccessPlatformAdmin}
+              showSupport={ticketAccess.canAccess}
               displayName={displayName}
               avatarUrl={avatarUrl}
               notifications={notifications}

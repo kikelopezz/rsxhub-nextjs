@@ -112,17 +112,30 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
 
       <section className={card}>
         <h2 className={heading}>Categorías de ticket (opcional)</h2>
-        <p className="text-xs text-slate-400">Si añades categorías, el panel mostrará un menú desplegable en vez de un solo botón.</p>
-        <div className="space-y-2">
+        <p className="text-xs text-slate-400">
+          Si añades categorías, el panel mostrará un menú desplegable en vez de un solo botón. Cada ticket se nombra con su categoría y su propio número
+          (por ejemplo «Incidente de carrera 001», «Incidente de carrera 002») y puede llevar su propio mensaje de bienvenida.
+        </p>
+        <div className="space-y-3">
           {types.length === 0 && <p className={hint}>Sin categorías: el panel mostrará un único botón &quot;Crear ticket&quot;.</p>}
           {types.map((t, i) => (
-            <div key={t.id} className="grid grid-cols-[3.5rem_1fr_1fr_auto] gap-2">
-              <input className={input} maxLength={4} placeholder="🎫" value={t.emoji || ''} onChange={(e) => updateType(i, { emoji: e.target.value })} />
-              <input className={input} maxLength={60} placeholder="Nombre de la categoría" value={t.label} onChange={(e) => updateType(i, { label: e.target.value })} />
-              <input className={input} maxLength={100} placeholder="Descripción (opcional)" value={t.description || ''} onChange={(e) => updateType(i, { description: e.target.value })} />
-              <button type="button" onClick={() => setTypes((l) => l.filter((_, idx) => idx !== i))} className="rounded-lg border border-white/10 px-3 text-[10px] font-bold uppercase text-slate-400 hover:bg-white/5">
-                Quitar
-              </button>
+            <div key={t.id} className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="grid grid-cols-[3.5rem_1fr_1fr_auto] gap-2">
+                <input className={input} maxLength={4} placeholder="🎫" value={t.emoji || ''} onChange={(e) => updateType(i, { emoji: e.target.value })} />
+                <input className={input} maxLength={60} placeholder="Nombre de la categoría" value={t.label} onChange={(e) => updateType(i, { label: e.target.value })} />
+                <input className={input} maxLength={100} placeholder="Descripción en el menú (opcional)" value={t.description || ''} onChange={(e) => updateType(i, { description: e.target.value })} />
+                <button type="button" onClick={() => setTypes((l) => l.filter((_, idx) => idx !== i))} className="rounded-lg border border-white/10 px-3 text-[10px] font-bold uppercase text-slate-400 hover:bg-white/5">
+                  Quitar
+                </button>
+              </div>
+              <textarea
+                className={input}
+                rows={2}
+                maxLength={500}
+                placeholder="Mensaje dentro del ticket para esta categoría (opcional; si lo dejas vacío se usa el mensaje de bienvenida general)"
+                value={t.welcome || ''}
+                onChange={(e) => updateType(i, { welcome: e.target.value })}
+              />
             </div>
           ))}
         </div>

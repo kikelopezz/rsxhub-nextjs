@@ -11,6 +11,8 @@ export type TicketRow = {
   channel_id: string
   number: number | null
   type_label: string | null
+  type_id: string | null
+  code: string | null
   opener_id: string
   opener_tag: string | null
   claimed_by: string | null
@@ -24,7 +26,7 @@ export type TicketRow = {
   transcript_file: string | null
 }
 
-export type TicketType = { id: string; emoji?: string; label: string; description?: string }
+export type TicketType = { id: string; emoji?: string; label: string; description?: string; welcome?: string }
 
 export type GuildConfig = {
   panel_title: string
