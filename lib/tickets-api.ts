@@ -1,3 +1,5 @@
+import { fetchWithTTLCache } from '@/lib/ttl-cache'
+
 /**
  * Cliente (solo servidor) de la API interna del bot de tickets de Discord.
  * El bot corre como proceso aparte; aqui solo se le llama con la clave compartida.
@@ -63,7 +65,11 @@ export type TicketStats = {
 
 export type GuildSummary = { id: string; name: string; icon: string | null; memberCount: number }
 
-export class TicketApiError extends Error {}
+export class TicketApiError extends Error {
+  constructor(message: string, readonly status?: number) {
+    super(message)
+  }
+}
 
 async function rawCall(path: string, init?: RequestInit): Promise<Response> {
   const base = process.env.TICKET_API_URL
@@ -76,9 +82,11 @@ async function rawCall(path: string, init?: RequestInit): Promise<Response> {
       ...init,
       headers: { 'x-api-key': key, 'content-type': 'application/json', ...(init?.headers || {}) },
       cache: 'no-store',
-      signal: AbortSignal.timeout(10000),
+      // Si el bot no contesta, mejor fallar pronto y mostrar el error que dejar la pagina colgada.
+      signal: AbortSignal.timeout(6000),
     })
-  } catch {
+  } catch (error) {
+    console.error(`[tickets-api] ${init?.method || 'GET'} ${path} falló:`, error)
     throw new TicketApiError('No se pudo conectar con el bot de tickets. ¿Está encendido y es accesible desde el Hub?')
   }
 }
@@ -86,19 +94,34 @@ async function rawCall(path: string, init?: RequestInit): Promise<Response> {
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await rawCall(path, init)
   const data = await res.json().catch(() => null)
-  if (!res.ok || !data?.ok) throw new TicketApiError(data?.error || `El bot respondió con error ${res.status}.`)
+  // Una versión antigua del bot responde a rutas que no conoce con una página HTML (no JSON): se trata como "no existe".
+  if (data === null) throw new TicketApiError('El bot respondió algo inesperado (¿versión antigua del bot?).', 404)
+  if (!res.ok || !data?.ok) throw new TicketApiError(data?.error || `El bot respondió con error ${res.status}.`, res.status)
   return data as T
 }
 
 const post = (body?: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body ?? {}) })
 
+// El bot casi nunca cambia de servidores: se cachea un minuto para no repetir esta llamada en cada refresco.
 export async function listGuilds() {
-  const data = await call<{ botReady: boolean; guilds: GuildSummary[] }>('/guilds')
-  return data
+  return fetchWithTTLCache('ticket_bot_guilds', () => call<{ botReady: boolean; guilds: GuildSummary[] }>('/guilds'), 60)
 }
 
 export async function getOverview(guildId: string) {
   return call<{ guild: GuildDetails; config: GuildConfig; stats: TicketStats }>(`/guilds/${guildId}/overview`)
+}
+
+/** Estadisticas + tickets en una sola llamada (sin Discord). Con un bot antiguo, que aun no la tiene, cae a las dos llamadas de antes. */
+export async function getDashboard(guildId: string, status?: TicketStatus) {
+  try {
+    const qs = status ? `?status=${status}` : ''
+    const { stats, tickets } = await call<{ stats: TicketStats; tickets: TicketRow[] }>(`/guilds/${guildId}/dashboard${qs}`)
+    return { stats, tickets }
+  } catch (error) {
+    if (!(error instanceof TicketApiError) || error.status !== 404) throw error
+    const [overview, tickets] = await Promise.all([getOverview(guildId), listTickets(guildId, status)])
+    return { stats: overview.stats, tickets }
+  }
 }
 
 export async function listTickets(guildId: string, status?: TicketStatus) {

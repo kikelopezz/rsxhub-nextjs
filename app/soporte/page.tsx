@@ -161,9 +161,9 @@ export default async function TicketsPage({
     botReady = list.botReady
     guildId = guilds.find((g) => g.id === params.guild)?.id || guilds[0]?.id || ''
     if (guildId) {
-      const [overview, rows] = await Promise.all([ticketsApi.getOverview(guildId), ticketsApi.listTickets(guildId, filter)])
-      stats = overview.stats
-      tickets = rows
+      const dashboard = await ticketsApi.getDashboard(guildId, filter)
+      stats = dashboard.stats
+      tickets = dashboard.tickets
     }
   } catch (e) {
     loadError = e instanceof ticketsApi.TicketApiError ? e.message : 'No se pudieron cargar los tickets.'
@@ -302,7 +302,7 @@ export default async function TicketsPage({
           )}
 
           <p className="flex items-center gap-1.5 text-[10px] text-slate-500">
-            <ExternalLink className="h-3 w-3" /> Se actualiza solo cada 10 segundos. Las acciones se reflejan también dentro del canal de Discord.
+            <ExternalLink className="h-3 w-3" /> Se actualiza solo cada 15 segundos. Las acciones se reflejan también dentro del canal de Discord.
           </p>
         </>
       )}
