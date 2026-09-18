@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { getCurrentUser } from '@/lib/auth'
 import { getRegistrations, getLeagues } from '@/lib/platform-data'
 import { db } from '@/lib/db'
+import { parseConnections, type Connections } from '@/lib/connections'
 import { SteamLoginButton } from '@/components/steam-login-button'
 import PerfilContent from './perfil-content'
 import { getLocale } from '@/lib/i18n/get-locale'
@@ -42,6 +43,7 @@ export default async function PerfilPage({
     isPublic: true,
     bannerUrl: null as string | null,
     accentColor: null as string | null,
+    connections: {} as Connections,
   }
   let pendingInvites: Array<{ id: string; teamName: string; teamLogoUrl: string | null; invitedBy: string; message: string | null }> = []
 
@@ -70,6 +72,7 @@ export default async function PerfilPage({
         isPublic: dbProfile.isPublic,
         bannerUrl: dbProfile.bannerUrl || null,
         accentColor: dbProfile.accentColor || null,
+        connections: parseConnections(dbProfile.connections),
       }
     }
 

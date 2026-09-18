@@ -24,6 +24,8 @@ import {
 import { COUNTRIES, getCountryName, getCountryFlagUrl } from '@/lib/countries'
 import { ClassBadge } from '@/components/class-badge'
 import { ImagePicker } from '@/components/image-picker'
+import { ConnectionChips } from '@/components/connection-chips'
+import { CONNECTION_PLATFORMS, type Connections } from '@/lib/connections'
 import { updateProfile, respondTeamInvite } from './actions'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
@@ -40,6 +42,7 @@ type ProfileData = {
   isPublic: boolean
   bannerUrl: string | null
   accentColor: string | null
+  connections: Connections
 }
 
 function hexToRgba(hexColor: string | null | undefined, alpha: number) {
@@ -107,6 +110,10 @@ export default function PerfilContent({
   const [editBannerUrl, setEditBannerUrl] = useState(profile.bannerUrl || '')
   const [editAccentColor, setEditAccentColor] = useState(profile.accentColor || '#1274de')
   const [editErrorMessage, setEditErrorMessage] = useState('')
+  // Conexiones: el campo muestra el valor guardado tal cual (URL canónica), así volver a guardar no altera enlaces como youtube.com/channel/...
+  const [editConnections, setEditConnections] = useState<Record<string, string>>(() =>
+    Object.fromEntries(CONNECTION_PLATFORMS.map((p) => [p.key, profile.connections[p.key] || '']))
+  )
   const [editSelectedCategories, setEditSelectedCategories] = useState<string[]>(
     profile.preferredCategories.map((c) => c.toUpperCase())
   )
@@ -137,7 +144,10 @@ export default function PerfilContent({
     try {
       const res = await updateProfile(formData)
       if (res && !res.success) {
-        setEditErrorMessage(res.error || 'No se pudo guardar el perfil.')
+        const invalid = /^connection_invalid:(.+)$/.exec(res.error || '')
+        setEditErrorMessage(
+          invalid ? t.connectionsInvalid.replace('{platform}', invalid[1]) : res.error || 'No se pudo guardar el perfil.'
+        )
         return
       }
       setIsEditOpen(false)
@@ -248,6 +258,8 @@ export default function PerfilContent({
                   "{profile.bio}"
                 </div>
               )}
+
+              <ConnectionChips connections={profile.connections} className="mt-3" />
             </div>
           </div>
 
@@ -548,6 +560,33 @@ export default function PerfilContent({
                         className="h-9 w-14 cursor-pointer rounded-lg border border-white/10 bg-transparent p-0.5"
                       />
                       <span className="font-mono-data text-xs uppercase text-slate-300">{editAccentColor}</span>
+                    </div>
+                  </div>
+
+                  {/* Conexiones / redes sociales */}
+                  <div className="rounded-lg border border-shell-line bg-black/30 p-4 space-y-3">
+                    <div>
+                      <p className="text-xs font-bold text-white uppercase tracking-wider">{t.connectionsTitle}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">{t.connectionsHint}</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {CONNECTION_PLATFORMS.map((p) => (
+                        <label key={p.key} className="block">
+                          <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
+                            {p.label}
+                          </span>
+                          <input
+                            name={`conn_${p.key}`}
+                            value={editConnections[p.key] || ''}
+                            onChange={(e) => setEditConnections((prev) => ({ ...prev, [p.key]: e.target.value }))}
+                            placeholder={p.placeholder}
+                            maxLength={200}
+                            autoComplete="off"
+                            className="w-full border border-shell-line bg-black/60 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-accent transition-colors"
+                          />
+                        </label>
+                      ))}
                     </div>
                   </div>
 

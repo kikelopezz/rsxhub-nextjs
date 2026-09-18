@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import { Trash, MessageSquare } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
@@ -109,7 +110,9 @@ export function MarketDriverCards({
                 </div>
                 <div className="min-w-0 flex-1">
                   <h4 className="text-sm font-bold text-white truncate">
-                    {item.user_name}
+                    <Link href={`/perfil/${item.user_id}`} className="transition-colors hover:text-cyan-400 hover:underline">
+                      {item.user_name}
+                    </Link>
                   </h4>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="flex items-center gap-1 text-[11px] text-slate-400">

@@ -111,6 +111,20 @@ export const saveSettings = (guildId: string, settings: Partial<GuildConfig>) =>
 
 export const publishPanel = (guildId: string) => call(`/guilds/${guildId}/panel/publish`, post())
 
+export type CreatedChannel = { id: string; name: string; parentId: string | null; kind: 'text' | 'category' }
+
+export async function createChannel(
+  guildId: string,
+  input: { name: string; kind: 'text' | 'category'; staffOnly?: boolean },
+  staffName: string
+) {
+  const data = await call<{ channel: CreatedChannel }>(
+    `/guilds/${guildId}/channels`,
+    post({ ...input, staff: { name: staffName } })
+  )
+  return data.channel
+}
+
 export const claimTicket = (guildId: string, ticketId: number, staffName: string) =>
   call(`/guilds/${guildId}/tickets/${ticketId}/claim`, post({ staff: { name: staffName } }))
 

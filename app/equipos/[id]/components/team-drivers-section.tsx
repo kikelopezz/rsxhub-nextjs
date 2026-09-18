@@ -371,9 +371,11 @@ export async function TeamDriversSection({
           <p className="text-sm text-slate-300">{t.noDriversRegistered}</p>
         ) : (
           displayPilots.map((pilot: any) => (
-            <div
+            <Link
               key={pilot.userId}
-              className="w-[150px] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#111114]"
+              href={`/perfil/${pilot.userId}`}
+              title={pilot.name}
+              className="block w-[150px] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#111114] transition-all hover:-translate-y-0.5 hover:border-white/30 hover:shadow-[0_0_18px_rgba(78,161,255,0.25)]"
             >
               <div
                 className="flex h-20 items-center justify-center"
@@ -404,7 +406,7 @@ export async function TeamDriversSection({
                   </div>
                 )}
               </div>
-            </div>
+            </Link>
           ))
         )}
       </div>

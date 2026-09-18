@@ -97,6 +97,28 @@ export async function publishTicketPanelAction(guildId: string): Promise<ActionR
   }
 }
 
+export async function createDiscordChannelAction(
+  guildId: string,
+  input: { name: string; kind: 'text' | 'category'; staffOnly?: boolean }
+): Promise<{ ok: boolean; message: string; channel?: ticketsApi.CreatedChannel }> {
+  const { session } = await guardTicketAccess()
+  if (!GUILD_ID.test(guildId)) return { ok: false, message: 'Servidor no válido.' }
+
+  const name = String(input?.name || '').trim().slice(0, 100)
+  if (!name) return { ok: false, message: 'Escribe un nombre.' }
+
+  try {
+    const channel = await ticketsApi.createChannel(
+      guildId,
+      { name, kind: input.kind === 'category' ? 'category' : 'text', staffOnly: Boolean(input.staffOnly) },
+      await staffName(session)
+    )
+    return { ok: true, message: `${channel.kind === 'category' ? 'Categoría' : 'Canal'} «${channel.name}» creado en Discord.`, channel }
+  } catch (e) {
+    return { ok: false, message: errorMessage(e) }
+  }
+}
+
 export async function grantTicketAccessAction(formData: FormData) {
   const session = await guardPlatformAdmin()
 

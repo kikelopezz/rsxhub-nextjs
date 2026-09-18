@@ -64,6 +64,8 @@ model Profile {
   isPublic            Boolean   @default(true) @map("is_public")
   bannerUrl           String?   @map("banner_url")
   accentColor         String?   @map("accent_color")
+  // Redes sociales / contacto del piloto: { twitch: "https://twitch.tv/x", discord: "usuario", ... }
+  connections         Json      @default("{}")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 

@@ -2,9 +2,11 @@ export const dynamic = 'force-dynamic'
 
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
-import { Lock, Flag } from 'lucide-react'
+import { Lock, Flag, Link2 } from 'lucide-react'
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { parseConnections } from '@/lib/connections'
+import { ConnectionChips } from '@/components/connection-chips'
 import { getCountryFlagUrl, getCountryName } from '@/lib/countries'
 import { ClassBadge } from '@/components/class-badge'
 import { getLocale } from '@/lib/i18n/get-locale'
@@ -27,12 +29,27 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const dict = getDictionary(await getLocale())
   const t = dict.perfil.content
 
-  const [profile, steamAccount] = await Promise.all([
+  const [dbProfile, steamAccount] = await Promise.all([
     db.profile.findUnique({ where: { userId } }),
     db.steamAccount.findUnique({ where: { userId } }),
   ])
 
-  if (!profile) notFound()
+  // Un piloto que se ha registrado pero aún no ha rellenado su perfil (p. ej. miembro de un equipo)
+  // se muestra con sus datos de Steam en vez de dar un 404.
+  if (!dbProfile && !steamAccount) notFound()
+  const profile = dbProfile ?? {
+    userId,
+    displayName: steamAccount!.steamDisplayName,
+    countryCode: '',
+    bio: '',
+    avatarUrl: steamAccount!.steamAvatarUrl,
+    isPublic: true,
+    bannerUrl: null as string | null,
+    accentColor: null as string | null,
+    preferredCategories: [] as string[],
+    connections: {} as unknown,
+  }
+  const connections = parseConnections(profile.connections)
 
   if (!profile.isPublic && !isOwnProfile) {
     const access = session ? await getAdminAccessContext(session.userId) : null
@@ -92,6 +109,16 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           style={{ borderColor: profile.accentColor || '#1274de' }}
         >
           "{profile.bio}"
+        </div>
+      )}
+
+      {Object.keys(connections).length > 0 && (
+        <div className="shell-panel space-y-3 rounded-lg p-5 md:p-6">
+          <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-white">
+            <Link2 className="h-4 w-4 text-accent" />
+            {t.connectionsTitle}
+          </h2>
+          <ConnectionChips connections={connections} />
         </div>
       )}
 

@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 import { invalidateCache } from '@/lib/ttl-cache'
+import { CONNECTION_PLATFORMS, normalizeConnection, type Connections } from '@/lib/connections'
 
 export async function respondTeamInvite(formData: FormData) {
   const session = await getCurrentUser()
@@ -57,6 +58,14 @@ export async function updateProfile(formData: FormData) {
   const bannerUrl = String(formData.get('bannerUrl') || '').trim() || null
   const accentColor = String(formData.get('accentColor') || '').trim() || null
 
+  // Conexiones (redes): cada plataforma se valida y se normaliza; si alguna no es válida no se guarda nada.
+  const connections: Connections = {}
+  for (const platform of CONNECTION_PLATFORMS) {
+    const clean = normalizeConnection(platform.key, String(formData.get(`conn_${platform.key}`) || ''))
+    if (clean === null) return { success: false, error: `connection_invalid:${platform.label}` }
+    if (clean) connections[platform.key] = clean
+  }
+
   try {
     await db.profile.upsert({
       where: { userId: session.userId },
@@ -71,6 +80,7 @@ export async function updateProfile(formData: FormData) {
         isPublic,
         bannerUrl,
         accentColor,
+        connections,
       },
       update: {
         displayName: String(formData.get('displayName') || '').trim() || session.steamDisplayName,
@@ -82,6 +92,7 @@ export async function updateProfile(formData: FormData) {
         isPublic,
         bannerUrl,
         accentColor,
+        connections,
       },
     })
   } catch (error) {

@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
-import type { GuildConfig, GuildDetails, TicketType } from '@/lib/tickets-api'
+import type { CreatedChannel, GuildConfig, GuildDetails, TicketType } from '@/lib/tickets-api'
+import { CreateChannelInline } from './create-channel-inline'
 import { saveTicketSettingsAction, publishTicketPanelAction } from '../actions'
 
 const card = 'rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4'
@@ -23,12 +24,21 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
     transcript_channel_id: config.transcript_channel_id || '',
     log_channel_id: config.log_channel_id || '',
   })
+  // Listas locales: los canales/categorías que se crean desde aquí aparecen al momento sin recargar.
+  const [textChannels, setTextChannels] = useState(guild.textChannels)
+  const [categories, setCategories] = useState(guild.categories)
   const [staffRoles, setStaffRoles] = useState<string[]>(config.staff_role_ids)
   const [types, setTypes] = useState<TicketType[]>(config.ticket_types)
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [pending, startTransition] = useTransition()
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => setForm((f) => ({ ...f, [key]: value }))
+
+  const created = (field: 'panel_channel_id' | 'category_id' | 'transcript_channel_id' | 'log_channel_id') => (ch: CreatedChannel) => {
+    if (ch.kind === 'category') setCategories((l) => [...l, { id: ch.id, name: ch.name }])
+    else setTextChannels((l) => [...l, { id: ch.id, name: ch.name, parentId: ch.parentId }])
+    set(field, ch.id)
+  }
 
   const payload = (): Partial<GuildConfig> => ({
     ...form,
@@ -74,10 +84,11 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
             <label className={label}>Canal donde se publica el panel</label>
             <select className={input} value={form.panel_channel_id} onChange={(e) => set('panel_channel_id', e.target.value)}>
               <option value="">— Selecciona un canal —</option>
-              {guild.textChannels.map((c) => (
+              {textChannels.map((c) => (
                 <option key={c.id} value={c.id}>#{c.name}</option>
               ))}
             </select>
+            <CreateChannelInline guildId={guild.id} kind="text" defaultName="soporte" label="Crear canal para el panel" onCreated={created('panel_channel_id')} />
           </div>
           <div>
             <label className={label}>Color</label>
@@ -93,10 +104,11 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
             <label className={label}>Categoría donde se crean los canales</label>
             <select className={input} value={form.category_id} onChange={(e) => set('category_id', e.target.value)}>
               <option value="">— Sin categoría —</option>
-              {guild.categories.map((c) => (
+              {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
+            <CreateChannelInline guildId={guild.id} kind="category" defaultName="TICKETS" label="Crear categoría de Discord" onCreated={created('category_id')} />
           </div>
           <div>
             <label className={label}>Máximo de tickets abiertos por usuario</label>
@@ -176,20 +188,22 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
             <label className={label}>Canal de transcripciones</label>
             <select className={input} value={form.transcript_channel_id} onChange={(e) => set('transcript_channel_id', e.target.value)}>
               <option value="">— Ninguno —</option>
-              {guild.textChannels.map((c) => (
+              {textChannels.map((c) => (
                 <option key={c.id} value={c.id}>#{c.name}</option>
               ))}
             </select>
+            <CreateChannelInline guildId={guild.id} kind="text" staffOnly defaultName="transcripciones" label="Crear canal privado" onCreated={created('transcript_channel_id')} />
             <p className={hint}>Ahí se sube el HTML de cada ticket cerrado.</p>
           </div>
           <div>
             <label className={label}>Canal de logs del bot</label>
             <select className={input} value={form.log_channel_id} onChange={(e) => set('log_channel_id', e.target.value)}>
               <option value="">— Ninguno —</option>
-              {guild.textChannels.map((c) => (
+              {textChannels.map((c) => (
                 <option key={c.id} value={c.id}>#{c.name}</option>
               ))}
             </select>
+            <CreateChannelInline guildId={guild.id} kind="text" staffOnly defaultName="logs-tickets" label="Crear canal privado" onCreated={created('log_channel_id')} />
             <p className={hint}>Registra cada apertura, reclamo, cierre y borrado de ticket.</p>
           </div>
         </div>
