@@ -255,7 +255,7 @@ export function EventEntryListModal({
                                 className={`flex shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
                                   copiedKeys.has(rowKey)
                                     ? 'border-[#4ea1ff]/40 bg-[rgba(78,161,255,.08)] text-[#4ea1ff] hover:bg-[rgba(78,161,255,.18)]'
-                                    : 'border-amber-500/40 bg-amber-950/40 text-amber-300 hover:bg-amber-950/60'
+                                    : 'animate-pulse border-amber-500/40 bg-amber-950/40 text-amber-300 hover:bg-amber-950/60'
                                 }`}
                                 title={tr.copyIdsTitle.replace('{dorsal}', t.dorsal)}
                               >
