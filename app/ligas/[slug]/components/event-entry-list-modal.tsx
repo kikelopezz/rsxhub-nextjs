@@ -244,7 +244,7 @@ export function EventEntryListModal({
                                   const ids = t.drivers
                                     .map((d) => d.steamId)
                                     .filter((id) => Boolean(id) && /^\d{15,18}$/.test(id))
-                                  const copyText = ids.join(', ')
+                                  const copyText = ids.join(',')
                                   if (copyText) {
                                     navigator.clipboard.writeText(copyText)
                                     setCopiedKeys((prev) => new Set(prev).add(rowKey))
