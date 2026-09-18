@@ -1,4 +1,5 @@
 import { getAdminAccessContext, getCurrentUser } from '@/lib/auth'
+import { getTicketAccess } from '@/lib/ticket-access'
 import { TopNav } from '@/components/top-nav'
 import { Footer } from '@/components/footer'
 import { db } from '@/lib/db'
@@ -11,8 +12,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   // other — run them together instead of one after another. Fetching notifications here
   // (instead of only client-side on mount) means the nav bell doesn't need to make its
   // own network round-trip on every single page load.
-  const [access, profile, notifications, teamMembership, ownedTeam] = await Promise.all([
+  const [access, ticketAccess, profile, notifications, teamMembership, ownedTeam] = await Promise.all([
     getAdminAccessContext(user?.userId),
+    getTicketAccess(),
     user
       ? db.profile.findUnique({ where: { userId: user.userId } }).catch(() => null)
       : Promise.resolve(null),
@@ -50,6 +52,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <TopNav
               signedIn={Boolean(user)}
               showAdmin={access.canAccessPlatformAdmin}
+              showTickets={ticketAccess.canAccess && !access.canAccessPlatformAdmin}
               displayName={displayName}
               avatarUrl={avatarUrl}
               notifications={notifications}

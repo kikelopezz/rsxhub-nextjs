@@ -13,6 +13,7 @@ import { useDictionary } from '@/lib/i18n/locale-provider'
 interface TopNavProps {
   signedIn: boolean
   showAdmin: boolean
+  showTickets?: boolean
   displayName?: string
   avatarUrl?: string
   notifications?: NotificationItem[]
@@ -43,7 +44,7 @@ function SteamIcon() {
   )
 }
 
-export function TopNav({ signedIn, showAdmin, displayName, avatarUrl, notifications, marketBadgeCount = 0 }: TopNavProps) {
+export function TopNav({ signedIn, showAdmin, showTickets = false, displayName, avatarUrl, notifications, marketBadgeCount = 0 }: TopNavProps) {
   const pathname = usePathname()
   const dict = useDictionary()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -73,7 +74,11 @@ export function TopNav({ signedIn, showAdmin, displayName, avatarUrl, notificati
     { href: '/live-timing', label: dict.nav.liveTiming },
     { href: '/about', label: dict.nav.about },
   ]
-  const links = showAdmin ? [...baseLinks, { href: '/admin', label: dict.nav.admin }] : baseLinks
+  const links = [
+    ...baseLinks,
+    ...(showAdmin ? [{ href: '/admin', label: dict.nav.admin }] : []),
+    ...(showTickets ? [{ href: '/admin/tickets', label: 'Tickets' }] : []),
+  ]
 
   // Close the mobile menu on route change
   useEffect(() => {

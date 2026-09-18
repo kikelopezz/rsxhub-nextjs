@@ -100,6 +100,17 @@ model AdminGrant {
   @@map("admin_grants")
 }
 
+// Personas (por Steam ID) a las que un super admin da acceso a la seccion de Tickets del
+// admin, sean o no admins de la plataforma.
+model TicketAccessGrant {
+  steamId         String   @id @map("steam_id")
+  grantedByUserId String   @map("granted_by_user_id")
+  grantedByName   String   @map("granted_by_name")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("ticket_access_grants")
+}
+
 // ============================================================
 // Ligas
 // ============================================================

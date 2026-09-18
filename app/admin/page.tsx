@@ -2,6 +2,7 @@ import Link from 'next/link'
 import NextImage from 'next/image'
 import { redirect } from 'next/navigation'
 import { getAdminAccessContext, getCurrentUser, getConfiguredAdminSteamIds } from '@/lib/auth'
+import { getTicketAccess } from '@/lib/ticket-access'
 import { getLeagueEvents, getLeagues, getRegistrations, getAllRegisteredDrivers } from '@/lib/platform-data'
 import { getTeamsDashboard, getSkinReviewQueue } from '@/lib/team-data'
 import { getUnseenLineupChangeTeamIds, getRecentLineupChanges } from '@/lib/admin-lineup-log'
@@ -15,7 +16,7 @@ import { DeleteLeagueButton } from '@/components/delete-league-button'
 import { DeleteTeamButtonDouble } from '@/components/delete-team-button-double'
 import { DeleteUserButtonDouble } from '@/components/delete-user-button-double'
 import { AdminGallery } from '@/components/admin-gallery'
-import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive, GitMerge, Palette } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive, GitMerge, Palette, Ticket } from 'lucide-react'
 import {
   adminDeleteMarketListing,
   quickUpdateLeagueStatusAction,
@@ -122,6 +123,7 @@ export default async function AdminPage({
 
   const access = await getAdminAccessContext(session.userId)
   if (!access.canAccessPlatformAdmin) redirect('/perfil')
+  const ticketAccess = await getTicketAccess()
 
   // Load all baseline data in parallel — these reads are independent of each other
   const fixedAdminSteamIds = getConfiguredAdminSteamIds()
@@ -334,6 +336,15 @@ export default async function AdminPage({
           <GitMerge className="h-3.5 w-3.5 text-cyan-400" />
           Perfiles duplicados
         </Link>
+        {ticketAccess.canAccess && (
+          <Link
+            href="/admin/tickets"
+            className="px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/5"
+          >
+            <Ticket className="h-3.5 w-3.5 text-cyan-400" />
+            Tickets
+          </Link>
+        )}
         <Link
           href="/admin?tab=system"
           className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
