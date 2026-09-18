@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
-import type { CreatedChannel, GuildConfig, GuildDetails, TicketType } from '@/lib/tickets-api'
+import type { ButtonColor, CreatedChannel, GuildConfig, GuildDetails, TicketType } from '@/lib/tickets-api'
 import { CreateChannelInline } from './create-channel-inline'
+import { PanelPreview } from './panel-preview'
 import { saveTicketSettingsAction, publishTicketPanelAction } from '../actions'
 
 const card = 'rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4'
@@ -23,6 +24,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
     welcome_message: config.welcome_message,
     transcript_channel_id: config.transcript_channel_id || '',
     log_channel_id: config.log_channel_id || '',
+    panel_style: (config.panel_style === 'buttons' ? 'buttons' : 'menu') as 'menu' | 'buttons',
   })
   // Listas locales: los canales/categorías que se crean desde aquí aparecen al momento sin recargar.
   const [textChannels, setTextChannels] = useState(guild.textChannels)
@@ -62,12 +64,13 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
     setTypes((list) => list.map((t, idx) => (idx === i ? { ...t, ...patch } : t)))
 
   return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_430px] xl:items-start">
     <form
       onSubmit={(e) => {
         e.preventDefault()
         submit(false)
       }}
-      className="space-y-5"
+      className="min-w-0 space-y-5"
     >
       <section className={card}>
         <h2 className={heading}>Panel de tickets</h2>
@@ -125,9 +128,39 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
       <section className={card}>
         <h2 className={heading}>Categorías de ticket (opcional)</h2>
         <p className="text-xs text-slate-400">
-          Si añades categorías, el panel mostrará un menú desplegable en vez de un solo botón. Cada ticket se nombra con su categoría y su propio número
-          (por ejemplo «Incidente de carrera 001», «Incidente de carrera 002») y puede llevar su propio mensaje de bienvenida.
+          Cada categoría es una opción del panel. Cada ticket se nombra con su categoría y su propio número (por ejemplo «Incidente de carrera 001»,
+          «Incidente de carrera 002») y puede llevar su propio mensaje de bienvenida.
         </p>
+
+        <div>
+          <span className={label}>Cómo eligen la categoría en Discord</span>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {([
+              { value: 'buttons', title: 'Botones', text: 'Un botón por categoría, de colores (5 por fila).' },
+              { value: 'menu', title: 'Menú desplegable', text: 'Una lista para elegir; cabe más y ocupa menos.' },
+            ] as const).map((option) => (
+              <label
+                key={option.value}
+                className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors ${
+                  form.panel_style === option.value ? 'border-[#4ea1ff]/60 bg-[rgba(78,161,255,.10)]' : 'border-white/10 bg-black/20 hover:border-white/25'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="panel_style"
+                  className="mt-0.5 accent-[#1274de]"
+                  checked={form.panel_style === option.value}
+                  onChange={() => set('panel_style', option.value)}
+                />
+                <span>
+                  <span className="block text-xs font-bold text-white">{option.title}</span>
+                  <span className="block text-[11px] text-slate-400">{option.text}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
         <div className="space-y-3">
           {types.length === 0 && <p className={hint}>Sin categorías: el panel mostrará un único botón &quot;Crear ticket&quot;.</p>}
           {types.map((t, i) => (
@@ -140,14 +173,31 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
                   Quitar
                 </button>
               </div>
-              <textarea
-                className={input}
-                rows={2}
-                maxLength={500}
-                placeholder="Mensaje dentro del ticket para esta categoría (opcional; si lo dejas vacío se usa el mensaje de bienvenida general)"
-                value={t.welcome || ''}
-                onChange={(e) => updateType(i, { welcome: e.target.value })}
-              />
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <textarea
+                  className={input}
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Mensaje dentro del ticket para esta categoría (opcional; si lo dejas vacío se usa el mensaje de bienvenida general)"
+                  value={t.welcome || ''}
+                  onChange={(e) => updateType(i, { welcome: e.target.value })}
+                />
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Color del botón</span>
+                  <select
+                    className={input}
+                    value={t.color || 'blue'}
+                    disabled={form.panel_style !== 'buttons'}
+                    title={form.panel_style !== 'buttons' ? 'Solo se usa en modo botones' : undefined}
+                    onChange={(e) => updateType(i, { color: e.target.value as ButtonColor })}
+                  >
+                    <option value="blue">Azul</option>
+                    <option value="gray">Gris</option>
+                    <option value="green">Verde</option>
+                    <option value="red">Rojo</option>
+                  </select>
+                </label>
+              </div>
             </div>
           ))}
         </div>
@@ -224,5 +274,17 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
         )}
       </div>
     </form>
+
+    <aside className="min-w-0 xl:sticky xl:top-24">
+      <PanelPreview
+        title={form.panel_title}
+        description={form.panel_description}
+        color={form.embed_color}
+        style={form.panel_style}
+        welcome={form.welcome_message}
+        types={types}
+      />
+    </aside>
+    </div>
   )
 }

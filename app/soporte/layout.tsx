@@ -5,7 +5,7 @@ export default async function SoporteLayout({ children }: { children: React.Reac
   await guardTicketAccess()
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6">
       <div>
         <h1 className="font-display-league text-3xl uppercase text-white">Soporte</h1>
         <p className="mt-1 text-xs text-slate-400">

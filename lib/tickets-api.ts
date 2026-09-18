@@ -28,7 +28,9 @@ export type TicketRow = {
   transcript_file: string | null
 }
 
-export type TicketType = { id: string; emoji?: string; label: string; description?: string; welcome?: string }
+export type ButtonColor = 'blue' | 'gray' | 'green' | 'red'
+
+export type TicketType = { id: string; emoji?: string; label: string; description?: string; welcome?: string; color?: ButtonColor }
 
 export type GuildConfig = {
   panel_title: string
@@ -43,6 +45,7 @@ export type GuildConfig = {
   welcome_message: string
   embed_color: string
   max_open_tickets: number
+  panel_style?: 'menu' | 'buttons'
 }
 
 export type GuildDetails = {
