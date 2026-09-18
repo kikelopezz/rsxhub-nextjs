@@ -93,7 +93,7 @@ export function LeagueResults({
                           </span>
                           <span className="font-bold text-slate-100 truncate">{r.team}</span>
                           {r.dorsal != null && (
-                            <span className="text-[10px] font-mono font-black text-cyan-300 shrink-0">
+                            <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">
                               #{r.dorsal}
                             </span>
                           )}

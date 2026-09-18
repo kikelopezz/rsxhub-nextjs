@@ -182,8 +182,17 @@ export async function TeamVehiclesSection({
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono-data text-xs font-semibold uppercase tracking-wider text-white">
-                                {t.carNumber} <span className={`font-display-league text-lg ${exceedsLimit ? 'text-rose-400' : theme.carDorsal}`}>#{car.dorsal || 'N/A'}</span>
+                              <span className="font-mono-data text-xs font-semibold uppercase tracking-wider text-white flex items-center gap-1.5">
+                                {t.carNumber}{' '}
+                                <span
+                                  className={`font-mono-data shrink-0 rounded-md border px-2.5 py-1 text-sm font-black ${
+                                    exceedsLimit
+                                      ? 'border-rose-500/30 bg-rose-950/30 text-rose-400'
+                                      : 'border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] text-[#4ea1ff]'
+                                  }`}
+                                >
+                                  #{car.dorsal || 'N/A'}
+                                </span>
                               </span>
                               {(car.modelName || car.model_name) && (
                                 <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/60 border border-cyan-500/40 px-2 py-0.5 rounded font-mono">

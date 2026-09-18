@@ -504,7 +504,7 @@ export function FinishRoundModal({
                                     {row.teamName}
                                   </span>
                                   {row.dorsal != null && (
-                                    <span className="font-mono-data text-xs font-black text-[#4ea1ff]">#{row.dorsal}</span>
+                                    <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">#{row.dorsal}</span>
                                   )}
                                 </div>
                               </td>

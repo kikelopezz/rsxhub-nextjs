@@ -398,7 +398,7 @@ export function LeagueSchedule({
                               >
                                 <div className="flex items-center gap-2">
                                   <ClassBadge classTag={tag} className="text-[9px]" />
-                                  <span className="font-mono text-xs font-bold text-slate-200">#{dorsalDisplay}</span>
+                                  <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">#{dorsalDisplay}</span>
                                   {!hasDrivers && (
                                     <span className="text-[10px] text-slate-400 font-mono italic font-medium">
                                       {tr.noDrivers}

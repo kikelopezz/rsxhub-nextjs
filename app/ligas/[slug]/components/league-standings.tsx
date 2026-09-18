@@ -95,7 +95,7 @@ export function LeagueStandings({
                   <div className="mb-1.5 flex items-baseline gap-2">
                     <h4 className="truncate text-sm font-black uppercase tracking-wide text-white">{team.name}</h4>
                     {team.assignedNumber != null && (
-                      <span className="font-mono-data shrink-0 text-[11px] font-bold text-[#4ea1ff]">#{team.assignedNumber}</span>
+                      <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">#{team.assignedNumber}</span>
                     )}
                   </div>
                   <div className="h-[7px] overflow-hidden rounded-full bg-white/5">

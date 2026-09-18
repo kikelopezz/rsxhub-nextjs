@@ -333,7 +333,7 @@ export default function PerfilContent({
                       <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
                         {reg.classTag && <ClassBadge classTag={reg.classTag} className="text-[10px] px-2 py-0.5" />}
                         {reg.assignedNumber && (
-                          <span className="rounded border border-accent/30 bg-accent/10 px-2 py-0.5 font-bold text-accent">
+                          <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">
                             #{reg.assignedNumber}
                           </span>
                         )}

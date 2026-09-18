@@ -52,7 +52,7 @@ function SkinRow({ review }: { review: SkinReviewDTO }) {
       <td className="p-3">
         <div className="flex items-center gap-1.5">
           <ClassBadge classTag={review.category} className="text-[10px] font-black" />
-          <span className="font-mono text-xs text-slate-300">#{review.dorsal}</span>
+          <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">#{review.dorsal}</span>
         </div>
         {review.leagueTitle && <p className="mt-1 text-[10px] text-slate-500">{review.leagueTitle}</p>}
       </td>

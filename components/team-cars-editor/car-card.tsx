@@ -62,7 +62,6 @@ export function CarCard({
   getCarReserveDriversForLeague,
 }: CarCardProps) {
   const t = useDictionary().equipos.carEditor
-  const theme = categoryThemes[car.category] || categoryThemes.GT3
   const hasCarError = Boolean(carErrors && carErrors.length > 0)
   const currentLeagueKey = activeTab !== 'all' ? activeTab : car.leagueId || 'general'
   const currentLeagueObj = leaguesOptions.find((l) => l.id === currentLeagueKey || l.slug === currentLeagueKey)
@@ -83,7 +82,10 @@ export function CarCard({
       <div className="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-            {t.car} <span className={`font-black font-mono text-sm ${theme.text}`}>#{car.dorsal || '---'}</span>
+            {t.car}{' '}
+            <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">
+              #{car.dorsal || '---'}
+            </span>
           </span>
           {car.modelName && (
             <span className="text-xs font-bold text-cyan-300 bg-cyan-950/60 border border-cyan-500/40 px-2 py-0.5 rounded font-mono">
