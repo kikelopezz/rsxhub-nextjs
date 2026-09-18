@@ -40,7 +40,7 @@ export function EventEntryListModal({
   onClose,
 }: EventEntryListModalProps) {
   const tr = useDictionary().ligas.entryList
-  const [copiedKeys, setCopiedKeys] = useState<Set<string>>(new Set())
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [downloadingCategory, setDownloadingCategory] = useState<string | null>(null)
 
   const allTeamsInStandings = useMemo(() => {
@@ -247,22 +247,19 @@ export function EventEntryListModal({
                                   const copyText = ids.join(';')
                                   if (copyText) {
                                     navigator.clipboard.writeText(copyText)
-                                    setCopiedKeys((prev) => new Set(prev).add(rowKey))
+                                    setCopiedKey(rowKey)
+                                    setTimeout(() => setCopiedKey(null), 2200)
                                   } else {
                                     alert(tr.noSteamIds)
                                   }
                                 }}
-                                className={`flex shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                                  copiedKeys.has(rowKey)
-                                    ? 'border-[#4ea1ff]/40 bg-[rgba(78,161,255,.08)] text-[#4ea1ff] hover:bg-[rgba(78,161,255,.18)]'
-                                    : 'animate-pulse border-amber-500/40 bg-amber-950/40 text-amber-300 hover:bg-amber-950/60'
-                                }`}
+                                className="flex shrink-0 items-center gap-1 rounded-lg border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.08)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#4ea1ff] transition-colors hover:bg-[rgba(78,161,255,.18)]"
                                 title={tr.copyIdsTitle.replace('{dorsal}', t.dorsal)}
                               >
-                                {copiedKeys.has(rowKey) ? (
+                                {copiedKey === rowKey ? (
                                   <>
-                                    <Check className="h-3 w-3" />
-                                    <span>{tr.copied}</span>
+                                    <Check className="h-3 w-3 text-emerald-400" />
+                                    <span className="text-emerald-400">{tr.copied}</span>
                                   </>
                                 ) : (
                                   <>
