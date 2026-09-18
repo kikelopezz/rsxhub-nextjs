@@ -33,6 +33,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
   const [formAccentColor, setFormAccentColor] = useState(accentHex)
   const [formBannerUrl, setFormBannerUrl] = useState(league.bannerUrl || '')
   const [formLogoUrl, setFormLogoUrl] = useState((league as any).logoUrl || '')
+  const [formDriveUrl, setFormDriveUrl] = useState((league as any).driveUrl || '')
   const [isLeagueSubmitting, setIsLeagueSubmitting] = useState(false)
 
   if (!isOpen) return null
@@ -68,6 +69,7 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
       formData.set('accentColor', formAccentColor)
       formData.set('bannerUrl', String(formData.get('bannerUrl') || formBannerUrl))
       formData.set('logoUrl', String(formData.get('logoUrl') || formLogoUrl))
+      formData.set('driveUrl', formDriveUrl)
 
       await updateLeagueDetailsAction(formData)
       onClose()
@@ -335,6 +337,17 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                   square
                 />
               </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-300 uppercase font-semibold">{t.driveUrlLabel}</label>
+              <input
+                type="url"
+                value={formDriveUrl}
+                onChange={(e) => setFormDriveUrl(e.target.value)}
+                placeholder={t.driveUrlPlaceholder}
+                className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-mono"
+              />
+              <p className="mt-1 text-[10px] text-slate-500">{t.driveUrlHint}</p>
             </div>
           </div>
 

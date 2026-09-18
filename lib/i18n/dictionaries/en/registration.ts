@@ -14,6 +14,8 @@ const registration: typeof es = {
   requirementBody: 'You must be the leader or founder of a team to register vehicles in this league.',
   accessRequiredTitle: 'ACCESS REQUIRED',
   accessRequiredBody: 'Log in with Steam and be a team leader to register.',
+  downloadContent: 'Download content',
+  downloadContentTitle: 'Circuits, cars and other championship content',
 }
 
 export default registration

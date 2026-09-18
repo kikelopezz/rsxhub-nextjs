@@ -48,6 +48,7 @@ export const getLeagues = cache(async (): Promise<League[]> => {
         discordUrl: data.discordUrl,
         youtubeUrl: data.youtubeUrl,
         rulebookUrl: data.rulebookUrl,
+        driveUrl: data.driveUrl,
         classLimits: limitsByLeague.get(data.id) || null,
       }))
     } catch (error) {

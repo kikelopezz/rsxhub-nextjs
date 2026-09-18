@@ -27,6 +27,7 @@ export async function createLeagueAction(formData: FormData) {
   const discordUrl = String(formData.get('discordUrl') || '').trim()
   const youtubeUrl = String(formData.get('youtubeUrl') || '').trim()
   const rulebookUrl = String(formData.get('rulebookUrl') || '').trim()
+  const driveUrl = String(formData.get('driveUrl') || '').trim()
 
   if (!title || !startsAt || !endsAt) {
     throw new Error('Title, Start Date, and End Date are required.')
@@ -54,6 +55,7 @@ export async function createLeagueAction(formData: FormData) {
       discordUrl: discordUrl || null,
       youtubeUrl: youtubeUrl || null,
       rulebookUrl: rulebookUrl || null,
+      driveUrl: driveUrl || null,
       isFeatured: false,
       registrationMode: 'individual',
     },
@@ -99,6 +101,7 @@ export async function updateLeagueDetailsAction(formData: FormData) {
   const discordUrl = String(formData.get('discordUrl') || '').trim()
   const youtubeUrl = String(formData.get('youtubeUrl') || '').trim()
   const rulebookUrl = String(formData.get('rulebookUrl') || '').trim()
+  const driveUrl = String(formData.get('driveUrl') || '').trim()
 
   if (!leagueId || !startsAt || !endsAt) {
     throw new Error('League ID, Start Date, and End Date are required.')
@@ -120,6 +123,7 @@ export async function updateLeagueDetailsAction(formData: FormData) {
       discordUrl: discordUrl || null,
       youtubeUrl: youtubeUrl || null,
       rulebookUrl: rulebookUrl || null,
+      driveUrl: driveUrl || null,
       ...(title && { title }),
       ...(slug && { slug }),
       ...(simulator && { simulator: simulator as any }),

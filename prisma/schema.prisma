@@ -147,6 +147,7 @@ model League {
   discordUrl       String?          @map("discord_url")
   youtubeUrl       String?          @map("youtube_url")
   rulebookUrl      String?          @map("rulebook_url")
+  driveUrl         String?          @map("drive_url")
   createdAt        DateTime         @default(now()) @map("created_at")
 
   classLimits        LeagueClassLimit[]

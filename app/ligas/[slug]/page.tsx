@@ -80,6 +80,7 @@ export default async function LigaDetailPage({
     discordUrl: (league as any).discordUrl || null,
     youtubeUrl: (league as any).youtubeUrl || null,
     rulebookUrl: (league as any).rulebookUrl || null,
+    driveUrl: (league as any).driveUrl || null,
   }
 
   const serializableEvents = events.map((e) => ({

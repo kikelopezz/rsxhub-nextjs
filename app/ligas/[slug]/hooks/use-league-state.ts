@@ -22,6 +22,7 @@ export type League = {
   discordUrl?: string | null
   youtubeUrl?: string | null
   rulebookUrl?: string | null
+  driveUrl?: string | null
 }
 
 export type LeagueEvent = {

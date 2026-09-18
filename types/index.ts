@@ -70,6 +70,7 @@ export interface League {
   discordUrl?: string | null
   youtubeUrl?: string | null
   rulebookUrl?: string | null
+  driveUrl?: string | null
   classLimits?: Record<string, number> | null
 }
 

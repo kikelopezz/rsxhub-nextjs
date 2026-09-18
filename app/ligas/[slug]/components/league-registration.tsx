@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { Plus, ShieldCheck, ShieldAlert } from 'lucide-react'
+import { Plus, ShieldCheck, ShieldAlert, Download } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
 import { League, ManagedTeam } from '../hooks/use-league-state'
 import { useDictionary } from '@/lib/i18n/locale-provider'
@@ -160,6 +160,19 @@ export function LeagueRegistration({
             <p className="text-xs font-semibold text-slate-200">{t.accessRequiredBody}</p>
           </div>
         </div>
+      )}
+
+      {league.driveUrl && (
+        <a
+          href={league.driveUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={t.downloadContentTitle}
+          className="flex shrink-0 items-center gap-2 rounded-lg border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.08)] px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-[#4ea1ff] transition-colors hover:bg-[rgba(78,161,255,.18)]"
+        >
+          <Download className="h-3.5 w-3.5" />
+          {t.downloadContent}
+        </a>
       )}
     </div>
   )

@@ -12,6 +12,8 @@ const registration = {
   requirementBody: 'Debes ser el jefe o fundador de un equipo para inscribir vehículos en este campeonato.',
   accessRequiredTitle: 'ACCESO REQUERIDO',
   accessRequiredBody: 'Inicia sesión con Steam y sé jefe de equipo para inscribirte.',
+  downloadContent: 'Descargar contenido',
+  downloadContentTitle: 'Circuitos, coches y demás contenido del campeonato',
 }
 
 export default registration
