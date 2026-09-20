@@ -17,6 +17,7 @@ type PreviewProps = {
   style: 'menu' | 'buttons'
   welcome: string
   types: TicketType[]
+  pingRoleName?: string
 }
 
 const DISCORD = {
@@ -173,7 +174,7 @@ function PanelView({ title, description, color, style, types }: PreviewProps) {
   )
 }
 
-function TicketView({ color, welcome, types }: PreviewProps) {
+function TicketView({ color, welcome, types, pingRoleName }: PreviewProps) {
   const options = types.filter((t) => t.label.trim())
   const [selected, setSelected] = useState<string>('')
   const type = options.find((t) => t.id === selected) || options[0]
@@ -214,6 +215,11 @@ function TicketView({ color, welcome, types }: PreviewProps) {
             <Inline text={text} />
           </p>
         </div>
+        {pingRoleName && (
+          <p className="text-sm">
+            🔔 <span className="rounded px-1" style={{ background: 'rgba(88,101,242,0.3)', color: '#c9cdfb' }}>@{pingRoleName}</span>
+          </p>
+        )}
         <p className="text-sm">🔵 Nuevo ──── ⚪ Reclamado ──── ⚪ Cerrado</p>
         <Divider />
         <div className="space-y-0.5 text-sm">

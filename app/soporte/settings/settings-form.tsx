@@ -25,6 +25,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
     transcript_channel_id: config.transcript_channel_id || '',
     log_channel_id: config.log_channel_id || '',
     panel_style: (config.panel_style === 'buttons' ? 'buttons' : 'menu') as 'menu' | 'buttons',
+    ping_role_id: config.ping_role_id || '',
   })
   // Listas locales: los canales/categorías que se crean desde aquí aparecen al momento sin recargar.
   const [textChannels, setTextChannels] = useState(guild.textChannels)
@@ -48,6 +49,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
     category_id: form.category_id || null,
     transcript_channel_id: form.transcript_channel_id || null,
     log_channel_id: form.log_channel_id || null,
+    ping_role_id: form.ping_role_id || null,
     staff_role_ids: staffRoles,
     ticket_types: types.filter((t) => t.label && t.label.trim()),
   })
@@ -229,6 +231,17 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
             )
           })}
         </div>
+
+        <div>
+          <label className={label}>Avisar (mención) a un rol al abrirse un ticket</label>
+          <select className={input} value={form.ping_role_id} onChange={(e) => set('ping_role_id', e.target.value)}>
+            <option value="">— No avisar a nadie —</option>
+            {guild.roles.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+          <p className={hint}>Ese rol recibe la notificación de Discord solo mientras el ticket está sin reclamar. Solo se listan roles que existen ahora mismo en el servidor.</p>
+        </div>
       </section>
 
       <section className={card}>
@@ -283,6 +296,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
         style={form.panel_style}
         welcome={form.welcome_message}
         types={types}
+        pingRoleName={guild.roles.find((r) => r.id === form.ping_role_id)?.name}
       />
     </aside>
     </div>

@@ -46,6 +46,7 @@ export type GuildConfig = {
   embed_color: string
   max_open_tickets: number
   panel_style?: 'menu' | 'buttons'
+  ping_role_id?: string | null
 }
 
 export type GuildDetails = {
