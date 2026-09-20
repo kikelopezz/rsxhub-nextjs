@@ -17,7 +17,8 @@ type PreviewProps = {
   style: 'menu' | 'buttons'
   welcome: string
   types: TicketType[]
-  pingRoleName?: string
+  roles: Array<{ id: string; name: string }>
+  pingRoleId: string
 }
 
 const DISCORD = {
@@ -174,7 +175,7 @@ function PanelView({ title, description, color, style, types }: PreviewProps) {
   )
 }
 
-function TicketView({ color, welcome, types, pingRoleName }: PreviewProps) {
+function TicketView({ color, welcome, types, roles, pingRoleId }: PreviewProps) {
   const options = types.filter((t) => t.label.trim())
   const [selected, setSelected] = useState<string>('')
   const type = options.find((t) => t.id === selected) || options[0]
@@ -183,6 +184,8 @@ function TicketView({ color, welcome, types, pingRoleName }: PreviewProps) {
   const code = `${label} ${pad(1)}`
   const channelName = `${slugify(label) || 'ticket'}-${pad(1)}`
   const text = type?.welcome?.trim() || welcome
+  // Igual que el bot: el rol de la categoría manda sobre el general del servidor.
+  const pingRoleName = roles.find((r) => r.id === (type?.ping_role_id || pingRoleId))?.name
 
   return (
     <div className="space-y-3">

@@ -5,7 +5,7 @@ import { fetchWithTTLCache } from '@/lib/ttl-cache'
  * El bot corre como proceso aparte; aqui solo se le llama con la clave compartida.
  */
 
-export type TicketStatus = 'open' | 'claimed' | 'closed'
+export type TicketStatus = 'open' | 'claimed' | 'closed' | 'merged'
 
 export type TicketRow = {
   id: number
@@ -26,11 +26,13 @@ export type TicketRow = {
   closed_by: string | null
   close_reason: string | null
   transcript_file: string | null
+  merged_into: number | null
+  internal_notes: string | null
 }
 
 export type ButtonColor = 'blue' | 'gray' | 'green' | 'red'
 
-export type TicketType = { id: string; emoji?: string; label: string; description?: string; welcome?: string; color?: ButtonColor }
+export type TicketType = { id: string; emoji?: string; label: string; description?: string; welcome?: string; color?: ButtonColor; ping_role_id?: string | null }
 
 export type GuildConfig = {
   panel_title: string
@@ -47,6 +49,7 @@ export type GuildConfig = {
   max_open_tickets: number
   panel_style?: 'menu' | 'buttons'
   ping_role_id?: string | null
+  reminder_minutes?: number
 }
 
 export type GuildDetails = {
@@ -64,7 +67,10 @@ export type TicketStats = {
   open: number
   claimed: number
   closed: number
-  topStaff: Array<{ staffId: string; staffTag: string; handled: number }>
+  merged?: number
+  avgClaimMinutes?: number | null
+  avgCloseMinutes?: number | null
+  topStaff: Array<{ staffId: string; staffTag: string; handled: number; avgHandleMinutes?: number | null; avgClaimMinutes?: number | null }>
 }
 
 export type GuildSummary = { id: string; name: string; icon: string | null; memberCount: number }
@@ -160,6 +166,15 @@ export const unclaimTicket = (guildId: string, ticketId: number) =>
 
 export const closeTicket = (guildId: string, ticketId: number, staffName: string, reason?: string) =>
   call(`/guilds/${guildId}/tickets/${ticketId}/close`, post({ staff: { name: staffName }, reason }))
+
+export const reopenTicket = (guildId: string, ticketId: number, staffName: string) =>
+  call(`/guilds/${guildId}/tickets/${ticketId}/reopen`, post({ staff: { name: staffName } }))
+
+export const mergeTicket = (guildId: string, ticketId: number, targetTicketId: number, staffName: string) =>
+  call(`/guilds/${guildId}/tickets/${ticketId}/merge`, post({ targetTicketId, staff: { name: staffName } }))
+
+export const saveTicketNotes = (guildId: string, ticketId: number, notes: string) =>
+  call(`/guilds/${guildId}/tickets/${ticketId}/notes`, { method: 'PUT', body: JSON.stringify({ notes }) })
 
 export const deleteTicket = (guildId: string, ticketId: number) =>
   call(`/guilds/${guildId}/tickets/${ticketId}/delete`, post())

@@ -67,6 +67,22 @@ export async function closeTicketAction(formData: FormData) {
   await runTicketAction(formData, 'closed', (c) => ticketsApi.closeTicket(c.guildId, c.ticketId, c.name, c.reason || undefined))
 }
 
+export async function reopenTicketAction(formData: FormData) {
+  await runTicketAction(formData, 'reopened', (c) => ticketsApi.reopenTicket(c.guildId, c.ticketId, c.name))
+}
+
+export async function mergeTicketAction(formData: FormData) {
+  const target = Number(formData.get('targetTicketId'))
+  await runTicketAction(formData, 'merged', (c) => {
+    if (!Number.isInteger(target) || target <= 0) throw new ticketsApi.TicketApiError('Elige el ticket principal con el que fusionar.')
+    return ticketsApi.mergeTicket(c.guildId, c.ticketId, target, c.name)
+  })
+}
+
+export async function saveTicketNotesAction(formData: FormData) {
+  await runTicketAction(formData, 'notes', (c) => ticketsApi.saveTicketNotes(c.guildId, c.ticketId, String(formData.get('notes') || '')))
+}
+
 export async function deleteTicketAction(formData: FormData) {
   await runTicketAction(formData, 'deleted', (c) => ticketsApi.deleteTicket(c.guildId, c.ticketId))
 }

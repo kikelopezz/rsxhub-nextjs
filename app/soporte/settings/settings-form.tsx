@@ -26,6 +26,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
     log_channel_id: config.log_channel_id || '',
     panel_style: (config.panel_style === 'buttons' ? 'buttons' : 'menu') as 'menu' | 'buttons',
     ping_role_id: config.ping_role_id || '',
+    reminder_minutes: config.reminder_minutes ?? 0,
   })
   // Listas locales: los canales/categorías que se crean desde aquí aparecen al momento sin recargar.
   const [textChannels, setTextChannels] = useState(guild.textChannels)
@@ -50,8 +51,9 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
     transcript_channel_id: form.transcript_channel_id || null,
     log_channel_id: form.log_channel_id || null,
     ping_role_id: form.ping_role_id || null,
+    reminder_minutes: Math.max(0, Math.min(1440, Math.round(Number(form.reminder_minutes) || 0))),
     staff_role_ids: staffRoles,
-    ticket_types: types.filter((t) => t.label && t.label.trim()),
+    ticket_types: types.filter((t) => t.label && t.label.trim()).map((t) => ({ ...t, ping_role_id: t.ping_role_id || null })),
   })
 
   const submit = (publish: boolean) =>
@@ -200,6 +202,15 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
                   </select>
                 </label>
               </div>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Avisar a este rol al abrirse un ticket de esta categoría</span>
+                <select className={input} value={t.ping_role_id || ''} onChange={(e) => updateType(i, { ping_role_id: e.target.value || null })}>
+                  <option value="">— Usar el rol general del servidor —</option>
+                  {guild.roles.map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </label>
             </div>
           ))}
         </div>
@@ -240,7 +251,23 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <p className={hint}>Ese rol recibe la notificación de Discord solo mientras el ticket está sin reclamar. Solo se listan roles que existen ahora mismo en el servidor.</p>
+          <p className={hint}>Ese rol recibe la notificación de Discord solo mientras el ticket está sin reclamar. Cada categoría puede tener su propio rol (más arriba); este es el que se usa si no lo tiene. Solo se listan roles que existen ahora mismo en el servidor.</p>
+        </div>
+
+        <div>
+          <label className={label}>Recordar al staff si nadie reclama un ticket (minutos)</label>
+          <input
+            type="number"
+            min={0}
+            max={1440}
+            step={5}
+            className={`${input} max-w-[10rem]`}
+            value={form.reminder_minutes}
+            onChange={(e) => set('reminder_minutes', Number(e.target.value))}
+          />
+          <p className={hint}>
+            Si pasan estos minutos y el ticket sigue sin reclamar, el bot vuelve a mencionar al rol de aviso en el canal, y repite cada tanto hasta que alguien lo reclame. No cierra nada. 0 = no recordar. Necesita un rol de aviso (general o de la categoría).
+          </p>
         </div>
       </section>
 
@@ -296,7 +323,8 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
         style={form.panel_style}
         welcome={form.welcome_message}
         types={types}
-        pingRoleName={guild.roles.find((r) => r.id === form.ping_role_id)?.name}
+        roles={guild.roles}
+        pingRoleId={form.ping_role_id}
       />
     </aside>
     </div>
