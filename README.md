@@ -1,77 +1,91 @@
-# SimLeague Platform
+# RSX Hub
 
-Starter para una plataforma estilo SimGrid orientada a Assetto Corsa y Le Mans Ultimate.
+Plataforma web de campeonatos de simracing (Assetto Corsa y Le Mans Ultimate) de Real Sim Xperience:
+campeonatos, calendario, equipos y coches, mercado de pilotos, live timing, resultados y soporte.
 
-## Que incluye
-- Home
-- Explorador de ligas
-- Calendario
-- Detalle de liga
-- Login con Steam
-- Perfil basico
-- Registro a ligas
-- Panel admin global y por liga
-- Roles de plataforma y roles por liga
-- Preparacion para Supabase
+- **Stack:** Next.js 15 (App Router) · React 19 · TypeScript · Tailwind · Prisma + PostgreSQL
+- **Login:** Steam (OpenID). No hay contraseñas.
+- **Archivos:** imágenes y skins en Cloudflare R2 (con disco local como alternativa en desarrollo).
+- **Servicios conectados:** bot de tickets de Discord (sección *Soporte*) y *rsxbot* (avisos a admins).
 
-## Instalacion
+## Puesta en marcha
 
 ```bash
-npm install
+npm install          # también ejecuta `prisma generate`
+cp .env.example .env.local   # y rellena las variables (ver abajo)
 npm run dev
 ```
 
-## Variables de entorno minimas
-Crea un `.env.local` basandote en `.env.local.example`.
+| Script | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo |
+| `npm run build` | `prisma generate` + build de producción |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Tests (vitest) |
+| `npm run lint` | `next lint` |
 
-Para modo demo puedes arrancar solo con:
+## Variables de entorno
 
-```env
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-SESSION_SECRET=un_secreto_largo
-STEAM_REALM=http://localhost:3000
-STEAM_RETURN_URL=http://localhost:3000/api/auth/steam-callback
+Las de `.env.example` con su explicación. Las imprescindibles:
+
+| Variable | Para qué |
+|---|---|
+| `DATABASE_URL` | PostgreSQL (con `SHADOW_DATABASE_URL` solo para crear migraciones en local) |
+| `SESSION_SECRET` | Firma de la cookie de sesión. Obligatoria; sin valor por defecto |
+| `NEXT_PUBLIC_APP_URL` | URL pública del Hub. Es el origen que se acepta en el login de Steam |
+| `ALLOWED_AUTH_ORIGINS` | Dominios extra permitidos para el login de Steam (separados por comas) |
+| `STEAM_REALM`, `STEAM_RETURN_URL` | Realm y callback de Steam |
+| `ADMIN_STEAM_IDS` | SteamIDs con acceso de *super admin* (además de los concedidos desde el panel) |
+| `R2_*` | Cloudflare R2. Sin ellas las subidas van al disco local |
+| `TICKET_API_URL`, `TICKET_API_KEY` | API interna del bot de tickets |
+
+### Login de Steam
+
+El `return_to` **no** se calcula a partir de la petición: solo se usan los orígenes de
+`NEXT_PUBLIC_APP_URL`, `STEAM_REALM`, `STEAM_RETURN_URL`, `COMPETITION_PUBLIC_URL`,
+`ALLOWED_AUTH_ORIGINS` y, en Vercel, las URLs del despliegue. Si el login falla en un dominio nuevo,
+añádelo ahí.
+
+## Base de datos
+
+El esquema está en `prisma/schema.prisma` y las migraciones en `prisma/migrations/`.
+
+```bash
+npx prisma migrate deploy      # aplica las migraciones pendientes (producción)
+npx prisma migrate dev         # crea una migración nueva (necesita SHADOW_DATABASE_URL)
 ```
 
-## Modo demo vs modo real
-- Sin Supabase: navegas y ves paneles, pero no hay persistencia.
-- Con Supabase: ligas, eventos, inscripciones y roles se guardan.
+Las migraciones **no se aplican solas** al desplegar: hay que lanzarlas contra la base de datos de
+producción de forma consciente. La carpeta `sql/` es histórica (esquema antiguo de Supabase); la
+fuente de verdad es Prisma.
 
-## Sistema de roles
+## Roles
 
-### Plataforma
-- `super_admin`
-- `platform_admin`
-- `user`
+- **Plataforma:** `super_admin`, `platform_admin`, `steward`, `user`.
+- **Campeonato:** `league_owner`, `league_admin`, `steward`, `team_manager`, `driver`.
+- Los SteamIDs de `ADMIN_STEAM_IDS` son *super admin*; desde el panel de admin se pueden conceder más.
 
-### Liga
-- `league_owner`
-- `league_admin`
-- `steward`
-- `team_manager`
-- `driver`
+## Rutas principales
 
-## Circuitos con imagen
+| Ruta | Contenido |
+|---|---|
+| `/ligas`, `/ligas/[slug]` | Campeonatos, inscripción, calendario y clasificación |
+| `/calendario` | Calendario de sesiones y notas de admin |
+| `/equipos`, `/equipos/[id]` | Equipos, pilotos, coches y alineaciones |
+| `/market` | Mercado de pilotos y equipos |
+| `/live-timing` | Live timing de los servidores |
+| `/perfil`, `/perfil/[userId]` | Perfil del piloto (público o privado) |
+| `/admin`, `/admin/ligas/[id]` | Panel de administración |
+| `/soporte` | Tickets de Discord (admins y usuarios con permiso) |
 
-- Hay un catalogo predefinido de circuitos con imagen.
-- Las imagenes locales viven en `public/circuits/`.
-- Al crear evento puedes:
-  - elegir un circuito existente del catalogo
-  - crear un circuito personalizado con nombre + imagen (se guarda en BD)
-- Los circuitos personalizados se guardan en la tabla `circuits` y luego aparecen para reutilizar.
+## Subidas
 
-## Bootstrap de administradores
+`POST /api/uploads` solo acepta imágenes reales (PNG, JPG, GIF, WebP, AVIF; SVG solo para admins,
+máximo 6 MB) y archivos comprimidos de skins; el tipo se decide por los bytes del archivo, no por el
+nombre. Las subidas grandes de skins van directas a R2 con URL firmada (`/api/uploads/presign`).
+Un usuario normal solo puede borrar lo que ha subido él o el logo/banner de un equipo o campeonato que gestiona.
 
-Puedes usar `ADMIN_STEAM_IDS` para bootstrap rapido de `super_admin` durante desarrollo.
-Si esta variable esta vacia, el acceso se resuelve solo por tablas de roles en base de datos.
+## Tests y CI
 
-## Supabase
-1. Crea proyecto en Supabase.
-2. Ejecuta `sql/phase1_schema.sql`.
-3. Ejecuta `sql/phase2_roles.sql`.
-4. Anade `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`.
-
-## Paneles incluidos
-- `/admin` -> panel global o panel de ligas asignadas segun permisos
-- `/admin/ligas/[id]` -> eventos e inscripciones de una liga
-- `/admin/ligas/[id]/miembros` -> gestion de miembros y roles por SteamID
+`npm test` cubre el login de Steam, la validación de subidas, la limitación de ritmo y los helpers de
+privacidad. GitHub Actions (`.github/workflows/ci.yml`) ejecuta `typecheck` y los tests en cada push.

@@ -6,15 +6,15 @@ import Link from 'next/link'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
 const SLIDE_IMAGES = [
-  '/carousel/slide1.png',
-  '/carousel/slide2.png',
-  '/carousel/slide3.png',
-  '/carousel/slide4.png',
-  '/carousel/slide5.png',
-  '/carousel/slide6.jpg',
-  '/carousel/slide7.png',
-  '/carousel/slide8.png',
-  '/carousel/slide9.png',
+  '/carousel/slide1.webp',
+  '/carousel/slide2.webp',
+  '/carousel/slide3.webp',
+  '/carousel/slide4.webp',
+  '/carousel/slide5.webp',
+  '/carousel/slide6.webp',
+  '/carousel/slide7.webp',
+  '/carousel/slide8.webp',
+  '/carousel/slide9.webp',
 ]
 
 interface HeroSectionProps {
