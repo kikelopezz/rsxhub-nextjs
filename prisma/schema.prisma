@@ -250,6 +250,7 @@ model LeagueEvent {
   results       LeagueResult[]
   resultImports LeagueResultImport[]
 
+  @@index([leagueId, startsAt])
   @@map("league_events")
 }
 
@@ -287,6 +288,7 @@ model LeagueMember {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([leagueId, userId])
+  @@index([userId])
   @@map("league_members")
 }
 
@@ -321,6 +323,9 @@ model LeagueRegistration {
   league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   team   Team?  @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
+  @@index([leagueId])
+  @@index([userId])
+  @@index([teamId])
   @@map("league_registrations")
 }
 
@@ -346,6 +351,7 @@ model LeagueTeamRegistration {
   drivers LeagueTeamRegistrationDriver[]
 
   @@unique([leagueId, teamId, classTag, carNumber])
+  @@index([teamId])
   @@map("league_team_registrations")
 }
 
@@ -377,6 +383,8 @@ model LeagueEventConfirmation {
   drivers EventConfirmationDriver[]
 
   @@unique([eventId, teamId, classTag, carNumber])
+  @@index([leagueId])
+  @@index([teamId])
   @@map("league_event_confirmations")
 }
 
@@ -423,6 +431,9 @@ model LeagueResult {
   league League      @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   event  LeagueEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
+  @@index([eventId, sessionType])
+  @@index([leagueId])
+  @@index([userId])
   @@map("league_results")
 }
 
@@ -563,6 +574,7 @@ model TeamCar {
   team    Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
   drivers TeamCarDriver[]
 
+  @@index([teamId])
   @@map("team_cars")
 }
 
@@ -581,6 +593,7 @@ model TeamCarDriver {
   car TeamCar @relation(fields: [carId], references: [id], onDelete: Cascade)
 
   @@unique([carId, userId, leagueId, isReserve])
+  @@index([userId])
   @@map("team_car_league_drivers")
 }
 
@@ -608,6 +621,7 @@ model TeamSkinAssignment {
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
+  @@index([teamId])
   @@map("team_skin_assignments")
 }
 
@@ -667,6 +681,7 @@ model TeamMember {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, userId])
+  @@index([userId])
   @@map("team_members")
 }
 
@@ -692,6 +707,8 @@ model TeamInvite {
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
+  @@index([teamId])
+  @@index([invitedUserId])
   @@map("team_invites")
 }
 
@@ -727,6 +744,9 @@ model MarketListing {
   league       League?             @relation(fields: [leagueId], references: [id], onDelete: SetNull)
   applications MarketApplication[]
 
+  @@index([createdAt])
+  @@index([userId])
+  @@index([teamId])
   @@map("market_listings")
 }
 
@@ -751,6 +771,8 @@ model MarketApplication {
   listing MarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   team    Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
+  @@index([listingId])
+  @@index([userId])
   @@map("market_applications")
 }
 
@@ -763,6 +785,7 @@ model UserNotification {
   link      String?
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([userId, createdAt])
   @@map("user_notifications")
 }
 
@@ -783,6 +806,7 @@ model CalendarNote {
   title     String
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([date])
   @@map("calendar_notes")
 }
 
@@ -797,5 +821,6 @@ model NewsPost {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  @@index([publishedAt])
   @@map("news_posts")
 }
