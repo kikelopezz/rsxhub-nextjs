@@ -50,6 +50,7 @@ export async function revokeAdminAction(formData: FormData) {
     await db.adminGrant.delete({ where: { steamId } })
   } catch (error) {
     console.error('Failed to revoke admin access:', error)
+    redirect('/admin?tab=admins&error=action-failed')
   }
 
   invalidateCache(['admin_grants_steam_ids', 'admin_grants_list'])

@@ -151,14 +151,15 @@ export function TopNav({ signedIn, showAdmin, showSupport = false, displayName, 
               </Link>
 
               {/* Logout Button */}
-              <a
-                href="/api/auth/logout"
+              <form action="/api/auth/logout" method="post" className="contents">
+<button type="submit"
                 title={dict.nav.signOut}
                 className="flex items-center justify-center h-10 w-10 border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 hover:-translate-y-1 hover:scale-110 hover:shadow-[0_0_18px_rgba(244,63,94,0.6)] active:scale-90 rounded-lg text-rose-400 hover:text-rose-300 transition-all duration-200"
                 aria-label={dict.nav.signOut}
               >
-                <LogoutIcon />
-              </a>
+<LogoutIcon />
+</button>
+</form>
             </div>
           ) : (
             <div className="relative">
@@ -265,14 +266,15 @@ export function TopNav({ signedIn, showAdmin, showSupport = false, displayName, 
                     {displayName ?? dict.nav.driver}
                   </span>
                 </Link>
-                <a
-                  href="/api/auth/logout"
+                <form action="/api/auth/logout" method="post" className="contents">
+<button type="submit"
                   title={dict.nav.signOut}
                   aria-label={dict.nav.signOut}
                   className="flex h-10 w-10 shrink-0 items-center justify-center border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 hover:shadow-[0_0_16px_rgba(244,63,94,0.6)] active:scale-90 rounded-lg text-rose-400 hover:text-rose-300 transition-all duration-200"
                 >
-                  <LogoutIcon />
-                </a>
+<LogoutIcon />
+</button>
+</form>
               </>
             ) : (
               <SteamLoginButton

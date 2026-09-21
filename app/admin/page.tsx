@@ -213,6 +213,11 @@ export default async function AdminPage({
           {dict.admin.adminsTab.errorGrantFailed}
         </div>
       )}
+      {params.error === 'action-failed' && (
+        <div className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-100 font-semibold">
+          No se pudo completar la acción. Inténtalo de nuevo.
+        </div>
+      )}
       {params.error === 'cannot-revoke-self' && (
         <div className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-100 font-semibold">
           {dict.admin.adminsTab.errorCannotRevokeSelf}

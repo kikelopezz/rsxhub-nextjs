@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getAdminAccessContext, getAdminUserIds } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { getTeamsDashboard } from '@/lib/team-data'
+import { safeRedirectPath } from '@/lib/safe-redirect'
+import { userBelongsToTeam } from '@/lib/team-data'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { cleanupDriverMarketDataOnTeamJoin } from '@/lib/market-cleanup'
 import { guardSession, canManageTeam, cleanPilotName, parseSkinProfilesJson } from './team-parsers'
@@ -64,11 +65,7 @@ async function buildLineupChangeMessage(
 export async function createTeam(formData: FormData) {
   const session = await guardSession()
 
-  const { teams } = await getTeamsDashboard(session.userId)
-  const isAlreadyInTeam = teams.some(
-    (team) => team.ownerUserId === session.userId || team.members.some((m) => m.userId === session.userId),
-  )
-  if (isAlreadyInTeam) {
+  if (await userBelongsToTeam(session.userId)) {
     redirect('/equipos?error=already-in-a-team')
   }
 
@@ -163,7 +160,7 @@ export async function createTeam(formData: FormData) {
 export async function updateTeam(formData: FormData) {
   const session = await guardSession()
 
-  const redirectTo = String(formData.get('redirectTo') || '/equipos')
+  const redirectTo = safeRedirectPath(formData.get('redirectTo'))
   const teamId = String(formData.get('teamId') || '')
   if (!teamId) redirect(`${redirectTo}?error=team-required`)
 
@@ -348,94 +345,105 @@ export async function updateTeam(formData: FormData) {
   const tiktokUrl = formData.has('tiktokUrl') ? String(formData.get('tiktokUrl') || '').trim() : existingTeam.tiktokUrl
 
   let syncedLeagueSlugs: string[] = []
+  let saved = false
 
   try {
-    await db.team.update({
-      where: { id: teamId },
-      data: {
-        name,
-        description: description || null,
-        logoUrl: logoUrl || null,
-        bannerUrl: bannerUrl || null,
-        classTags,
-        accentColor,
-        slogan: slogan || null,
-        discordUrl: discordUrl || null,
-        youtubeUrl: youtubeUrl || null,
-        instagramUrl: instagramUrl || null,
-        twitterUrl: twitterUrl || null,
-        twitchUrl: twitchUrl || null,
-        tiktokUrl: tiktokUrl || null,
-      },
-    })
-
-    if (teamCars) {
-      await db.teamCar.deleteMany({ where: { teamId } })
-      for (const car of teamCars) {
-        await db.teamCar.create({
+    // Everything that rewrites the team (details + delete-and-recreate of its cars + skin review
+    // queue) runs in ONE transaction: if any car fails to insert, the team keeps its previous cars
+    // instead of being left with none.
+    await db.$transaction(
+      async (tx) => {
+        await tx.team.update({
+          where: { id: teamId },
           data: {
-            teamId,
-            category: car.category,
-            dorsal: car.dorsal,
-            modelName: car.modelName,
-            modelFolder: car.modelFolder,
-            skinUrl: car.skinUrl,
-            skinName: car.skinName,
-            leagueId: car.leagueId,
-            drivers: {
-              create: [
-                ...car.driverUserIds.map((userId) => ({ userId, leagueId: null, isReserve: false })),
-                ...Object.entries(car.driverUserIdsByLeague).flatMap(([leagueId, userIds]) =>
-                  (userIds || []).filter(Boolean).map((userId) => ({ userId, leagueId, isReserve: false })),
-                ),
-                ...car.reserveDriverUserIds.map((userId) => ({ userId, leagueId: null, isReserve: true })),
-                ...Object.entries(car.reserveDriverUserIdsByLeague).flatMap(([leagueId, userIds]) =>
-                  (userIds || []).filter(Boolean).map((userId) => ({ userId, leagueId, isReserve: true })),
-                ),
-              ],
-            },
+            name,
+            description: description || null,
+            logoUrl: logoUrl || null,
+            bannerUrl: bannerUrl || null,
+            classTags,
+            accentColor,
+            slogan: slogan || null,
+            discordUrl: discordUrl || null,
+            youtubeUrl: youtubeUrl || null,
+            instagramUrl: instagramUrl || null,
+            twitterUrl: twitterUrl || null,
+            twitchUrl: twitchUrl || null,
+            tiktokUrl: tiktokUrl || null,
           },
         })
-      }
 
-      // Keep the skin-approval queue (keyed the same way as LineupChangeLog, since these
-      // TeamCar rows were just deleted and recreated with new ids) in sync with the cars
-      // that now actually carry a skin. A brand-new or changed skin always goes back to
-      // "pending" — it needs a fresh admin look — but re-saving the team without touching
-      // that car's skin must not reset an already-approved one back to pending.
-      const carsWithSkin = teamCars.filter((car) => car.dorsal.trim() && car.skinUrl.trim())
-      const activeSkinKeys = carsWithSkin.map((car) => carLineupKey(teamId, car.category, car.leagueId, car.dorsal))
-      const existingReviews = await db.carSkinReview.findMany({ where: { teamId } })
-      const existingByKey = new Map(existingReviews.map((r) => [r.carKey, r]))
+        if (teamCars) {
+          await tx.teamCar.deleteMany({ where: { teamId } })
+          for (const car of teamCars) {
+            await tx.teamCar.create({
+              data: {
+                teamId,
+                category: car.category,
+                dorsal: car.dorsal,
+                modelName: car.modelName,
+                modelFolder: car.modelFolder,
+                skinUrl: car.skinUrl,
+                skinName: car.skinName,
+                leagueId: car.leagueId,
+                drivers: {
+                  create: [
+                    ...car.driverUserIds.map((userId) => ({ userId, leagueId: null, isReserve: false })),
+                    ...Object.entries(car.driverUserIdsByLeague).flatMap(([leagueId, userIds]) =>
+                      (userIds || []).filter(Boolean).map((userId) => ({ userId, leagueId, isReserve: false })),
+                    ),
+                    ...car.reserveDriverUserIds.map((userId) => ({ userId, leagueId: null, isReserve: true })),
+                    ...Object.entries(car.reserveDriverUserIdsByLeague).flatMap(([leagueId, userIds]) =>
+                      (userIds || []).filter(Boolean).map((userId) => ({ userId, leagueId, isReserve: true })),
+                    ),
+                  ],
+                },
+              },
+            })
+          }
 
-      const staleKeys = existingReviews.map((r) => r.carKey).filter((key) => !activeSkinKeys.includes(key))
-      if (staleKeys.length > 0) {
-        await db.carSkinReview.deleteMany({ where: { carKey: { in: staleKeys } } })
-      }
+          // Keep the skin-approval queue (keyed the same way as LineupChangeLog, since these
+          // TeamCar rows were just deleted and recreated with new ids) in sync with the cars
+          // that now actually carry a skin. A brand-new or changed skin always goes back to
+          // "pending" — it needs a fresh admin look — but re-saving the team without touching
+          // that car's skin must not reset an already-approved one back to pending.
+          const carsWithSkin = teamCars.filter((car) => car.dorsal.trim() && car.skinUrl.trim())
+          const activeSkinKeys = carsWithSkin.map((car) => carLineupKey(teamId, car.category, car.leagueId, car.dorsal))
+          const existingReviews = await tx.carSkinReview.findMany({ where: { teamId } })
+          const existingByKey = new Map(existingReviews.map((r) => [r.carKey, r]))
 
-      for (const car of carsWithSkin) {
-        const carKey = carLineupKey(teamId, car.category, car.leagueId, car.dorsal)
-        const existing = existingByKey.get(carKey)
-        if (!existing) {
-          await db.carSkinReview.create({
-            data: {
-              carKey,
-              teamId,
-              category: car.category,
-              dorsal: car.dorsal,
-              leagueId: car.leagueId,
-              skinUrl: car.skinUrl,
-              skinName: car.skinName || null,
-            },
-          })
-        } else if (existing.skinUrl !== car.skinUrl) {
-          await db.carSkinReview.update({
-            where: { carKey },
-            data: { skinUrl: car.skinUrl, skinName: car.skinName || null, status: 'pending', reviewedBy: null, reviewedAt: null },
-          })
+          const staleKeys = existingReviews.map((r) => r.carKey).filter((key) => !activeSkinKeys.includes(key))
+          if (staleKeys.length > 0) {
+            await tx.carSkinReview.deleteMany({ where: { carKey: { in: staleKeys } } })
+          }
+
+          for (const car of carsWithSkin) {
+            const carKey = carLineupKey(teamId, car.category, car.leagueId, car.dorsal)
+            const existing = existingByKey.get(carKey)
+            if (!existing) {
+              await tx.carSkinReview.create({
+                data: {
+                  carKey,
+                  teamId,
+                  category: car.category,
+                  dorsal: car.dorsal,
+                  leagueId: car.leagueId,
+                  skinUrl: car.skinUrl,
+                  skinName: car.skinName || null,
+                },
+              })
+            } else if (existing.skinUrl !== car.skinUrl) {
+              await tx.carSkinReview.update({
+                where: { carKey },
+                data: { skinUrl: car.skinUrl, skinName: car.skinName || null, status: 'pending', reviewedBy: null, reviewedAt: null },
+              })
+            }
+          }
         }
-      }
-    }
+      },
+      { timeout: 30_000, maxWait: 10_000 },
+    )
+
+    saved = true
 
     syncedLeagueSlugs = await syncLeagueRegistrations(teamId).catch((err) => {
       console.error('Failed auto-syncing league registrations on team update:', err)
@@ -463,6 +471,9 @@ export async function updateTeam(formData: FormData) {
   } catch (error) {
     console.error('Failed to update team:', error)
   }
+
+  // The transaction rolled back (or never ran): don't tell the user it saved.
+  if (!saved) redirect(`${redirectTo}?error=update-failed`)
 
   invalidateCache(['teams_dashboard', 'platform_leagues', 'platform_drivers'])
   revalidatePath('/equipos')

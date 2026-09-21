@@ -25,6 +25,8 @@ export async function resetDatabaseAction() {
     ])
   } catch (error) {
     console.error('Failed to reset database:', error)
+    // Don't fall through to the success redirect: nothing was deleted.
+    redirect('/admin?error=action-failed')
   }
 
   invalidateCache()

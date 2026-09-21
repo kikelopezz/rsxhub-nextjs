@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
+import { archiveContentType, safeHeaderFilename } from '@/lib/upload-validation'
 
 export async function GET(
   req: Request,
@@ -14,11 +15,12 @@ export async function GET(
     const publicPath = path.join(process.cwd(), 'public', 'uploads', 'skins', filename)
     try {
       const buffer = await fs.readFile(publicPath)
-      const mime = filename.endsWith('.rar') ? 'application/x-rar-compressed' : 'application/zip'
+      const mime = archiveContentType(filename)
       return new Response(buffer, {
         headers: {
           'Content-Type': mime,
-          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Content-Disposition': `attachment; filename="${safeHeaderFilename(filename)}"`,
+          'X-Content-Type-Options': 'nosniff',
         },
       })
     } catch {}
@@ -27,11 +29,12 @@ export async function GET(
     const tmpPath = path.join('/tmp', 'skins', filename)
     try {
       const buffer = await fs.readFile(tmpPath)
-      const mime = filename.endsWith('.rar') ? 'application/x-rar-compressed' : 'application/zip'
+      const mime = archiveContentType(filename)
       return new Response(buffer, {
         headers: {
           'Content-Type': mime,
-          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Content-Disposition': `attachment; filename="${safeHeaderFilename(filename)}"`,
+          'X-Content-Type-Options': 'nosniff',
         },
       })
     } catch {}

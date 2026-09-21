@@ -54,14 +54,16 @@ export const getCurrentUser = cache(async () => {
   return session
 })
 
-const DEFAULT_ADMIN_STEAM_IDS = ['76561198341588341']
+// Bootstrap admin, used ONLY while ADMIN_STEAM_IDS is empty so a fresh deployment can't end up with
+// nobody able to reach the admin panel. Once ADMIN_STEAM_IDS is set, the environment alone decides.
+const BOOTSTRAP_ADMIN_STEAM_IDS = ['76561198341588341']
 
 export function getConfiguredAdminSteamIds() {
   const envAdmins = (process.env.ADMIN_STEAM_IDS || '')
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
-  return Array.from(new Set([...DEFAULT_ADMIN_STEAM_IDS, ...envAdmins]))
+  return envAdmins.length > 0 ? Array.from(new Set(envAdmins)) : BOOTSTRAP_ADMIN_STEAM_IDS
 }
 
 export async function getGrantedAdminSteamIds(): Promise<string[]> {

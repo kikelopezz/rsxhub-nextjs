@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { getCurrentUser } from '@/lib/auth'
 import { getLeagues } from '@/lib/platform-data'
 import { getTeamsDashboard } from '@/lib/team-data'
+import { toPublicTeamListing } from '@/lib/team-privacy'
 import { createTeam } from './actions'
 import EquiposContent from './equipos-content'
 import { ClearStatusQuery } from '@/components/clear-status-query'
@@ -94,7 +95,7 @@ export default async function EquiposPage({
       )}
 
       <EquiposContent
-        teams={visibleTeams as any}
+        teams={visibleTeams.map(toPublicTeamListing) as any}
         leagues={leaguesOptions}
         createTeamAction={createTeam}
         session={session}

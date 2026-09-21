@@ -99,6 +99,11 @@ export default async function TeamProfilePage({
     stats,
   } = await fetchTeamProfileData(team)
 
+  // `team` comes from the platform-wide dashboard, whose pending invites (invited SteamID + the
+  // private invite message) must not be serialized into the page for visitors who can't manage
+  // this team — no client component reads them for anyone else.
+  const clientTeam = canManage ? team : { ...team, invites: [] }
+
   // ── Derived values ─────────────────────────────────────────────────────────
   const accent = team.accentColor || team.primaryColor || '#1274de'
   const accentSoft = hexToRgba(accent, 0.28)
@@ -138,7 +143,7 @@ export default async function TeamProfilePage({
 
       {/* Banner + top stats */}
       <TeamBannerStats
-        team={team}
+        team={clientTeam}
         canManage={canManage}
         canDelete={canDelete}
         ownerDisplayName={ownerDisplayName}
@@ -171,7 +176,7 @@ export default async function TeamProfilePage({
       {/* Drivers + Vehicles */}
       <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <TeamDriversSection
-          team={team}
+          team={clientTeam}
           canManage={canManage}
           teamPilots={teamPilots}
           pendingApplications={pendingApplications}
@@ -180,7 +185,7 @@ export default async function TeamProfilePage({
           accentHard={accentHard}
         />
         <TeamVehiclesSection
-          team={team}
+          team={clientTeam}
           canManage={canManage}
           accentHard={accentHard}
           takenDorsals={takenDorsals}

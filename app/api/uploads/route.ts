@@ -5,6 +5,17 @@ import { canAccessPlatformAdmin, canManageLeague, getCurrentUser, getLeagueRole,
 import { canManageTeam } from '@/app/equipos/actions/team-parsers'
 import { db } from '@/lib/db'
 import { hasR2, uploadBufferToR2, deleteFromR2, listR2Objects, getR2KeyFromUrl } from '@/lib/r2'
+import { rateLimit } from '@/lib/rate-limit'
+import {
+  ARCHIVE_NAME_PATTERN,
+  MAX_IMAGE_BYTES,
+  MAX_SERVER_SKIN_BYTES,
+  MAX_UPLOAD_REQUEST_BYTES,
+  archiveContentType,
+  archiveMatchesExtension,
+  detectRasterImage,
+  detectSvg,
+} from '@/lib/upload-validation'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
 const BRANDING_DIR = path.join(process.cwd(), 'public', 'branding')
@@ -39,6 +50,14 @@ async function removeUrlFromSetting(key: string, url: string) {
     console.error(`Failed to remove url from setting "${key}":`, err)
   }
 }
+
+// New uploads carry their uploader's user id in the filename, so a non-admin can later be
+// allowed to delete exactly the files they uploaded (and nobody else's).
+const ownerMarker = (userId: string) => `-u${userId}`
+const isOwnUpload = (fileName: string, userId: string) =>
+  !!userId && path.basename(fileName, path.extname(fileName)).endsWith(ownerMarker(userId))
+
+const isPlatformAdminRole = (role: string | null) => role === 'super_admin' || role === 'platform_admin'
 
 const getDeletedAssets = () => getUrlListSetting('deleted_assets')
 const addDeletedAsset = (url: string) => addUrlToSetting('deleted_assets', url)
@@ -116,6 +135,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized: You must be logged in to upload files' }, { status: 401 })
     }
 
+    if (!rateLimit(`upload:${currentUser.userId}`, 40, 10 * 60_000)) {
+      return NextResponse.json({ error: 'Demasiadas subidas seguidas. Espera unos minutos.' }, { status: 429 })
+    }
+
+    // Reject oversized bodies from the header alone, before buffering anything.
+    const declaredLength = Number(req.headers.get('content-length') || 0)
+    if (declaredLength > MAX_UPLOAD_REQUEST_BYTES) {
+      return NextResponse.json({ error: 'El archivo es demasiado grande.' }, { status: 413 })
+    }
+
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     const type = formData.get('type') as string | null
@@ -153,7 +182,7 @@ export async function POST(req: Request) {
       slugifiedEntityName && (type === 'logo' || type === 'banner') ? `${slugifiedEntityName}-${type}-` : ''
     const uniqueSuffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
 
-    const isArchive = /\.(zip|rar|7z|tar|gz|tgz)$/i.test(file.name)
+    const isArchive = ARCHIVE_NAME_PATTERN.test(file.name)
 
     // Compressed skin archives upload
     if (type === 'skin' || isArchive) {
@@ -165,12 +194,18 @@ export async function POST(req: Request) {
       }
 
       // Max file size check for direct upload: 4.2MB (Vercel serverless body limit is 4.5MB)
-      if (file.size > 4.2 * 1024 * 1024) {
+      if (file.size > MAX_SERVER_SKIN_BYTES) {
         return NextResponse.json(
           { error: 'Skin file is larger than 4.2 MB (Vercel serverless upload limit). Please paste a Google Drive, Mega, or MediaFire download link instead.' },
           { status: 400 }
         )
       }
+
+      // The extension is only trusted if the bytes really are that kind of archive.
+      if (!archiveMatchesExtension(inputBuffer, file.name)) {
+        return NextResponse.json({ error: 'El archivo no es un comprimido válido.' }, { status: 400 })
+      }
+      const skinContentType = archiveContentType(file.name)
 
       const ext = path.extname(file.name)
       const rawBase = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_\-\.\s]/g, '_')
@@ -179,7 +214,7 @@ export async function POST(req: Request) {
       // 0. Prefer Cloudflare R2 when configured
       if (hasR2) {
         try {
-          const finalUrl = await uploadBufferToR2(`skins/${safeSkinName}`, inputBuffer, file.type || 'application/zip')
+          const finalUrl = await uploadBufferToR2(`skins/${safeSkinName}`, inputBuffer, skinContentType)
           return NextResponse.json({ url: finalUrl, name: file.name })
         } catch (r2Err) {
           console.warn('Uploading skin to R2 failed, falling back to disk:', r2Err)
@@ -217,12 +252,26 @@ export async function POST(req: Request) {
       )
     }
 
+    // Only real raster images are accepted (SVG can carry scripts, so only platform admins may
+    // upload one). The stored extension / content type come from the bytes, never from the client.
+    if (file.size > MAX_IMAGE_BYTES) {
+      return NextResponse.json({ error: 'La imagen supera el límite de 6 MB.' }, { status: 413 })
+    }
+    let detected = detectRasterImage(inputBuffer)
+    if (!detected) {
+      const svg = detectSvg(inputBuffer)
+      if (svg && isPlatformAdminRole(await getPlatformRole())) detected = svg
+    }
+    if (!detected) {
+      return NextResponse.json({ error: 'Formato no permitido. Sube una imagen PNG, JPG, GIF, WebP o AVIF.' }, { status: 400 })
+    }
+
     // Save the original file as-is (no compression/resizing/format conversion)
-    const safeName = `${entityPrefix}${safeBase}-${uniqueSuffix}${ext.toLowerCase()}`
+    const safeName = `${entityPrefix}${safeBase}-${uniqueSuffix}${ownerMarker(currentUser.userId)}${detected.ext}`
 
     if (hasR2) {
       try {
-        const finalUrl = await uploadBufferToR2(`uploads/${safeName}`, inputBuffer, file.type || 'application/octet-stream')
+        const finalUrl = await uploadBufferToR2(`uploads/${safeName}`, inputBuffer, detected.contentType)
         await removeDeletedAsset(finalUrl)
         if (isGallery) {
           await addGalleryUpload(finalUrl)
@@ -246,7 +295,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ url: finalUrl })
     } catch (fsErr) {
       console.warn('Writing original file to disk failed, falling back to base64:', fsErr)
-      const mimeType = file.type || 'image/png'
+      const mimeType = detected.contentType
       const base64 = inputBuffer.toString('base64')
       const finalUrl = `data:${mimeType};base64,${base64}`
       if (isGallery) {
@@ -262,9 +311,9 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    // Any logged-in user can delete an uploaded image (same policy as uploading one) —
-    // they're managing their own team/profile/league content. Shared platform branding
-    // assets are the exception and stay admin-only, checked once we know the path below.
+    // Platform admins can delete any uploaded asset. Everyone else can only delete images in the
+    // user-uploads area that they uploaded themselves, or the active logo/banner of a team or
+    // league they manage. Branding assets, skins and the catalog are admin-only (checked below).
     const currentUser = await getCurrentUser()
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized: You must be logged in to delete files' }, { status: 401 })
@@ -275,13 +324,26 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
     }
 
+    const isAdmin = isPlatformAdminRole(await getPlatformRole())
+
     if (url.includes('/branding/')) {
-      const role = await getPlatformRole()
-      if (role !== 'super_admin' && role !== 'platform_admin') {
+      if (!isAdmin) {
         return NextResponse.json({ error: 'Unauthorized: Only platform admins can delete branding assets' }, { status: 403 })
       }
-    } else {
-      // Anyone logged in may delete an orphaned upload — but if this URL is still the
+    } else if (!isAdmin) {
+      // Non-admins can only ever touch files in the user-uploads area — never skins, the car /
+      // circuit catalog or anything else that lives in the bucket.
+      const urlWithoutQuery = url.split('?')[0].split('#')[0]
+      const r2Key = getR2KeyFromUrl(url)
+      const inUploadsArea = r2Key
+        ? r2Key.startsWith('uploads/') && !r2Key.slice('uploads/'.length).includes('/') && !r2Key.includes('..')
+        : /^\/?uploads\/[^/]+$/.test(path.posix.normalize(urlWithoutQuery))
+      if (!inUploadsArea) {
+        return NextResponse.json({ error: 'No tienes permiso para eliminar este archivo.' }, { status: 403 })
+      }
+      const fileName = path.posix.basename(urlWithoutQuery)
+
+      // Anyone logged in may delete an image *they uploaded* — but if this URL is still the
       // *active* logo/banner of some team or league, only someone who actually manages
       // that team/league can delete it. Otherwise any user who simply saw the image on
       // a public page could break it for the team/league that owns it.
@@ -300,6 +362,11 @@ export async function DELETE(req: Request) {
         if (!canAccessPlatformAdmin(platformRole) && !canManageLeague(leagueRole)) {
           return NextResponse.json({ error: 'No puedes eliminar la imagen activa de otra liga.' }, { status: 403 })
         }
+      }
+
+      // Not the active image of a team/league this user manages → it must be their own upload.
+      if (!ownerTeam && !ownerLeague && !isOwnUpload(fileName, currentUser.userId)) {
+        return NextResponse.json({ error: 'Solo puedes eliminar imágenes que has subido tú.' }, { status: 403 })
       }
     }
 
@@ -349,6 +416,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: true, softDeleted: true })
   } catch (err: any) {
     console.error('Delete failed:', err)
-    return NextResponse.json({ error: `Failed to delete file: ${err.message || err}` }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete file' }, { status: 500 })
   }
 }

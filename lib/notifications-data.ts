@@ -62,7 +62,8 @@ export async function markNotificationAsRead(userId: string, notificationId?: st
 
   try {
     if (notificationId) {
-      await db.userNotification.update({ where: { id: notificationId }, data: { read: true } })
+      // Scoped to the caller: an id alone must never let one user touch another user's notification.
+      await db.userNotification.updateMany({ where: { id: notificationId, userId }, data: { read: true } })
     } else {
       await db.userNotification.updateMany({ where: { userId, read: false }, data: { read: true } })
     }

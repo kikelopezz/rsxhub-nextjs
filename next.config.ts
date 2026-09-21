@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   // Enable gzip/brotli compression for all responses
   compress: true,
 
+  // Don't advertise the framework in every response.
+  poweredByHeader: false,
+
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb', // Reduced from 100mb — uploads are compressed to <2MB by the API
@@ -61,16 +64,23 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Reduce bundle size by only including used locales
-  // (removes ~1MB from next's built-in i18n polyfills)
-  webpack(config, { isServer }) {
-    // Tree-shake unused lucide-react icons (they ship ESM so webpack can do this automatically,
-    // but we make sure moduleIds are deterministic for better caching)
-    config.optimization = {
-      ...config.optimization,
-      moduleIds: 'deterministic',
-    }
-    return config
+  // Baseline security headers for every response. The CSP is deliberately limited to directives
+  // that can't break the app (no script-src/img-src: Next inlines scripts and images come from
+  // several CDNs) — it still stops clickjacking, <object>/<base> injection.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+          { key: 'Strict-Transport-Security', value: 'max-age=15552000' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'" },
+        ],
+      },
+    ]
   },
 }
 

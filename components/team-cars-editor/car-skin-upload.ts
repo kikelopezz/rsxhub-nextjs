@@ -26,13 +26,13 @@ export async function uploadSkinFile(file: File, folder?: string): Promise<strin
     const presignRes = await fetch('/api/uploads/presign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/zip', folder }),
+      body: JSON.stringify({ filename: file.name, size: file.size, folder }),
     })
     if (presignRes.ok) {
-      const { uploadUrl, publicUrl } = await presignRes.json()
+      const { uploadUrl, publicUrl, contentType } = await presignRes.json()
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': file.type || 'application/zip' },
+        headers: { 'Content-Type': contentType },
         body: file,
       })
       if (putRes.ok) {

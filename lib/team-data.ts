@@ -170,6 +170,18 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
   return { teams, myTeamIds, mode: 'ok' as const }
 })
 
+/**
+ * Cheap "does this user already belong to a team?" check. Actions used to load the whole
+ * platform-wide teams dashboard (every team, car, driver, member and invite) just to answer this.
+ */
+export async function userBelongsToTeam(userId: string): Promise<boolean> {
+  const team = await db.team.findFirst({
+    where: { OR: [{ ownerUserId: userId }, { members: { some: { userId } } }] },
+    select: { id: true },
+  })
+  return Boolean(team)
+}
+
 export type SkinReviewDTO = {
   id: string
   teamId: string

@@ -1,78 +1,128 @@
 const STEAM_OPENID_URL = 'https://steamcommunity.com/openid/login'
 const STEAM_ID_PREFIX = 'https://steamcommunity.com/openid/id/'
+const OPENID_NS = 'http://specs.openid.net/auth/2.0'
 
-export function buildSteamAuthUrl(request?: Request, clientOrigin?: string | null) {
-  let realm = process.env.STEAM_REALM
-  let returnTo = process.env.STEAM_RETURN_URL
+export const STEAM_CALLBACK_PATH = '/api/auth/steam-callback'
+export const STEAM_STATE_COOKIE = 'steam_login_state'
 
-  let baseUrl = ''
+function originOf(value: string | null | undefined): string | null {
+  if (!value) return null
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.origin : null
+  } catch {
+    return null
+  }
+}
 
-  if (clientOrigin) {
-    baseUrl = clientOrigin
+/**
+ * Origins this deployment accepts Steam logins on. `return_to` / `realm` used to be built from
+ * whatever the request said (the `?origin=` query param, `Referer`, `X-Forwarded-Host`), so anyone
+ * could send a victim to Steam with a `return_to` on a domain they control and then replay the
+ * signed assertion against this site's callback. Now only these origins are ever used or accepted.
+ *
+ * Add the public domain to NEXT_PUBLIC_APP_URL (or list extra ones, comma-separated, in
+ * ALLOWED_AUTH_ORIGINS). On Vercel the production/deployment URLs are included automatically.
+ */
+export function getTrustedOrigins(): Set<string> {
+  const trusted = new Set<string>()
+  const add = (value: string | null | undefined) => {
+    const origin = originOf(value)
+    if (origin) trusted.add(origin)
   }
 
-  if (!baseUrl && request) {
-    try {
-      const forwardedHost = request.headers.get('x-forwarded-host')
-      const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
-      const referer = request.headers.get('referer')
+  add(process.env.NEXT_PUBLIC_APP_URL)
+  add(process.env.APP_URL)
+  add(process.env.STEAM_REALM)
+  add(process.env.STEAM_RETURN_URL)
+  add(process.env.COMPETITION_PUBLIC_URL)
+  for (const extra of (process.env.ALLOWED_AUTH_ORIGINS || '').split(',')) add(extra.trim())
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) add(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`)
+  if (process.env.VERCEL_URL) add(`https://${process.env.VERCEL_URL}`)
+  if (process.env.NODE_ENV !== 'production') {
+    add('http://localhost:3000')
+    add('http://127.0.0.1:3000')
+  }
+  return trusted
+}
 
-      if (forwardedHost) {
-        baseUrl = `${forwardedProto}://${forwardedHost}`
-      } else if (referer) {
-        const refUrl = new URL(referer)
-        baseUrl = `${refUrl.protocol}//${refUrl.host}`
-      } else {
-        const urlObj = new URL(request.url)
-        baseUrl = `${urlObj.protocol}//${urlObj.host}`
-      }
-    } catch (err) {
-      console.error('Error parsing request URL for dynamic Steam authentication config:', err)
-    }
+/** The origin this request was served on, as far as the proxy in front tells us. Untrusted input. */
+function requestOrigin(request?: Request): string | null {
+  if (!request) return null
+  const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim()
+  if (forwardedHost) {
+    const proto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || 'https'
+    return originOf(`${proto}://${forwardedHost}`)
+  }
+  return originOf(request.url)
+}
+
+export function buildSteamAuthUrl(request: Request | undefined, clientOrigin: string | null | undefined, state: string) {
+  const trusted = getTrustedOrigins()
+
+  // Candidates are only ever *hints*: one is used only if it is on the allow-list.
+  const base =
+    [originOf(clientOrigin), requestOrigin(request)].find((candidate): candidate is string => !!candidate && trusted.has(candidate)) ??
+    originOf(process.env.STEAM_RETURN_URL) ??
+    originOf(process.env.STEAM_REALM) ??
+    originOf(process.env.NEXT_PUBLIC_APP_URL) ??
+    (process.env.NODE_ENV !== 'production' ? 'http://localhost:3000' : null)
+
+  if (!base) {
+    throw new Error('Steam login is not configured: set NEXT_PUBLIC_APP_URL (or STEAM_REALM / STEAM_RETURN_URL).')
   }
 
-  if (!baseUrl && process.env.APP_URL) {
-    baseUrl = process.env.APP_URL
-  }
-
-  if (baseUrl) {
-    baseUrl = baseUrl.replace(/\/+$/, '')
-  }
-
-  // If we are in a non-localhost environment, make sure we aren't using localhost for realm/returnTo
-  const isRemote = baseUrl && !baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1')
-  const isEnvLocalhost = !realm || !returnTo || realm.includes('localhost') || returnTo.includes('localhost')
-
-  if (isRemote || isEnvLocalhost) {
-    if (baseUrl) {
-      realm = `${baseUrl}/`
-      returnTo = `${baseUrl}/api/auth/steam-callback`
-    }
-  }
-
-  // Default fallbacks to prevent crashes
-  if (!realm) {
-    realm = 'http://localhost:3000/'
-  }
-  if (!returnTo) {
-    returnTo = 'http://localhost:3000/api/auth/steam-callback'
-  }
-
-  // Ensure realm always ends with a trailing slash as required by Steam OpenID specification
-  if (realm && !realm.endsWith('/')) {
-    realm = `${realm}/`
-  }
+  const returnTo = `${base}${STEAM_CALLBACK_PATH}?${new URLSearchParams({ state }).toString()}`
 
   const params = new URLSearchParams({
-    'openid.ns': 'http://specs.openid.net/auth/2.0',
+    'openid.ns': OPENID_NS,
     'openid.mode': 'checkid_setup',
     'openid.return_to': returnTo,
-    'openid.realm': realm,
+    'openid.realm': `${base}/`,
     'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
     'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
   })
 
   return `${STEAM_OPENID_URL}?${params.toString()}`
+}
+
+const REQUIRED_SIGNED_FIELDS = ['op_endpoint', 'claimed_id', 'identity', 'return_to', 'response_nonce']
+
+/**
+ * Local checks that must pass *before* asking Steam to verify the signature. Steam only
+ * checks that the assertion was really issued; it does not know which site it was meant for, so
+ * it is on us to make sure it was issued for THIS site (`return_to`) and for THIS browser (`state`).
+ */
+export function checkSteamAssertion(
+  searchParams: URLSearchParams,
+  expectedState: string | null | undefined
+): { ok: true } | { ok: false; reason: string } {
+  const get = (key: string) => searchParams.get(`openid.${key}`)
+
+  if (get('ns') !== OPENID_NS) return { ok: false, reason: 'bad-namespace' }
+  if (get('mode') !== 'id_res') return { ok: false, reason: 'bad-mode' }
+  if (get('op_endpoint') !== STEAM_OPENID_URL) return { ok: false, reason: 'bad-endpoint' }
+
+  const claimedId = get('claimed_id')
+  if (!claimedId || claimedId !== get('identity') || !extractSteamId(claimedId)) return { ok: false, reason: 'bad-identity' }
+
+  const signed = (get('signed') || '').split(',')
+  if (!REQUIRED_SIGNED_FIELDS.every((field) => signed.includes(field))) return { ok: false, reason: 'unsigned-fields' }
+
+  let returnTo: URL
+  try {
+    returnTo = new URL(get('return_to') || '')
+  } catch {
+    return { ok: false, reason: 'bad-return-to' }
+  }
+  if (!getTrustedOrigins().has(returnTo.origin) || returnTo.pathname !== STEAM_CALLBACK_PATH) {
+    return { ok: false, reason: 'untrusted-return-to' }
+  }
+
+  const state = returnTo.searchParams.get('state')
+  if (!expectedState || !state || state !== expectedState) return { ok: false, reason: 'state-mismatch' }
+
+  return { ok: true }
 }
 
 export async function verifySteamResponse(searchParams: URLSearchParams) {
@@ -86,16 +136,19 @@ export async function verifySteamResponse(searchParams: URLSearchParams) {
     },
     body: validationParams.toString(),
     cache: 'no-store',
+    signal: AbortSignal.timeout(8000),
   })
+  if (!response.ok) return false
 
   const text = await response.text()
-  return text.includes('is_valid:true')
+  return text.split('\n').some((line) => line.trim() === 'is_valid:true')
 }
 
 export function extractSteamId(claimedId: string | null) {
   if (!claimedId) return null
   if (!claimedId.startsWith(STEAM_ID_PREFIX)) return null
-  return claimedId.replace(STEAM_ID_PREFIX, '')
+  const steamId = claimedId.slice(STEAM_ID_PREFIX.length)
+  return /^\d{17}$/.test(steamId) ? steamId : null
 }
 
 function decodeXmlEntities(str: string): string {

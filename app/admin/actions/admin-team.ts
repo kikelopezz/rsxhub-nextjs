@@ -27,6 +27,7 @@ export async function updateTeamStatusAction(formData: FormData) {
     await db.team.update({ where: { id: teamId }, data: { status: status as any } })
   } catch (error) {
     console.error('Failed to update team status:', error)
+    redirect('/admin?tab=teams&error=action-failed')
   }
 
   invalidateCache(['teams_dashboard', 'platform_drivers'])

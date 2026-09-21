@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { getTeamsDashboard } from '@/lib/team-data'
+import { safeRedirectPath } from '@/lib/safe-redirect'
 import { createNotification, notifyTeamInvitation } from '@/lib/notifications-data'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { guardSession, canManageTeam } from './team-parsers'
@@ -11,7 +11,7 @@ import { TEAM_ROLE_TAGS } from '@/app/equipos/[id]/team-utils'
 
 export async function invitePilot(formData: FormData) {
   const session = await guardSession()
-  const redirectTo = String(formData.get('redirectTo') || '/equipos')
+  const redirectTo = safeRedirectPath(formData.get('redirectTo'))
   const teamId = String(formData.get('teamId') || '')
   const invitedUserIdFromForm = String(formData.get('invitedUserId') || '').trim()
   const steamIdFromForm = String(formData.get('steamId') || '').trim()
@@ -45,8 +45,7 @@ export async function invitePilot(formData: FormData) {
 
   if (invitedUserId) {
     try {
-      const dashboard = await getTeamsDashboard(session.userId)
-      const team = dashboard.teams.find((t) => t.id === teamId)
+      const team = await db.team.findUnique({ where: { id: teamId }, select: { name: true } })
       const teamName = team?.name || 'Equipo'
       await notifyTeamInvitation({
         invitedUserId,
@@ -66,7 +65,7 @@ export async function invitePilot(formData: FormData) {
 
 export async function removeTeamMember(formData: FormData) {
   const session = await guardSession()
-  const redirectTo = String(formData.get('redirectTo') || '/equipos')
+  const redirectTo = safeRedirectPath(formData.get('redirectTo'))
   const teamId = String(formData.get('teamId') || '')
   const memberUserId = String(formData.get('memberUserId') || '')
   if (!teamId || !memberUserId) redirect(`${redirectTo}?error=member-required`)
@@ -106,7 +105,7 @@ export async function removeTeamMember(formData: FormData) {
 
 export async function updateTeamMemberRole(formData: FormData) {
   const session = await guardSession()
-  const redirectTo = String(formData.get('redirectTo') || '/equipos')
+  const redirectTo = safeRedirectPath(formData.get('redirectTo'))
   const teamId = String(formData.get('teamId') || '')
   const memberUserId = String(formData.get('memberUserId') || '')
   const role = String(formData.get('role') || '').trim().toLowerCase()
@@ -138,7 +137,7 @@ export async function updateTeamMemberRole(formData: FormData) {
 
 export async function updateTeamMemberTags(formData: FormData) {
   const session = await guardSession()
-  const redirectTo = String(formData.get('redirectTo') || '/equipos')
+  const redirectTo = safeRedirectPath(formData.get('redirectTo'))
   const teamId = String(formData.get('teamId') || '')
   const memberUserId = String(formData.get('memberUserId') || '')
   if (!teamId || !memberUserId) redirect(`${redirectTo}?error=member-required`)

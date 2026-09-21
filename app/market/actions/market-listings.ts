@@ -9,7 +9,7 @@
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { getTeamsDashboard } from '@/lib/team-data'
+import { userBelongsToTeam } from '@/lib/team-data'
 
 export async function createMarketListing(formData: FormData) {
   const session = await getCurrentUser()
@@ -29,11 +29,7 @@ export async function createMarketListing(formData: FormData) {
   }
 
   if (type === 'driver_seeking_team') {
-    const dashboard = await getTeamsDashboard(session.userId)
-    const isAlreadyInTeam = dashboard.teams.some(
-      (team) => team.ownerUserId === session.userId || team.members.some((m) => m.userId === session.userId),
-    )
-    if (isAlreadyInTeam) {
+    if (await userBelongsToTeam(session.userId)) {
       throw new Error('You cannot post a driver listing if you already belong to a team.')
     }
     if (contactInfo.trim().length < 3) {

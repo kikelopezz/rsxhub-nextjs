@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import path from 'path'
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { hasR2, createPresignedUploadUrl, getR2PublicUrl } from '@/lib/r2'
+import { rateLimit } from '@/lib/rate-limit'
+import { ARCHIVE_NAME_PATTERN, MAX_PRESIGNED_ARCHIVE_BYTES, archiveContentType } from '@/lib/upload-validation'
 
 // coches/ and circuitos/ are the admin content catalog (platform_admin only). skins/ (flat,
 // or skins/<category>/<league-slug> once a car's category+league are known) is where team
@@ -28,9 +30,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'R2 storage is not configured' }, { status: 501 })
     }
 
-    const { filename, contentType, folder: rawFolder } = await req.json()
+    if (!rateLimit(`presign:${currentUser.userId}`, 30, 10 * 60_000)) {
+      return NextResponse.json({ error: 'Demasiadas subidas seguidas. Espera unos minutos.' }, { status: 429 })
+    }
+
+    const { filename, folder: rawFolder, size } = await req.json()
     if (!filename || typeof filename !== 'string') {
       return NextResponse.json({ error: 'No filename provided' }, { status: 400 })
+    }
+
+    // Declared size: a presigned PUT can't be capped by the server, so at least refuse to hand out
+    // an upload URL for something that is already announced as too big.
+    if (typeof size !== 'number' || !Number.isFinite(size) || size <= 0) {
+      return NextResponse.json({ error: 'File size is required' }, { status: 400 })
+    }
+    if (size > MAX_PRESIGNED_ARCHIVE_BYTES) {
+      return NextResponse.json({ error: 'Skin file exceeds maximum allowed limit (200 MB).' }, { status: 413 })
     }
 
     const folder = resolveFolder(rawFolder)
@@ -45,7 +60,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const isArchive = /\.(zip|rar|7z|tar|gz|tgz)$/i.test(filename)
+    const isArchive = ARCHIVE_NAME_PATTERN.test(filename)
     if (!isArchive) {
       return NextResponse.json(
         { error: 'Only compressed archive files (.zip, .rar, .7z, .tar.gz) are allowed.' },
@@ -58,10 +73,13 @@ export async function POST(req: Request) {
     const safeName = `${rawBase}_${Date.now().toString(36)}${ext.toLowerCase()}`
     const key = `${folder}/${safeName}`
 
-    const uploadUrl = await createPresignedUploadUrl(key, contentType || 'application/zip')
+    // The stored Content-Type is ours (from the extension), not whatever the client claims —
+    // it's part of the signature, so the browser must send exactly this one on the PUT.
+    const contentType = archiveContentType(filename)
+    const uploadUrl = await createPresignedUploadUrl(key, contentType)
     const publicUrl = getR2PublicUrl(key)
 
-    return NextResponse.json({ uploadUrl, publicUrl })
+    return NextResponse.json({ uploadUrl, publicUrl, contentType })
   } catch (err: any) {
     console.error('Failed to create presigned upload URL:', err)
     return NextResponse.json({ error: 'Failed to create presigned upload URL' }, { status: 500 })
