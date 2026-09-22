@@ -36,7 +36,7 @@ export type ButtonColor = 'blue' | 'gray' | 'green' | 'red'
 
 export type TicketType = { id: string; emoji?: string; label: string; description?: string; welcome?: string; color?: ButtonColor; ping_role_id?: string | null }
 
-export type Campeonato = { id: string; emoji?: string; label: string }
+export type Campeonato = { id: string; emoji?: string; label: string; category_id?: string | null }
 
 export type GuildConfig = {
   panel_title: string

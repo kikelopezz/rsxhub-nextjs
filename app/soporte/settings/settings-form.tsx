@@ -232,15 +232,22 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
         <h2 className={heading}>Campeonatos (opcional)</h2>
         <p className="text-xs text-slate-400">
           Si añades campeonatos, al abrir un ticket se preguntará primero de cuál es (obligatorio elegir uno antes
-          de crear el canal). Sin ninguno, abrir un ticket no cambia en nada.
+          de crear el canal). Sin ninguno, abrir un ticket no cambia en nada. Si le pones una categoría de Discord
+          a un campeonato, sus tickets se crean ahí en vez de en la categoría general.
         </p>
 
         <div className="space-y-2">
           {campeonatos.length === 0 && <p className={hint}>Sin campeonatos: abrir un ticket no pregunta nada nuevo.</p>}
           {campeonatos.map((c, i) => (
-            <div key={c.id} className="grid grid-cols-[3.5rem_1fr_auto] gap-2">
+            <div key={c.id} className="grid grid-cols-[3.5rem_1fr_1fr_auto] gap-2">
               <input className={input} maxLength={8} placeholder="🏁" value={c.emoji || ''} onChange={(e) => updateCampeonato(i, { emoji: e.target.value })} />
               <input className={input} maxLength={60} placeholder="Nombre del campeonato" value={c.label} onChange={(e) => updateCampeonato(i, { label: e.target.value })} />
+              <select className={input} value={c.category_id || ''} onChange={(e) => updateCampeonato(i, { category_id: e.target.value || null })}>
+                <option value="">— Categoría general —</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
               <button type="button" onClick={() => setCampeonatos((l) => l.filter((_, idx) => idx !== i))} className="rounded-lg border border-white/10 px-3 text-[10px] font-bold uppercase text-slate-400 hover:bg-white/5">
                 Quitar
               </button>
@@ -249,7 +256,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
         </div>
         <button
           type="button"
-          onClick={() => setCampeonatos((l) => [...l, { id: `c-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '' }])}
+          onClick={() => setCampeonatos((l) => [...l, { id: `c-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '', category_id: null }])}
           className="rounded-lg border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5"
         >
           + Añadir campeonato
