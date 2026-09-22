@@ -28,11 +28,15 @@ export type TicketRow = {
   transcript_file: string | null
   merged_into: number | null
   internal_notes: string | null
+  campeonato_id: string | null
+  campeonato_label: string | null
 }
 
 export type ButtonColor = 'blue' | 'gray' | 'green' | 'red'
 
 export type TicketType = { id: string; emoji?: string; label: string; description?: string; welcome?: string; color?: ButtonColor; ping_role_id?: string | null }
+
+export type Campeonato = { id: string; emoji?: string; label: string }
 
 export type GuildConfig = {
   panel_title: string
@@ -44,6 +48,7 @@ export type GuildConfig = {
   log_channel_id: string | null
   staff_role_ids: string[]
   ticket_types: TicketType[]
+  campeonatos: Campeonato[]
   welcome_message: string
   embed_color: string
   max_open_tickets: number

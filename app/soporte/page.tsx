@@ -393,6 +393,7 @@ export default async function TicketsPage({
                 <tr className="border-b border-shell-line bg-black/40 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   <th className="p-3">Ticket</th>
                   <th className="p-3">Categoría</th>
+                  <th className="p-3">Campeonato</th>
                   <th className="p-3">Abierto por</th>
                   <th className="p-3">Fase</th>
                   <th className="p-3">Estado</th>
@@ -403,7 +404,7 @@ export default async function TicketsPage({
               <tbody className="divide-y divide-white/5 text-xs text-slate-300">
                 {tickets.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center italic text-slate-500">No hay tickets en esta vista.</td>
+                    <td colSpan={8} className="p-8 text-center italic text-slate-500">No hay tickets en esta vista.</td>
                   </tr>
                 ) : (
                   tickets.map((ticket) => {
@@ -414,6 +415,7 @@ export default async function TicketsPage({
                         <tr className="transition-colors hover:bg-white/[0.02]">
                           <td className="p-3 font-mono-data font-black text-[#4ea1ff]">{ticket.code || `#${ticket.number}`}</td>
                           <td className="p-3">{ticket.type_label || '—'}</td>
+                          <td className="p-3">{ticket.campeonato_label || '—'}</td>
                           <td className="p-3 font-semibold text-white">{ticket.opener_tag || ticket.opener_id}</td>
                           <td className="p-3"><StageTracker status={ticket.status} /></td>
                           <td className="p-3">
@@ -431,7 +433,7 @@ export default async function TicketsPage({
                           <td className="p-3"><RowActions ticket={ticket} guildId={guildId} returnStatus={returnStatus} /></td>
                         </tr>
                         <tr>
-                          <td colSpan={7} className="px-3 pb-3 pt-0">
+                          <td colSpan={8} className="px-3 pb-3 pt-0">
                             <TicketDetails ticket={ticket} guildId={guildId} returnStatus={returnStatus} mergeTargets={mergeTargets} />
                           </td>
                         </tr>

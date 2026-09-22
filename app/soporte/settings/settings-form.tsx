@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
-import type { ButtonColor, CreatedChannel, GuildConfig, GuildDetails, TicketType } from '@/lib/tickets-api'
+import type { ButtonColor, Campeonato, CreatedChannel, GuildConfig, GuildDetails, TicketType } from '@/lib/tickets-api'
 import { CreateChannelInline } from './create-channel-inline'
 import { PanelPreview } from './panel-preview'
 import { saveTicketSettingsAction, publishTicketPanelAction } from '../actions'
@@ -33,6 +33,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
   const [categories, setCategories] = useState(guild.categories)
   const [staffRoles, setStaffRoles] = useState<string[]>(config.staff_role_ids)
   const [types, setTypes] = useState<TicketType[]>(config.ticket_types)
+  const [campeonatos, setCampeonatos] = useState<Campeonato[]>(config.campeonatos)
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -54,6 +55,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
     reminder_minutes: Math.max(0, Math.min(1440, Math.round(Number(form.reminder_minutes) || 0))),
     staff_role_ids: staffRoles,
     ticket_types: types.filter((t) => t.label && t.label.trim()).map((t) => ({ ...t, ping_role_id: t.ping_role_id || null })),
+    campeonatos: campeonatos.filter((c) => c.label && c.label.trim()),
   })
 
   const submit = (publish: boolean) =>
@@ -66,6 +68,9 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
 
   const updateType = (i: number, patch: Partial<TicketType>) =>
     setTypes((list) => list.map((t, idx) => (idx === i ? { ...t, ...patch } : t)))
+
+  const updateCampeonato = (i: number, patch: Partial<Campeonato>) =>
+    setCampeonatos((list) => list.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_430px] xl:items-start">
@@ -220,6 +225,34 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
           className="rounded-lg border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5"
         >
           + Añadir categoría
+        </button>
+      </section>
+
+      <section className={card}>
+        <h2 className={heading}>Campeonatos (opcional)</h2>
+        <p className="text-xs text-slate-400">
+          Si añades campeonatos, al abrir un ticket se preguntará primero de cuál es (obligatorio elegir uno antes
+          de crear el canal). Sin ninguno, abrir un ticket no cambia en nada.
+        </p>
+
+        <div className="space-y-2">
+          {campeonatos.length === 0 && <p className={hint}>Sin campeonatos: abrir un ticket no pregunta nada nuevo.</p>}
+          {campeonatos.map((c, i) => (
+            <div key={c.id} className="grid grid-cols-[3.5rem_1fr_auto] gap-2">
+              <input className={input} maxLength={8} placeholder="🏁" value={c.emoji || ''} onChange={(e) => updateCampeonato(i, { emoji: e.target.value })} />
+              <input className={input} maxLength={60} placeholder="Nombre del campeonato" value={c.label} onChange={(e) => updateCampeonato(i, { label: e.target.value })} />
+              <button type="button" onClick={() => setCampeonatos((l) => l.filter((_, idx) => idx !== i))} className="rounded-lg border border-white/10 px-3 text-[10px] font-bold uppercase text-slate-400 hover:bg-white/5">
+                Quitar
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setCampeonatos((l) => [...l, { id: `c-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '' }])}
+          className="rounded-lg border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5"
+        >
+          + Añadir campeonato
         </button>
       </section>
 
