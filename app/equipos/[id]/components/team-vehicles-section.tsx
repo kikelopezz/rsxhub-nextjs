@@ -1,5 +1,6 @@
 import { CenterModal } from '@/components/center-modal'
 import { CopyVehicleDriverIdsButton } from '@/components/copy-vehicle-driver-ids-button'
+import { ViewCarSteamIds, type CarSteamIdEntry } from '@/components/view-car-steam-ids'
 import { TeamCarsEditor, SaveTeamCarsButton, CarValidationProvider } from '@/components/team-cars-editor'
 import { Download, ShieldAlert } from 'lucide-react'
 import { updateTeam } from '@/app/equipos/actions/team-crud'
@@ -13,6 +14,7 @@ import { getDictionary } from '@/lib/i18n/get-dictionary'
 type TeamVehiclesSectionProps = {
   team: any
   canManage: boolean
+  isAdmin: boolean
   accentHard: string
   takenDorsals: Array<{ teamId: string; teamName: string; category: string; dorsal: string; leagueId?: string | null }>
   leaguesOptions: LeagueOption[]
@@ -70,6 +72,7 @@ const DEFAULT_THEME = {
 export async function TeamVehiclesSection({
   team,
   canManage,
+  isAdmin,
   accentHard,
   takenDorsals,
   leaguesOptions,
@@ -164,13 +167,35 @@ export async function TeamVehiclesSection({
                       carDriverUserIds = car.driver_user_ids.filter(Boolean).map(String)
                     }
 
-                    const carDriverSteamIds = carDriverUserIds
+                    const carDriverSteamIds = !isAdmin ? [] : carDriverUserIds
                       .slice(0, maxSlots)
                       .map((dId: string) => {
                         const driver = teamMembersOptions.find((m) => m.userId === dId)
                         return driver?.steamId || driver?.userId?.replace('steam_', '') || ''
                       })
                       .filter(Boolean)
+
+                    const steamIdEntries: CarSteamIdEntry[] = !isAdmin ? [] : carDriverUserIds
+                      .slice(0, maxSlots)
+                      .map((dId: string) => {
+                        const m = teamMembersOptions.find((x) => x.userId === dId)
+                        return { name: m?.name || '', steamId: m?.steamId || m?.userId?.replace('steam_', '') || '' }
+                      })
+                      .filter((x: CarSteamIdEntry) => x.steamId)
+                    {
+                      const reserveByLeagueIds = car.reserveDriverUserIdsByLeague || car.reserve_driver_user_ids_by_league || {}
+                      const reserveIds =
+                        reserveByLeagueIds[effectiveLeagueKey] ||
+                        reserveByLeagueIds[carLeague?.id || ''] ||
+                        reserveByLeagueIds[carLeague?.slug || ''] ||
+                        car.reserveDriverUserIds ||
+                        car.reserve_driver_user_ids ||
+                        []
+                      const rId = Array.isArray(reserveIds) && reserveIds[0] ? String(reserveIds[0]).trim() : null
+                      const rm = rId ? teamMembersOptions.find((x) => x.userId === rId) : null
+                      const rSteam = rm ? rm.steamId || rm.userId?.replace('steam_', '') || '' : ''
+                      if (isAdmin && rm && rSteam) steamIdEntries.push({ name: rm.name, steamId: rSteam, reserve: true })
+                    }
 
                     return (
                       <div
@@ -223,10 +248,12 @@ export async function TeamVehiclesSection({
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <CopyVehicleDriverIdsButton
-                              driverSteamIds={carDriverSteamIds}
-                              className={theme.skinBtn}
-                            />
+                            {isAdmin && (
+                              <CopyVehicleDriverIdsButton
+                                driverSteamIds={carDriverSteamIds}
+                                className={theme.skinBtn}
+                              />
+                            )}
                             {car.skinUrl && (
                               <a
                                 href={car.skinUrl}
@@ -241,6 +268,12 @@ export async function TeamVehiclesSection({
                             )}
                           </div>
                         </div>
+
+                        <ViewCarSteamIds
+                          entries={steamIdEntries}
+                          className={theme.skinBtn}
+                          labels={{ show: t.viewSteamIds, hide: t.hideSteamIds, reserve: t.reserve, copied: t.copiedShort }}
+                        />
 
                         {/* Drivers slots */}
                         <div className={`border-t pt-2 ${theme.line}`}>

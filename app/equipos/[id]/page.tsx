@@ -187,6 +187,7 @@ export default async function TeamProfilePage({
         <TeamVehiclesSection
           team={clientTeam}
           canManage={canManage}
+          isAdmin={isPlatformAdmin}
           accentHard={accentHard}
           takenDorsals={takenDorsals}
           leaguesOptions={leaguesOptions}
