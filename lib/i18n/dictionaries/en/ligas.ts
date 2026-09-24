@@ -98,6 +98,12 @@ const ligas: typeof es = {
     race: 'RACE:',
     manageRound: 'Manage Round',
     viewRound: 'View Round',
+
+    skinsLeft: 'Skins:',
+
+    entriesLeft: 'Register cars:',
+
+    deadlineClosed: 'CLOSED',
     viewEntryList: 'View Confirmed Entry List',
     editRound: 'Edit Round',
     deleteRound: 'Delete Round',
@@ -245,6 +251,12 @@ const ligas: typeof es = {
       sessionSchedules: 'Round Session Schedules',
       includeQualy: 'Include Qualifying Session',
       qualyDate: 'Qualy Date',
+      deadlinesTitle: 'Round deadlines',
+      skinsDeadline: 'Skin delivery deadline',
+      entriesDeadline: 'Deadline to register teams and cars',
+      deadlineNone: 'No deadline',
+      deadlineClear: 'Clear date',
+      deadlineTime: 'Deadline time',
       qualyStarts: 'Qualy Starts',
       qualyEnds: 'Qualy Ends',
       raceSession: 'Race Session',

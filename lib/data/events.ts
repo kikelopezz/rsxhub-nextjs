@@ -54,6 +54,8 @@ export const getLeagueEvents = cache(async (leagueId?: string): Promise<LeagueEv
           classLimits: limitsByEvent.get(data.id) || null,
           qualyCompleted: data.qualyCompleted,
           completedAt: data.completedAt?.toISOString() ?? null,
+          skinsDeadline: data.skinsDeadline?.toISOString() ?? null,
+          entriesDeadline: data.entriesDeadline?.toISOString() ?? null,
         }
       })
     } catch (error) {

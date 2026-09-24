@@ -96,6 +96,12 @@ const ligas = {
     race: 'CARRERA:',
     manageRound: 'Gestionar ronda',
     viewRound: 'Ver ronda',
+
+    skinsLeft: 'Skins:',
+
+    entriesLeft: 'Apuntar coches:',
+
+    deadlineClosed: 'CERRADO',
     viewEntryList: 'Ver entry list confirmada',
     editRound: 'Editar ronda',
     deleteRound: 'Eliminar ronda',
@@ -243,6 +249,12 @@ const ligas = {
       sessionSchedules: 'Horarios de las sesiones de la ronda',
       includeQualy: 'Incluir sesión de clasificación',
       qualyDate: 'Fecha de clasificación',
+      deadlinesTitle: 'Fechas límite de la ronda',
+      skinsDeadline: 'Límite entrega de skins',
+      entriesDeadline: 'Límite para apuntar equipos y coches',
+      deadlineNone: 'Sin fecha límite',
+      deadlineClear: 'Quitar fecha',
+      deadlineTime: 'Hora límite',
       qualyStarts: 'Inicio clasificación',
       qualyEnds: 'Fin clasificación',
       raceSession: 'Sesión de carrera',

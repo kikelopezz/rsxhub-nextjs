@@ -44,6 +44,8 @@ export interface LeagueEvent {
   color?: string | null
   qualyCompleted?: boolean
   completedAt?: string | null
+  skinsDeadline?: string | null
+  entriesDeadline?: string | null
   maxDrivers?: number | null
   classLimits?: Record<string, number> | null
 }

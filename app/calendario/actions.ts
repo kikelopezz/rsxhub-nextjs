@@ -99,6 +99,17 @@ export async function saveCalendarEvent(formData: FormData) {
       return { success: false, error: 'Forbidden: Only platform admins or league stewards can edit league events.' }
     }
 
+    const deadline = (prefix: string) => {
+      const iso = String(formData.get(`${prefix}Iso`) || '').trim()
+      if (iso) {
+        const parsed = new Date(iso)
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+      }
+      const d = String(formData.get(`${prefix}Date`) || '').trim()
+      if (!d) return null
+      return zonedWallTimeToUtc(d, String(formData.get(`${prefix}Time`) || '23:59').trim())
+    }
+
     const hasQualy = formData.get('hasQualy') === 'on' || formData.get('hasQualy') === 'true' || formData.get('hasQualy') === '1'
     const qualyDateStr = String(formData.get('qualyDate') || dateStr).trim()
     const qualyStartsAtTime = String(formData.get('qualyStartsAtTime') || '19:30').trim()
@@ -122,6 +133,8 @@ export async function saveCalendarEvent(formData: FormData) {
       qualyEndsAt: hasQualy ? zonedWallTimeToUtc(qualyDateStr, qualyEndsAtTime) : null,
       startsAt: zonedWallTimeToUtc(dateStr, startsAtTime),
       endsAt: zonedWallTimeToUtc(dateStr, endsAtTime),
+      skinsDeadline: deadline('skinsDeadline'),
+      entriesDeadline: deadline('entriesDeadline'),
     }
 
     const event = eventId

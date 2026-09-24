@@ -14,6 +14,7 @@ import {
   buildCategorySkinZip,
 } from './entry-list-utils'
 import { useDictionary } from '@/lib/i18n/locale-provider'
+import { DeadlineCountdown } from '@/components/deadline-countdown'
 
 type EventEntryListModalProps = {
   event: LeagueEvent
@@ -40,7 +41,8 @@ export function EventEntryListModal({
   isAdmin,
   onClose,
 }: EventEntryListModalProps) {
-  const tr = useDictionary().ligas.entryList
+  const dict = useDictionary()
+  const tr = dict.ligas.entryList
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [downloadingCategory, setDownloadingCategory] = useState<string | null>(null)
 
@@ -157,6 +159,12 @@ export function EventEntryListModal({
             <h2 className="font-display-league mt-1.5 text-xl uppercase text-white md:text-2xl">
               {event.title || tr.round.replace('{circuit}', event.circuitName)}
             </h2>
+            {(event.skinsDeadline || event.entriesDeadline) && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <DeadlineCountdown label={dict.ligas.schedule.skinsLeft} deadline={event.skinsDeadline} closedLabel={dict.ligas.schedule.deadlineClosed} />
+                <DeadlineCountdown label={dict.ligas.schedule.entriesLeft} deadline={event.entriesDeadline} closedLabel={dict.ligas.schedule.deadlineClosed} />
+              </div>
+            )}
           </div>
 
           <button

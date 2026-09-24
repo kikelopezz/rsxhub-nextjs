@@ -12,6 +12,7 @@ import { confirmAttendanceAction, cancelAttendanceAction } from '@/app/ligas/act
 import { useRouter } from 'next/navigation'
 import { EventEntryListModal } from './event-entry-list-modal'
 import { useDictionary } from '@/lib/i18n/locale-provider'
+import { DeadlineCountdown } from '@/components/deadline-countdown'
 
 interface LeagueScheduleProps {
   league: League
@@ -172,6 +173,13 @@ export function LeagueSchedule({
                         <span className="text-xs text-slate-200">{formatDateTime(ev.startsAt)}</span>
                       </div>
                     </div>
+
+                    {!isCompleted && (ev.skinsDeadline || ev.entriesDeadline) && (
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <DeadlineCountdown label={tr.skinsLeft} deadline={ev.skinsDeadline} closedLabel={tr.deadlineClosed} />
+                        <DeadlineCountdown label={tr.entriesLeft} deadline={ev.entriesDeadline} closedLabel={tr.deadlineClosed} />
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">

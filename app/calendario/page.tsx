@@ -97,6 +97,8 @@ export default async function CalendarioPage({
     qualyEndsAt: e.qualyEndsAt ?? null,
     color: e.color ?? null,
     maxDrivers: e.maxDrivers ?? null,
+    skinsDeadline: e.skinsDeadline ?? null,
+    entriesDeadline: e.entriesDeadline ?? null,
     classLimits: e.classLimits ?? null,
   }))
 

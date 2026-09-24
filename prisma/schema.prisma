@@ -250,6 +250,9 @@ model LeagueEvent {
   maxDrivers      Int?        @map("max_drivers")
   qualyCompleted  Boolean     @default(false) @map("qualy_completed")
   completedAt     DateTime?   @map("completed_at")
+  // Fechas límite configurables por ronda (null = sin límite)
+  skinsDeadline   DateTime?   @map("skins_deadline")
+  entriesDeadline DateTime?   @map("entries_deadline")
   createdAt       DateTime    @default(now()) @map("created_at")
 
   league        League                    @relation(fields: [leagueId], references: [id], onDelete: Cascade)

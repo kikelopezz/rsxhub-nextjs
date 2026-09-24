@@ -109,6 +109,8 @@ export default async function LigaDetailPage({
     classLimits: (e as any).classLimits ?? null,
     qualyCompleted: (e as any).qualyCompleted ?? false,
     completedAt: (e as any).completedAt ?? null,
+    skinsDeadline: (e as any).skinsDeadline ?? null,
+    entriesDeadline: (e as any).entriesDeadline ?? null,
   }))
 
   const serializableSession = session

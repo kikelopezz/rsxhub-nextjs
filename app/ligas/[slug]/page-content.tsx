@@ -144,6 +144,10 @@ export default function LeagueDetailPageContent({
   const [formEventDate, setFormEventDate] = useState('')
   const [formEventStartsTime, setFormEventStartsTime] = useState('20:15')
   const [formEventEndsTime, setFormEventEndsTime] = useState('22:00')
+  const [formSkinsDate, setFormSkinsDate] = useState('')
+  const [formSkinsTime, setFormSkinsTime] = useState('23:59')
+  const [formEntriesDate, setFormEntriesDate] = useState('')
+  const [formEntriesTime, setFormEntriesTime] = useState('23:59')
   const [formEventImageUrl, setFormEventImageUrl] = useState('')
   const [formEventServerLink, setFormEventServerLink] = useState('')
   const [formEventMaxDrivers, setFormEventMaxDrivers] = useState<string>('')
@@ -233,6 +237,10 @@ export default function LeagueDetailPageContent({
       setFormEventDate(formatLocalDateInput(event.startsAt))
       setFormEventStartsTime(formatLocalTimeInput(event.startsAt, '20:15'))
       setFormEventEndsTime(formatLocalTimeInput(event.endsAt, '22:00'))
+      setFormSkinsDate(formatLocalDateInput(event.skinsDeadline))
+      setFormSkinsTime(formatLocalTimeInput(event.skinsDeadline, '23:59'))
+      setFormEntriesDate(formatLocalDateInput(event.entriesDeadline))
+      setFormEntriesTime(formatLocalTimeInput(event.entriesDeadline, '23:59'))
       setFormEventImageUrl(event.circuitImageUrl || '')
       setFormEventServerLink(event.serverLink || '')
       setFormEventMaxDrivers((event as any).maxDrivers != null ? String((event as any).maxDrivers) : '')
@@ -264,6 +272,10 @@ export default function LeagueDetailPageContent({
       setFormEventDate(todayStr)
       setFormEventStartsTime('20:15')
       setFormEventEndsTime('22:00')
+      setFormSkinsDate('')
+      setFormSkinsTime('23:59')
+      setFormEntriesDate('')
+      setFormEntriesTime('23:59')
       setFormEventImageUrl('')
       setFormEventServerLink('')
       setFormEventMaxDrivers('')
@@ -299,6 +311,10 @@ export default function LeagueDetailPageContent({
       formData.set('qualyStartsAtTime', formQualyStartsTime || '19:30')
       formData.set('qualyEndsAtTime', formQualyEndsTime || '20:00')
       formData.set('maxDrivers', formEventMaxDrivers)
+      formData.set('skinsDeadlineDate', formSkinsDate)
+      formData.set('skinsDeadlineTime', formSkinsTime || '23:59')
+      formData.set('entriesDeadlineDate', formEntriesDate)
+      formData.set('entriesDeadlineTime', formEntriesTime || '23:59')
       for (const tag of classTags) {
         formData.set(`max_cars_${tag}`, formEventClassLimits[tag] || '')
       }
@@ -695,6 +711,38 @@ export default function LeagueDetailPageContent({
                         />
                       </div>
                     )}
+                  </div>
+
+                  {/* Deadlines — optional, per round */}
+                  <div className="space-y-2 border-b border-white/10 pb-3">
+                    <label className="block text-xs font-bold text-emerald-400 uppercase tracking-wide">
+                      ⏳ {trEvent.deadlinesTitle}
+                    </label>
+                    {[
+                      { label: trEvent.skinsDeadline, date: formSkinsDate, setDate: setFormSkinsDate, time: formSkinsTime, setTime: setFormSkinsTime },
+                      { label: trEvent.entriesDeadline, date: formEntriesDate, setDate: setFormEntriesDate, time: formEntriesTime, setTime: setFormEntriesTime },
+                    ].map((row) => (
+                      <div key={row.label} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto_auto]">
+                        <div>
+                          <label className="block text-[10px] text-slate-400 uppercase font-mono mb-1">{row.label}</label>
+                          <input
+                            type="date"
+                            value={row.date}
+                            onChange={(e) => row.setDate(e.target.value)}
+                            className="w-full border border-shell-line bg-black/40 px-2.5 py-1.5 text-xs text-white outline-none rounded-lg focus:border-cyan-400 font-mono"
+                          />
+                        </div>
+                        <TimeInput24 label={trEvent.deadlineTime} value={row.time} onChange={(val) => row.setTime(val)} />
+                        <button
+                          type="button"
+                          onClick={() => row.setDate('')}
+                          disabled={!row.date}
+                          className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                        >
+                          {row.date ? trEvent.deadlineClear : trEvent.deadlineNone}
+                        </button>
+                      </div>
+                    ))}
                   </div>
 
                   {/* Race Session Inputs */}

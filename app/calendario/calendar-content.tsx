@@ -55,6 +55,8 @@ type LeagueEvent = {
   qualyEndsAt?: string | null
   color?: string | null
   maxDrivers?: number | null
+  skinsDeadline?: string | null
+  entriesDeadline?: string | null
   classLimits?: Record<string, number> | null
 }
 
@@ -575,6 +577,8 @@ export default function CalendarContent({
       if (editingEvent.qualyEndsAt) formData.set('qualyEndsAt', editingEvent.qualyEndsAt)
       formData.set('color', editingEvent.color || '#00f2fe')
       if (editingEvent.maxDrivers) formData.set('maxDrivers', String(editingEvent.maxDrivers))
+      if (editingEvent.skinsDeadline) formData.set('skinsDeadlineIso', editingEvent.skinsDeadline)
+      if (editingEvent.entriesDeadline) formData.set('entriesDeadlineIso', editingEvent.entriesDeadline)
       for (const [tag, limit] of Object.entries(editingEvent.classLimits || {})) {
         formData.set(`max_cars_${tag}`, String(limit))
       }
