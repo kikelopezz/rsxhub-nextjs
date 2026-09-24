@@ -1,6 +1,6 @@
-export type Simulator = 'ac' | 'lmu'
-export type LeagueStatus = 'open' | 'ongoing' | 'finished' | 'draft'
-export type LeagueFormat = 'sprint' | 'endurance' | 'gt3' | 'prototype' | 'formula' | 'multiclass'
+export type Simulator = string
+export type LeagueStatus = 'open' | 'ongoing' | 'finished' | 'draft' | 'closed'
+export type LeagueFormat = 'sprint' | 'endurance' | 'gt3' | 'prototype' | 'formula' | 'multiclass' | 'time_attack'
 export type RegistrationStatus = 'pending' | 'approved' | 'rejected' | 'waitlist'
 export type LeagueRegistrationMode = 'individual' | 'team'
 export type PlatformRole = 'super_admin' | 'platform_admin' | 'steward' | 'user'

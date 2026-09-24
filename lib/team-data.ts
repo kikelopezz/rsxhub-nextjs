@@ -127,6 +127,7 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
           secondaryColor: t.secondaryColor,
           accentColor: t.accentColor || '#00f0ff',
           slogan: t.slogan,
+          abbreviation: t.abbreviation,
           discordUrl: t.discordUrl,
           youtubeUrl: t.youtubeUrl,
           instagramUrl: t.instagramUrl,
@@ -192,6 +193,8 @@ export type SkinReviewDTO = {
   leagueTitle: string | null
   skinUrl: string
   skinName: string | null
+  carModel: string | null
+  rejectReason: string | null
   status: 'pending' | 'approved' | 'rejected'
   createdAt: string
   reviewedAt: string | null
@@ -224,6 +227,14 @@ export async function getSkinReviewQueue(): Promise<SkinReviewDTO[]> {
     const leagues = leagueIds.length > 0 ? await db.league.findMany({ where: { id: { in: leagueIds } }, select: { id: true, title: true } }) : []
     const leagueTitleById = new Map(leagues.map((l) => [l.id, l.title]))
 
+    // Reviews created before car_model existed: fall back to the team's current car with the same dorsal.
+    const missingModelTeamIds = Array.from(new Set(rows.filter((r) => !r.carModel).map((r) => r.teamId)))
+    const cars = missingModelTeamIds.length > 0
+      ? await db.teamCar.findMany({ where: { teamId: { in: missingModelTeamIds } }, select: { teamId: true, category: true, dorsal: true, modelName: true } })
+      : []
+    const modelFor = (r: (typeof rows)[number]) =>
+      r.carModel || cars.find((c) => c.teamId === r.teamId && c.category === r.category && c.dorsal === r.dorsal && c.modelName)?.modelName || null
+
     return rows.map((r) => ({
       id: r.id,
       teamId: r.teamId,
@@ -234,6 +245,8 @@ export async function getSkinReviewQueue(): Promise<SkinReviewDTO[]> {
       leagueTitle: r.leagueId ? leagueTitleById.get(r.leagueId) || null : null,
       skinUrl: r.skinUrl,
       skinName: r.skinName,
+      carModel: modelFor(r),
+      rejectReason: r.rejectReason,
       status: r.status,
       createdAt: r.createdAt.toISOString(),
       reviewedAt: r.reviewedAt ? r.reviewedAt.toISOString() : null,

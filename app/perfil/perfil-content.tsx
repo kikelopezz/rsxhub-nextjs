@@ -34,7 +34,7 @@ type ProfileData = {
   displayName: string
   countryCode: string
   bio: string
-  mainSim: 'ac' | 'lmu'
+  mainSim: string
   avatarUrl: string | null
   steamId: string
   steamDisplayName: string

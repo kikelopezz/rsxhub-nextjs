@@ -5,6 +5,7 @@ import { getLeagues, getRegistrations, getTeamPointsOverrides } from '@/lib/plat
 import { getTeamsDashboard } from '@/lib/team-data'
 import { db } from '@/lib/db'
 import LigasPageContent from './ligas-content'
+import { getSimulators } from '@/lib/data/simulators'
 
 interface Props {
   searchParams: Promise<{
@@ -118,6 +119,7 @@ export default async function LigasPage({ searchParams }: Props) {
 
   return (
     <LigasPageContent
+      simulators={await getSimulators()}
       initialLeagues={serializableLeagues}
       registeredByLeague={registeredByLeague}
       isAdmin={isAdmin}

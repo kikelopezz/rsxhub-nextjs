@@ -63,6 +63,7 @@ type League = {
   title: string
   slug: string
   simulator?: string
+  simulatorLogoUrl?: string | null
   registrationOpen?: boolean
   accentColor?: string | null
   logoUrl?: string | null
@@ -102,10 +103,13 @@ const EVENT_TYPE_COLOR: Record<string, string> = {
 }
 
 function getEventColor(event: LeagueEvent, league?: League) {
-  return event.color || league?.accentColor || '#4ea1ff'
+  // The championship's own color wins so every race/qualy day lights up consistently
+  // (ERC = blue, ERC Next Gen = orange); the per-event color is only a fallback.
+  return league?.accentColor || event.color || '#4ea1ff'
 }
 
 function getSimLogo(league?: League) {
+  if (league?.simulatorLogoUrl) return league.simulatorLogoUrl
   return league?.simulator === 'ac' ? '/branding/ACLogo.png' : '/branding/LMULogo.png'
 }
 
@@ -159,6 +163,10 @@ function DayCell({
   const hasEvents = shownEvents.length > 0
   const hasNotes = dayNotes.length > 0
   const isCarousel = hasEvents && hasNotes
+  const glowColor = hasEvents ? getEventColor(shownEvents[0], leagueById.get(shownEvents[0].leagueId)) : null
+  const glowStyle = glowColor
+    ? { boxShadow: `inset 0 0 0 2px ${glowColor}, 0 0 20px ${hexToRgba(glowColor, 0.55)}` }
+    : undefined
 
   const [showNote, setShowNote] = useState(false)
   useEffect(() => {
@@ -214,7 +222,7 @@ function DayCell({
                 </span>
               </div>
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white p-1 shadow-sm">
-                <Image src={getSimLogo(league)} alt="" width={18} height={18} className="h-full w-full object-contain" />
+                <Image src={getSimLogo(league)} alt="" width={18} height={18} unoptimized className="h-full w-full object-contain" />
               </span>
             </div>
 
@@ -280,14 +288,14 @@ function DayCell({
 
   if (!isCarousel) {
     return (
-      <div className="group/cell relative flex min-h-[168px] flex-col border-b border-r border-white/10 last:border-r-0">
+      <div style={glowStyle} className={`group/cell relative flex min-h-[168px] flex-col border-b border-r border-white/10 last:border-r-0 ${hasEvents ? 'z-[1]' : ''}`}>
         {hasEvents ? eventFace : noteFace}
       </div>
     )
   }
 
   return (
-    <div className="group/cell relative min-h-[168px] border-b border-r border-white/10 last:border-r-0">
+    <div style={glowStyle} className="group/cell relative z-[1] min-h-[168px] border-b border-r border-white/10 last:border-r-0">
       <div className={`absolute inset-0 transition-opacity duration-700 ${showNote ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
         {eventFace}
       </div>

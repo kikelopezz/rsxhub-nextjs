@@ -3,7 +3,7 @@
 import { useState, CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Download, Users, ArrowRight, Shield } from 'lucide-react'
+import { Download, Users, Shield } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
 import { isRemoteImageOptimizable } from '@/lib/image-utils'
 
@@ -14,6 +14,7 @@ type TeamShowcaseProps = {
   primaryColor?: string | null
   accentColor?: string | null
   slogan?: string | null
+  abbreviation?: string | null
   competitionClasses?: string[]
   carSkinUrls?: string[]
   pilotNames: string[]
@@ -28,6 +29,7 @@ export function TeamShowcase({
   primaryColor,
   accentColor,
   slogan,
+  abbreviation,
   competitionClasses = [],
   carSkinUrls = [],
   pilotNames = [],
@@ -37,7 +39,7 @@ export function TeamShowcase({
   const router = useRouter()
   const [isNavigating, setIsNavigating] = useState(false)
   const accent = accentColor || primaryColor || '#1274de'
-  const initials = teamName.slice(0, 2).toUpperCase()
+  const initials = (abbreviation || '').trim().toUpperCase() || teamName.slice(0, 2).toUpperCase()
 
   // Same fallback chain as the team's own profile hero (banner → logo → a car skin) — a
   // team that only ever set a logo shouldn't show a plain gradient here while its own page
@@ -89,18 +91,12 @@ export function TeamShowcase({
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] from-10% via-[#0a0a0c]/55 via-45% to-transparent" />
-        <span className="pointer-events-none absolute -right-2 -top-7 select-none font-display-league text-[110px] leading-none text-white/10">
+        <span
+          className="pointer-events-none absolute -right-2 -top-7 select-none font-display-league leading-none text-white/10"
+          style={{ fontSize: initials.length <= 2 ? 110 : initials.length === 3 ? 84 : 64 }}
+        >
           {initials}
         </span>
-
-        {profileHref && (
-          <button
-            onClick={() => router.push(profileHref)}
-            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-black/50 text-slate-300 backdrop-blur-sm transition-colors hover:border-white/30 hover:text-white cursor-pointer"
-          >
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        )}
 
       </div>
 

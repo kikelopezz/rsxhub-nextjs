@@ -18,17 +18,22 @@ const STATUS_STYLES: Record<SkinReviewDTO['status'], { label: string; className:
 function SkinRow({ review }: { review: SkinReviewDTO }) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState<'approve' | 'reject' | null>(null)
+  const [rejecting, setRejecting] = useState(false)
+  const [reason, setReason] = useState('')
 
   const handleReview = async (action: typeof approveCarSkinAction, kind: 'approve' | 'reject') => {
     setIsSubmitting(kind)
     try {
       const formData = new FormData()
       formData.set('reviewId', review.id)
+      if (kind === 'reject') formData.set('reason', reason.trim())
       const res = await action(formData)
       if (res && !res.success) {
         alert(res.error || 'No se pudo actualizar la skin.')
         return
       }
+      setRejecting(false)
+      setReason('')
       router.refresh()
     } finally {
       setIsSubmitting(null)
@@ -38,6 +43,7 @@ function SkinRow({ review }: { review: SkinReviewDTO }) {
   const status = STATUS_STYLES[review.status]
 
   return (
+    <>
     <tr className="hover:bg-white/[0.02] transition-colors">
       <td className="flex items-center gap-3 p-3 font-bold text-white">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-shell-line bg-black/40">
@@ -54,7 +60,8 @@ function SkinRow({ review }: { review: SkinReviewDTO }) {
           <ClassBadge classTag={review.category} className="text-[10px] font-black" />
           <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">#{review.dorsal}</span>
         </div>
-        {review.leagueTitle && <p className="mt-1 text-[10px] text-slate-500">{review.leagueTitle}</p>}
+        <p className="mt-1 text-[11px] font-bold text-white">{review.carModel || <span className="font-normal italic text-slate-500">Coche sin indicar</span>}</p>
+        {review.leagueTitle && <p className="mt-0.5 text-[10px] text-slate-500">{review.leagueTitle}</p>}
       </td>
       <td className="p-3">
         <a
@@ -89,7 +96,7 @@ function SkinRow({ review }: { review: SkinReviewDTO }) {
             </button>
             <button
               type="button"
-              onClick={() => handleReview(rejectCarSkinAction, 'reject')}
+              onClick={() => setRejecting((v) => !v)}
               disabled={isSubmitting !== null}
               title="Rechazar skin"
               className="rounded-md border border-rose-500/40 bg-rose-950/30 p-1.5 text-rose-400 transition-colors hover:bg-rose-500/20 disabled:opacity-50 cursor-pointer"
@@ -104,6 +111,53 @@ function SkinRow({ review }: { review: SkinReviewDTO }) {
         )}
       </td>
     </tr>
+    {review.status === 'pending' && rejecting && (
+      <tr className="bg-rose-950/10">
+        <td colSpan={6} className="p-3">
+          <div className="space-y-2 rounded-lg border border-rose-500/30 bg-black/40 p-3">
+            <label className="block text-[10px] font-black uppercase tracking-wider text-rose-300">
+              Motivo del rechazo (lo verá el equipo)
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="Ej: la skin no corresponde al BMW M4 GT3, falta el número de coche, textura corrupta…"
+              className="w-full rounded-lg border border-white/10 bg-black/50 px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-rose-400/60"
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setRejecting(false); setReason('') }}
+                className="rounded-lg border border-white/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => handleReview(rejectCarSkinAction, 'reject')}
+                disabled={isSubmitting !== null || reason.trim().length === 0}
+                className="rounded-lg border border-rose-500/50 bg-rose-600/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-rose-500 disabled:opacity-40 cursor-pointer"
+              >
+                Confirmar rechazo
+              </button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    )}
+    {review.status === 'rejected' && review.rejectReason && (
+      <tr>
+        <td colSpan={6} className="px-3 pb-3">
+          <div className="rounded-lg border border-rose-500/30 bg-rose-950/20 px-3 py-2 text-[11px] text-rose-200">
+            <span className="mr-1.5 font-black uppercase tracking-wider text-rose-300">Motivo:</span>
+            {review.rejectReason}
+          </div>
+        </td>
+      </tr>
+    )}
+    </>
   )
 }
 

@@ -29,8 +29,10 @@ export function LeagueBanner({
     ? 'Inscripciones abiertas'
     : league.status === 'finished' || league.status === 'completed'
       ? 'Finalizada'
-      : 'En curso'
-  const statusColor = league.registrationOpen ? '#22c55e' : league.status === 'finished' ? '#8b96a8' : '#4ea1ff'
+      : league.status === 'closed'
+        ? 'Cerrada'
+        : 'En curso'
+  const statusColor = league.registrationOpen ? '#22c55e' : league.status === 'finished' || league.status === 'closed' ? '#8b96a8' : '#4ea1ff'
 
   return (
     <section
@@ -63,8 +65,9 @@ export function LeagueBanner({
             up slightly from the card version since the banner has more room to spare. */}
         <span className="absolute right-3 top-3 z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-white p-2 shadow-md">
           <Image
-            src={league.simulator === 'ac' ? '/branding/ACLogo.png' : '/branding/LMULogo.png'}
-            alt={league.simulator}
+            src={league.simulatorLogoUrl || (league.simulator === 'ac' ? '/branding/ACLogo.png' : '/branding/LMULogo.png')}
+            alt={league.simulatorName || league.simulator}
+            unoptimized
             width={44}
             height={44}
             className="h-full w-full object-contain"
@@ -86,7 +89,7 @@ export function LeagueBanner({
                 {statusLabel}
               </span>
               <span className="font-mono-data rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                {simulatorLabel(league.simulator)}
+                {league.simulatorName || simulatorLabel(league.simulator)}
               </span>
               <span className="font-mono-data rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {league.format}

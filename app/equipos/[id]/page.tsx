@@ -178,6 +178,7 @@ export default async function TeamProfilePage({
         <TeamDriversSection
           team={clientTeam}
           canManage={canManage}
+          currentUserId={session?.userId ?? null}
           teamPilots={teamPilots}
           pendingApplications={pendingApplications}
           inviteCandidates={inviteCandidates}

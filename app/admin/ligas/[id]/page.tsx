@@ -23,6 +23,7 @@ import {
   updateRegistrationStatus,
   updateTeamRegistrationStatus,
 } from '../../actions'
+import { getSimulators } from '@/lib/data/simulators'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
@@ -96,7 +97,7 @@ export default async function AdminLeaguePage({
 
   if (!canManage && !canReview) redirect('/admin')
 
-  const leagues = await getLeagues()
+  const [leagues, simulators] = await Promise.all([getLeagues(), getSimulators()])
   const league = leagues.find((item) => item.id === id)
   if (!league) notFound()
 
@@ -195,8 +196,9 @@ export default async function AdminLeaguePage({
             <input name="title" defaultValue={league.title} placeholder={t.name} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg" />
             <input name="slug" defaultValue={league.slug} placeholder={t.slug} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg" />
             <select name="simulator" defaultValue={league.simulator} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg">
-              <option value="ac">Assetto Corsa</option>
-              <option value="lmu">Le Mans Ultimate</option>
+              {simulators.map((s) => (
+                <option key={s.key} value={s.key}>{s.name}</option>
+              ))}
             </select>
             <select name="format" defaultValue={league.format} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg">
               <option value="sprint">Sprint</option>
@@ -205,6 +207,7 @@ export default async function AdminLeaguePage({
               <option value="prototype">Prototype</option>
               <option value="formula">Formula</option>
               <option value="multiclass">Multiclass</option>
+              <option value="time_attack">Time Attack</option>
             </select>
             <input name="shortDescription" defaultValue={league.shortDescription} placeholder={t.shortDescription} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none md:col-span-2 rounded-lg" />
             <input name="bannerUrl" defaultValue={league.bannerUrl || ''} placeholder={t.bannerUrl} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none md:col-span-2 rounded-lg" />
@@ -237,6 +240,7 @@ export default async function AdminLeaguePage({
               <option value="draft">{t.statusDraft}</option>
               <option value="open">{t.statusOpen}</option>
               <option value="ongoing">{t.statusOngoing}</option>
+              <option value="closed">{t.statusClosed}</option>
               <option value="finished">{t.statusFinished}</option>
             </select>
             <label className="flex items-center gap-2 border border-shell-line bg-black/20 px-3 py-2 text-xs text-slate-200 rounded-lg"><input type="checkbox" name="featured" defaultChecked={Boolean(league.featured)} /> {t.featured}</label>

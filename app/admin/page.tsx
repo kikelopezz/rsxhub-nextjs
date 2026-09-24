@@ -24,8 +24,10 @@ import {
   resetDatabaseAction,
   updateUserRoleAction,
   deleteUserAccountAction,
+  updateDriverNameAction,
 } from './actions'
 import { deleteTeamAction } from '@/app/equipos/actions'
+import { getSimulators } from '@/lib/data/simulators'
 import { AdminLeaguesTab } from './components/admin-leagues-tab'
 import { AdminTeamsTab } from './components/admin-teams-tab'
 import { AdminCatalogTab } from './components/admin-catalog-tab'
@@ -368,6 +370,7 @@ export default async function AdminPage({
       {/* TAB CONTENT: LEAGUES */}
       {activeTab === 'leagues' && (
         <AdminLeaguesTab
+          simulators={await getSimulators()}
           visibleLeagues={visibleLeagues}
           visibleRegistrations={visibleRegistrations}
           visibleEvents={visibleEvents}
@@ -419,9 +422,23 @@ export default async function AdminPage({
                             <User className="h-4 w-4 text-cyan-400" />
                           )}
                         </div>
-                        <div className="flex flex-col">
-                          <span className="truncate max-w-[200px] text-white font-bold">{driver.displayName}</span>
-                        </div>
+                        <form action={updateDriverNameAction} className="flex items-center gap-1.5">
+                          <input type="hidden" name="targetUserId" value={driver.userId} />
+                          <input
+                            name="displayName"
+                            defaultValue={driver.displayName}
+                            maxLength={60}
+                            aria-label="Nombre del piloto"
+                            className="w-[170px] rounded-lg border border-transparent bg-transparent px-2 py-1 text-xs font-bold text-white outline-none hover:border-shell-line focus:border-cyan-400/60 focus:bg-black/40"
+                          />
+                          <button
+                            type="submit"
+                            title="Guardar nombre"
+                            className="border border-white/20 bg-white/5 hover:bg-[#1274de] hover:border-[#1274de] px-2 py-1 text-[9px] uppercase font-black text-white transition-colors cursor-pointer"
+                          >
+                            {t.save}
+                          </button>
+                        </form>
                       </td>
                       <td className="p-3 text-slate-300 font-mono text-xs">{driver.steamId || t.unlinked}</td>
                       <td className="p-3">

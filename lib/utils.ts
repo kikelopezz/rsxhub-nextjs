@@ -94,7 +94,9 @@ export function utcToZonedDatetimeLocal(date: Date | string, timeZone: string = 
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`
 }
 
-export function simulatorLabel(sim: string) {
+export function simulatorLabel(sim: string, simulators?: Array<{ key: string; name: string }>) {
+  const found = simulators?.find((s) => s.key === sim)
+  if (found) return found.name
   if (sim === 'ac') return 'Assetto Corsa'
   if (sim === 'lmu') return 'Le Mans Ultimate'
   return sim

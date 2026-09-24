@@ -170,15 +170,19 @@ export async function notifySkinReviewed({
   teamName,
   category,
   dorsal,
+  carModel,
   status,
+  reason,
 }: {
   userId: string
   teamName: string
   category: string
   dorsal: string
+  carModel?: string | null
   status: 'approved' | 'rejected'
+  reason?: string
 }) {
-  const carLabel = `${category} #${dorsal}`
+  const carLabel = `${carModel ? `${carModel} ` : ''}${category} #${dorsal}`
   if (status === 'approved') {
     await createNotification({
       userId,
@@ -190,7 +194,7 @@ export async function notifySkinReviewed({
     await createNotification({
       userId,
       title: 'Skin Rejected',
-      message: `The skin submitted for ${teamName}'s ${carLabel} was rejected. Please upload a corrected file.`,
+      message: `The skin submitted for ${teamName}'s ${carLabel} was rejected. Please upload a corrected file.${reason ? ` Reason: ${reason}` : ''}`,
       link: '/equipos',
     })
   }

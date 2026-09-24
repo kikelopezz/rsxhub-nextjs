@@ -25,7 +25,7 @@ export type Listing = {
   league_title?: string | null
   title: string
   description: string
-  main_sim: 'ac' | 'lmu'
+  main_sim: string
   class_tag: string
   contact_info: string
   created_at: string

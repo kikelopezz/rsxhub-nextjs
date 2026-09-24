@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Eye, EyeOff, Copy, Check } from 'lucide-react'
+import { CopyVehicleDriverIdsButton } from '@/components/copy-vehicle-driver-ids-button'
 
 export type CarSteamIdEntry = {
   name: string
@@ -9,19 +10,27 @@ export type CarSteamIdEntry = {
   reserve?: boolean
 }
 
-export function ViewCarSteamIds({
+/**
+ * Action buttons for one car card: [Ver Steam IDs] [Copy IDs] + any extra buttons (children).
+ * Renders as a fragment so the expandable list can take its own full-width row inside the
+ * parent's flex-wrap header. Admin-only buttons: entries are empty for everyone else, so
+ * no Steam ID ever reaches a non-admin's browser.
+ */
+export function CarSteamIdControls({
   entries,
+  driverSteamIds,
   labels,
   className = '',
+  children,
 }: {
   entries: CarSteamIdEntry[]
+  driverSteamIds: string[]
   labels: { show: string; hide: string; reserve: string; copied: string }
   className?: string
+  children?: ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
-
-  if (entries.length === 0) return null
 
   const copy = (steamId: string) => {
     navigator.clipboard.writeText(steamId)
@@ -29,21 +38,29 @@ export function ViewCarSteamIds({
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  return (
-    <div className="w-full">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1.5 border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-          className || 'border-cyan-500/40 bg-cyan-950/40 hover:bg-cyan-500/20 text-cyan-300'
-        }`}
-      >
-        {open ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-        <span>{open ? labels.hide : labels.show}</span>
-      </button>
+  const showAdminButtons = entries.length > 0
 
-      {open && (
-        <ul className="mt-2 space-y-1">
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        {showAdminButtons && (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className={`flex items-center gap-1.5 border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+              className || 'border-cyan-500/40 bg-cyan-950/40 hover:bg-cyan-500/20 text-cyan-300'
+            }`}
+          >
+            {open ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            <span>{open ? labels.hide : labels.show}</span>
+          </button>
+        )}
+        {showAdminButtons && <CopyVehicleDriverIdsButton driverSteamIds={driverSteamIds} className={className} />}
+        {children}
+      </div>
+
+      {showAdminButtons && open && (
+        <ul className="w-full space-y-1">
           {entries.map((e) => (
             <li
               key={`${e.steamId}-${e.reserve ? 'r' : 'd'}`}
@@ -79,6 +96,6 @@ export function ViewCarSteamIds({
           ))}
         </ul>
       )}
-    </div>
+    </>
   )
 }

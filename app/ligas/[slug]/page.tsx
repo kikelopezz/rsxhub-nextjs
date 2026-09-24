@@ -3,6 +3,7 @@ import { getCurrentUser, getAdminAccessContext, canStewardLeague } from '@/lib/a
 import { getLeagueBySlug, getLeagueCars, getLeagueEvents, getRegistrations, getEventConfirmations, getTeamPointsOverrides, getCarPhotoOverrides } from '@/lib/platform-data'
 import { getTeamsDashboard, getSkinReviewStatusByLeague } from '@/lib/team-data'
 import LeagueDetailPageContent from './page-content'
+import { getSimulators, simulatorName, simulatorLogo } from '@/lib/data/simulators'
 
 export const revalidate = 0
 export const dynamic = 'force-dynamic'
@@ -59,12 +60,16 @@ export default async function LigaDetailPage({
     })
   }
 
+  const simulators = await getSimulators()
+
   // Map to serializable structures
   const serializableLeague = {
     id: league.id,
     title: league.title,
     slug: league.slug,
     simulator: league.simulator,
+    simulatorName: simulatorName(league.simulator, simulators),
+    simulatorLogoUrl: simulatorLogo(league.simulator, simulators),
     format: league.format,
     classTags: league.classTags || [],
     startsAt: league.startsAt,
@@ -165,6 +170,7 @@ export default async function LigaDetailPage({
 
   return (
     <LeagueDetailPageContent
+      simulators={simulators}
       league={serializableLeague}
       initialEvents={serializableEvents}
       isAdmin={isAdmin}

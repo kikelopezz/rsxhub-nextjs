@@ -11,7 +11,7 @@ interface DefaultOnboardingData {
   displayName: string
   avatarUrl: string | null
   countryCode: string
-  mainSim: 'ac' | 'lmu'
+  mainSim: string
   preferredCategories: string[]
 }
 

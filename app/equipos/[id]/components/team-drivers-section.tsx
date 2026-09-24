@@ -2,7 +2,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { CenterModal } from '@/components/center-modal'
 import { MessageSquare, Users, UserPlus } from 'lucide-react'
-import { updateTeamMemberRole, updateTeamMemberTags, removeTeamMember, invitePilot } from '@/app/equipos/actions/team-membership'
+import { updateTeamMemberRole, updateTeamMemberTags, removeTeamMember, invitePilot, leaveTeam } from '@/app/equipos/actions/team-membership'
+import { ConfirmForm } from '@/components/confirm-form'
 import { acceptDriverApplicationAction, declineDriverApplicationAction } from '@/app/equipos/actions/team-market'
 import { TEAM_ROLE_TAGS, type TeamPilot, type PendingApplication } from '../team-utils'
 import { InvitePilotPicker } from './invite-pilot-picker'
@@ -12,6 +13,7 @@ import { getDictionary } from '@/lib/i18n/get-dictionary'
 type TeamDriversSectionProps = {
   team: any
   canManage: boolean
+  currentUserId?: string | null
   teamPilots: TeamPilot[]
   pendingApplications: PendingApplication[]
   inviteCandidates: Array<{ userId: string; label: string }>
@@ -22,6 +24,7 @@ type TeamDriversSectionProps = {
 export async function TeamDriversSection({
   team,
   canManage,
+  currentUserId = null,
   teamPilots,
   pendingApplications,
   inviteCandidates,
@@ -410,6 +413,15 @@ export async function TeamDriversSection({
           ))
         )}
       </div>
+
+      {currentUserId && team.members.some((m: any) => m.userId === currentUserId && m.role !== 'owner') && (
+        <ConfirmForm action={leaveTeam} confirmMessage={t.leaveTeamConfirm} className="mt-4 flex justify-end">
+          <input type="hidden" name="teamId" value={team.id} />
+          <button className="rounded-lg border border-rose-500/40 bg-rose-950/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-rose-300 transition-colors hover:bg-rose-500/20 cursor-pointer">
+            {t.leaveTeam}
+          </button>
+        </ConfirmForm>
+      )}
     </article>
   )
 }

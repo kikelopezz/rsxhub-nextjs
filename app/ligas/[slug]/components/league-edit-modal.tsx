@@ -7,12 +7,13 @@ import { ImagePicker } from '@/components/image-picker'
 import { updateLeagueDetailsAction, deleteLeagueAction } from '@/app/ligas/actions'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 type LeagueEditModalProps = {
+  simulators?: Array<{ key: string; name: string; logoUrl: string | null }>
   league: any
   isOpen: boolean
   onClose: () => void
 }
 
-export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProps) {
+export function LeagueEditModal({ simulators = [], league, isOpen, onClose }: LeagueEditModalProps) {
   const router = useRouter()
   const dict = useDictionary()
   const t = dict.ligas.createModal
@@ -143,7 +144,10 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                   onChange={(e) => setFormSimulator(e.target.value as any)}
                   className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-semibold"
                 >
-                  <option value="ac">Assetto Corsa</option>
+                  {simulators.length === 0 && <option value={formSimulator}>{formSimulator}</option>}
+                  {simulators.map((s) => (
+                    <option key={s.key} value={s.key}>{s.name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -156,14 +160,17 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                 >
                   <option value="endurance">{t.formatEndurance}</option>
                   <option value="sprint">{t.formatSprint}</option>
-                  <option value="championship">{t.formatChampionship}</option>
+                  <option value="time_attack">{t.formatTimeAttack}</option>
+                  {!['endurance', 'sprint', 'time_attack'].includes(formFormat) && (
+                    <option value={formFormat}>{formFormat}</option>
+                  )}
                 </select>
               </div>
 
               <div>
                 <label className="mb-1 block text-xs text-slate-300 uppercase font-semibold">{t.leagueStatus}</label>
                 <select
-                  value={formStatus === 'open' ? 'open' : 'completed'}
+                  value={formStatus}
                   onChange={(e) => {
                     const val = e.target.value
                     setFormStatus(val as any)
@@ -172,7 +179,11 @@ export function LeagueEditModal({ league, isOpen, onClose }: LeagueEditModalProp
                   className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-semibold"
                 >
                   <option value="open">{t.statusOpenOption}</option>
-                  <option value="completed">{t.statusClosedOption}</option>
+                  <option value="ongoing">{t.statusOngoingOption}</option>
+                  <option value="closed">{t.statusClosedOption}</option>
+                  {!['open', 'ongoing', 'closed'].includes(formStatus) && (
+                    <option value={formStatus}>{formStatus}</option>
+                  )}
                 </select>
               </div>
             </div>

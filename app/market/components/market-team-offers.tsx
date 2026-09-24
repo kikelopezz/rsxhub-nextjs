@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import { Trash, MessageSquare, Users } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
@@ -88,7 +89,13 @@ export function MarketTeamOffers({
                 </div>
                 <div className="min-w-0 flex-1">
                   <h4 className="text-sm font-bold text-white truncate">
-                    {item.team_name || tr.teamOfferFallback}
+                    {item.team_id ? (
+                      <Link href={`/equipos/${item.team_id}`} className="transition-colors hover:text-cyan-400 hover:underline">
+                        {item.team_name || tr.teamOfferFallback}
+                      </Link>
+                    ) : (
+                      item.team_name || tr.teamOfferFallback
+                    )}
                   </h4>
                   <span
                     className="inline-flex mt-0.5 font-mono-data text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
@@ -122,7 +129,10 @@ export function MarketTeamOffers({
                   />
                 </div>
                 <span className="truncate text-[10px] text-slate-500">
-                  Publicado por <span className="font-semibold text-slate-400">{item.user_name}</span>
+                  Publicado por{' '}
+                  <Link href={`/perfil/${item.user_id}`} className="font-semibold text-slate-400 transition-colors hover:text-cyan-400 hover:underline">
+                    {item.user_name}
+                  </Link>
                 </span>
               </div>
 

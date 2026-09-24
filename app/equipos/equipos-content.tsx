@@ -165,6 +165,7 @@ export default function EquiposContent({
                 primaryColor={team.primaryColor}
                 accentColor={team.accentColor}
                 slogan={team.slogan}
+                abbreviation={(team as any).abbreviation}
                 competitionClasses={team.classTags && team.classTags.length > 0 ? team.classTags : ['UNCLASSIFIED']}
                 carSkinUrls={team.carSkinUrls}
                 pilotNames={pilotNames}
@@ -291,6 +292,20 @@ export default function EquiposContent({
                         placeholder={trModal.sloganPlaceholder}
                         maxLength={85}
                         className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-accent rounded-lg transition-colors"
+                      />
+                    </div>
+
+                    {/* Abbreviation */}
+                    <div>
+                      <label className="mb-1 block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                        {trModal.abbreviation}
+                      </label>
+                      <input
+                        type="text"
+                        name="abbreviation"
+                        placeholder={trModal.abbreviationPlaceholder}
+                        maxLength={4}
+                        className="w-full border border-shell-line bg-black/40 px-3 py-2 text-xs uppercase text-white placeholder-slate-600 outline-none focus:border-accent rounded-lg transition-colors"
                       />
                     </div>
 

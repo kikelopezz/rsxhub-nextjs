@@ -6,9 +6,10 @@ import { invalidateCache } from '@/lib/ttl-cache'
 import { notifySkinReviewed } from '@/lib/notifications-data'
 import { guardPlatformAdmin } from './admin-league'
 
-async function reviewCarSkin(reviewId: string, status: 'approved' | 'rejected') {
+async function reviewCarSkin(reviewId: string, status: 'approved' | 'rejected', reason = '') {
   const session = await guardPlatformAdmin()
   if (!reviewId) return { success: false, error: 'Missing skin review id.' }
+  if (status === 'rejected' && !reason) return { success: false, error: 'Indica el motivo del rechazo.' }
 
   try {
     const review = await db.carSkinReview.findUnique({ where: { id: reviewId }, include: { team: true } })
@@ -16,7 +17,7 @@ async function reviewCarSkin(reviewId: string, status: 'approved' | 'rejected') 
 
     await db.carSkinReview.update({
       where: { id: reviewId },
-      data: { status, reviewedBy: session.userId, reviewedAt: new Date() },
+      data: { status, reviewedBy: session.userId, reviewedAt: new Date(), rejectReason: status === 'rejected' ? reason : null },
     })
 
     await notifySkinReviewed({
@@ -24,7 +25,9 @@ async function reviewCarSkin(reviewId: string, status: 'approved' | 'rejected') 
       teamName: review.team.name,
       category: review.category,
       dorsal: review.dorsal,
+      carModel: review.carModel,
       status,
+      reason,
     })
 
     invalidateCache(['teams_dashboard'])
@@ -42,5 +45,5 @@ export async function approveCarSkinAction(formData: FormData) {
 }
 
 export async function rejectCarSkinAction(formData: FormData) {
-  return reviewCarSkin(String(formData.get('reviewId') || ''), 'rejected')
+  return reviewCarSkin(String(formData.get('reviewId') || ''), 'rejected', String(formData.get('reason') || '').trim().slice(0, 500))
 }

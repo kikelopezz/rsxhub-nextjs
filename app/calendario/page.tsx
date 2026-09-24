@@ -5,6 +5,7 @@ import { getLeagueEvents, getLeagues } from '@/lib/platform-data'
 import { db } from '@/lib/db'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
 import CalendarContent from './calendar-content'
+import { getSimulators, simulatorLogo } from '@/lib/data/simulators'
 
 const getCalendarNotes = () =>
   fetchWithTTLCache('calendar_notes', () => db.calendarNote.findMany({ orderBy: { date: 'asc' } }), 30)
@@ -57,7 +58,7 @@ export default async function CalendarioPage({
   const view: ViewMode = params.view === 'programme' ? 'programme' : 'month'
   const anchorDate = parseDateInput(params.date)
 
-  const [events, leagues, notes] = await Promise.all([getLeagueEvents(), getLeagues(), getCalendarNotes()])
+  const [events, leagues, notes, simulators] = await Promise.all([getLeagueEvents(), getLeagues(), getCalendarNotes(), getSimulators()])
 
   const monthStart = startOfMonthUTC(anchorDate)
   const monthEnd = endOfMonthUTC(anchorDate)
@@ -110,6 +111,7 @@ export default async function CalendarioPage({
     title: l.title,
     slug: l.slug,
     simulator: l.simulator,
+    simulatorLogoUrl: simulatorLogo(l.simulator, simulators),
     accentColor: (l as any).accentColor || null,
     logoUrl: (l as any).logoUrl || null,
   }))

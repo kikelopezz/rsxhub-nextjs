@@ -1,22 +1,27 @@
 import React from 'react'
 import Image from 'next/image'
 import { simulatorLabel } from '@/lib/utils'
+import { ImagePicker } from '@/components/image-picker'
 import { DeleteLeagueButton } from '@/components/delete-league-button'
 import {
   quickUpdateLeagueStatusAction,
   quickToggleLeagueFeaturedAction,
   deleteLeagueAction,
+  createSimulatorAction,
+  updateSimulatorAction,
+  deleteSimulatorAction,
 } from '../actions'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
 type AdminLeaguesTabProps = {
+  simulators: Array<{ key: string; name: string; logoUrl: string | null }>
   visibleLeagues: any[]
   visibleRegistrations: any[]
   visibleEvents: any[]
 }
 
-export async function AdminLeaguesTab({ visibleLeagues, visibleRegistrations, visibleEvents }: AdminLeaguesTabProps) {
+export async function AdminLeaguesTab({ simulators, visibleLeagues, visibleRegistrations, visibleEvents }: AdminLeaguesTabProps) {
   const t = getDictionary(await getLocale()).admin.leaguesTab
   return (
     <div className="space-y-6">
@@ -68,7 +73,7 @@ export async function AdminLeaguesTab({ visibleLeagues, visibleRegistrations, vi
                         </div>
                         <span className="truncate max-w-[180px]" title={league.title}>{league.title}</span>
                       </td>
-                      <td className="p-3 text-slate-400 font-semibold">{simulatorLabel(league.simulator)}</td>
+                      <td className="p-3 text-slate-400 font-semibold">{simulatorLabel(league.simulator, simulators)}</td>
                       <td className="p-3">
                         <form action={quickUpdateLeagueStatusAction} className="flex items-center gap-1.5">
                           <input type="hidden" name="leagueId" value={league.id} />
@@ -80,6 +85,7 @@ export async function AdminLeaguesTab({ visibleLeagues, visibleRegistrations, vi
                             <option value="draft">{t.statusDraft}</option>
                             <option value="open">{t.statusOpen}</option>
                             <option value="ongoing">{t.statusOngoing}</option>
+                            <option value="closed">{t.statusClosed}</option>
                             <option value="finished">{t.statusFinished}</option>
                           </select>
                           <button type="submit" className="border border-white/20 bg-white/5 hover:bg-[#1274de] hover:border-[#1274de] px-2 py-1 text-[9px] uppercase font-black text-white transition-colors cursor-pointer">
@@ -116,6 +122,54 @@ export async function AdminLeaguesTab({ visibleLeagues, visibleRegistrations, vi
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4">
+        <div className="border-b border-shell-line pb-3">
+          <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">Simuladores</h2>
+          <p className="text-xs text-slate-400">
+            Los simuladores disponibles al crear un campeonato. El logo de cada uno aparece arriba a la derecha dentro del campeonato y en el calendario.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          {simulators.map((sim) => (
+            <div key={sim.key} className="space-y-2 rounded-xl border border-white/10 bg-black/30 p-3">
+              <form action={updateSimulatorAction} className="space-y-2">
+                <input type="hidden" name="key" value={sim.key} />
+                <input
+                  name="name"
+                  defaultValue={sim.name}
+                  className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm font-bold text-white outline-none"
+                />
+                <ImagePicker name="logoUrl" defaultValue={sim.logoUrl || ''} label="Logo del juego" entityName={sim.name} square hideGallery />
+                <button type="submit" className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-[#1274de] cursor-pointer">
+                  {t.save}
+                </button>
+              </form>
+              <form action={deleteSimulatorAction}>
+                <input type="hidden" name="key" value={sim.key} />
+                <button type="submit" className="text-[10px] font-bold uppercase tracking-wider text-rose-400 hover:text-rose-300 cursor-pointer">
+                  Eliminar (solo si ningún campeonato lo usa)
+                </button>
+              </form>
+            </div>
+          ))}
+
+          <form action={createSimulatorAction} className="space-y-2 rounded-xl border border-dashed border-[#4ea1ff]/40 bg-[#4ea1ff]/5 p-3">
+            <p className="text-xs font-black uppercase tracking-wider text-[#4ea1ff]">Añadir simulador</p>
+            <input
+              name="name"
+              required
+              placeholder="Ej: rFactor 2, Gran Turismo 7…"
+              className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+            />
+            <ImagePicker name="logoUrl" label="Logo del juego" entityName="simulador" square hideGallery />
+            <button type="submit" className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer">
+              Añadir
+            </button>
+          </form>
         </div>
       </section>
     </div>

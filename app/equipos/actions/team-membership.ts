@@ -103,6 +103,43 @@ export async function removeTeamMember(formData: FormData) {
   redirect(`${redirectTo}?memberRemoved=1`)
 }
 
+// A driver leaving on their own (e.g. moving to another team) — same cleanup as being removed
+// by a manager, but only ever for the signed-in user, and never for the team's owner.
+export async function leaveTeam(formData: FormData) {
+  const session = await guardSession()
+  const teamId = String(formData.get('teamId') || '')
+  if (!teamId) redirect('/equipos?error=member-required')
+
+  const team = await db.team.findUnique({ where: { id: teamId } })
+  if (!team) redirect('/equipos?error=remove-failed')
+  if (team.ownerUserId === session.userId) redirect(`/equipos/${teamId}?error=owner-protected`)
+
+  const member = await db.teamMember.findUnique({ where: { teamId_userId: { teamId, userId: session.userId } } })
+  if (!member) redirect(`/equipos/${teamId}?error=forbidden`)
+
+  await db.$transaction([
+    db.teamMember.deleteMany({ where: { teamId, userId: session.userId } }),
+    db.leagueRegistration.deleteMany({ where: { teamId, userId: session.userId } }),
+    db.teamCarDriver.deleteMany({ where: { userId: session.userId, car: { teamId } } }),
+    db.marketApplication.deleteMany({ where: { teamId, userId: session.userId } }),
+  ])
+
+  if (team.ownerUserId) {
+    await createNotification({
+      userId: team.ownerUserId,
+      title: 'Driver Departure & Vehicle Update',
+      message: `Driver ${member.displayName || 'Driver'} has left team ${team.name}.`,
+      link: `/equipos/${teamId}`,
+    })
+  }
+
+  invalidateCache(['teams_dashboard', 'platform_leagues'])
+  revalidatePath('/equipos')
+  revalidatePath(`/equipos/${teamId}`)
+  revalidatePath('/ligas')
+  redirect('/equipos')
+}
+
 export async function updateTeamMemberRole(formData: FormData) {
   const session = await guardSession()
   const redirectTo = safeRedirectPath(formData.get('redirectTo'))

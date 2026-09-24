@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Plus, X, Send, Shield, User, Check, AlertCircle, MessageSquare, Trash2 } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 import {
   createMarketListing,
   deleteMarketListing,
@@ -676,7 +677,15 @@ export default function MarketPageContent({
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-white">{listing.team_name || 'Equipo'}</p>
+                    <p className="truncate text-sm font-bold text-white">
+                      {listing.team_id ? (
+                        <Link href={`/equipos/${listing.team_id}`} className="transition-colors hover:text-cyan-400 hover:underline">
+                          {listing.team_name || 'Equipo'}
+                        </Link>
+                      ) : (
+                        listing.team_name || 'Equipo'
+                      )}
+                    </p>
                     <p className="text-[10px] uppercase tracking-wider text-slate-500">Equipo que publica</p>
                   </div>
                 </div>
@@ -694,7 +703,11 @@ export default function MarketPageContent({
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-bold text-white">{listing.user_name}</p>
+                  <p className="truncate text-xs font-bold text-white">
+                    <Link href={`/perfil/${listing.user_id}`} className="transition-colors hover:text-cyan-400 hover:underline">
+                      {listing.user_name}
+                    </Link>
+                  </p>
                   <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500">
                     {flagUrl && (
                       <span className="relative h-2.5 w-3.5 shrink-0 overflow-hidden rounded-sm">

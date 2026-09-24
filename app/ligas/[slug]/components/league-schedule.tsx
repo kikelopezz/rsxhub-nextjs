@@ -390,13 +390,13 @@ export function LeagueSchedule({
                             return (
                               <div
                                 key={`${tag}_${dorsalDisplay}_${carIdx}`}
-                                className={`flex items-center justify-between gap-2 border px-3 py-1.5 transition-colors ${
+                                className={`flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border px-3 py-1.5 transition-colors ${
                                   !hasDrivers
                                     ? 'bg-black/20 border-slate-800/40 opacity-75'
                                     : 'bg-black/40 border-shell-line/30'
                                 }`}
                               >
-                                <div className="flex items-center gap-2">
+                                <div className="flex min-w-0 flex-wrap items-center gap-2">
                                   <ClassBadge classTag={tag} className="text-[9px]" />
                                   <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">#{dorsalDisplay}</span>
                                   {!hasDrivers && (
@@ -411,7 +411,7 @@ export function LeagueSchedule({
                                     type="button"
                                     disabled
                                     title={tr.cannotConfirmTitle}
-                                    className="px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border bg-slate-800/80 border-slate-700/60 text-slate-400/70 cursor-not-allowed flex items-center gap-1"
+                                    className="max-w-full shrink-0 whitespace-nowrap px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border bg-slate-800/80 border-slate-700/60 text-slate-400/70 cursor-not-allowed flex items-center gap-1"
                                   >
                                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
                                     {tr.noDriversButton}
@@ -474,7 +474,7 @@ export function LeagueSchedule({
                                       }
                                     }}
                                     disabled={isGridFull}
-                                    className={`px-2 py-1 text-[10px] font-bold uppercase transition-colors rounded-lg border ${
+                                    className={`max-w-full shrink-0 whitespace-nowrap px-2 py-1 text-[10px] font-bold uppercase transition-colors rounded-lg border ${
                                       isConfirmed
                                         ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
                                         : isGridFull

@@ -49,7 +49,7 @@ export async function TeamBannerStats({
   })()
 
   const accentHex = team.accentColor || team.primaryColor || '#1274de'
-  const initials = String(team.name || '').slice(0, 2).toUpperCase()
+  const initials = String(team.abbreviation || '').trim().toUpperCase() || String(team.name || '').slice(0, 2).toUpperCase()
 
   return (
     <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0c] shadow-[0_16px_40px_rgba(0,0,0,0.45)]">
@@ -83,7 +83,10 @@ export async function TeamBannerStats({
           </>
         )}
         {!heroImage && (
-          <span className="pointer-events-none absolute right-[2%] top-1/2 -translate-y-1/2 select-none font-display-league text-[230px] leading-none text-white/[0.06]">
+          <span
+            className="pointer-events-none absolute right-[2%] top-1/2 -translate-y-1/2 select-none font-display-league leading-none text-white/[0.06]"
+            style={{ fontSize: initials.length <= 2 ? 230 : initials.length === 3 ? 180 : 140 }}
+          >
             {initials}
           </span>
         )}
@@ -141,6 +144,21 @@ export async function TeamBannerStats({
                     placeholder={t.sloganPlaceholder}
                     maxLength={85}
                     className="w-full border border-shell-line bg-black/40 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-white/30 rounded-lg transition-colors text-left"
+                  />
+                </div>
+
+                {/* Abbreviation */}
+                <div>
+                  <label className="mb-1 block text-xs text-slate-355 uppercase tracking-wider font-semibold text-left font-sans">
+                    {t.abbreviation}
+                  </label>
+                  <input
+                    type="text"
+                    name="abbreviation"
+                    defaultValue={team.abbreviation || ''}
+                    placeholder={t.abbreviationPlaceholder}
+                    maxLength={4}
+                    className="w-full border border-shell-line bg-black/40 px-3 py-2 text-sm uppercase text-white placeholder-slate-500 outline-none focus:border-white/30 rounded-lg transition-colors text-left"
                   />
                 </div>
 

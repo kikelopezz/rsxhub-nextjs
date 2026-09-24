@@ -178,12 +178,6 @@ export function AdminTeamsTable({
                             </button>
                           </form>
                         )}
-                        <Link
-                          href={`/equipos/${team.id}`}
-                          className="inline-block border border-shell-line bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-[#1274de] hover:border-[#1274de] transition-colors"
-                        >
-                          {t.editAll}
-                        </Link>
                         <DeleteTeamButtonDouble
                           teamId={team.id}
                           teamName={team.name}

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import Link from 'next/link'
 import { FolderDown, X, Check, Copy } from 'lucide-react'
 import { ClassBadge } from '@/components/class-badge'
 import { carLineupKey } from '@/lib/car-key'
@@ -71,7 +72,7 @@ export function EventEntryListModal({
 
 
   const groupedConfirmations = useMemo(() => {
-    const map: Record<string, Array<{ teamId: string; teamName: string; dorsal: string; drivers: Array<{ name: string; steamId: string }> }>> = {}
+    const map: Record<string, Array<{ teamId: string; teamName: string; dorsal: string; drivers: Array<{ name: string; steamId: string; userId?: string }> }>> = {}
 
     classTags.forEach((tag) => {
       map[tag] = []
@@ -222,21 +223,29 @@ export function EventEntryListModal({
                             </span>
                             <div className="min-w-0">
                               <h4 className="truncate text-sm font-bold uppercase tracking-wide text-white">
-                                {t.teamName}
+                                <Link href={`/equipos/${t.teamId}`} className="transition-colors hover:text-cyan-300 hover:underline">
+                                  {t.teamName}
+                                </Link>
                               </h4>
                               {t.drivers.length > 0 && (
                                 <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
                                   {t.drivers.map((d, dIdx) => (
-                                    <span key={dIdx} className="font-medium text-slate-300">
-                                      {d.name}
-                                    </span>
+                                    d.userId ? (
+                                      <Link key={dIdx} href={`/perfil/${d.userId}`} className="font-medium text-slate-300 transition-colors hover:text-cyan-300 hover:underline">
+                                        {d.name}
+                                      </Link>
+                                    ) : (
+                                      <span key={dIdx} className="font-medium text-slate-300">
+                                        {d.name}
+                                      </span>
+                                    )
                                   ))}
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             {isAdmin && (
                               <button
                                 type="button"

@@ -18,7 +18,7 @@ export default async function OnboardingPage() {
     displayName: session.steamDisplayName || '',
     avatarUrl: session.avatarUrl || null,
     countryCode: 'ES',
-    mainSim: 'ac' as 'ac' | 'lmu',
+    mainSim: 'ac' as string,
     preferredCategories: [] as string[],
   }
 

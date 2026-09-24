@@ -1,6 +1,5 @@
 import { CenterModal } from '@/components/center-modal'
-import { CopyVehicleDriverIdsButton } from '@/components/copy-vehicle-driver-ids-button'
-import { ViewCarSteamIds, type CarSteamIdEntry } from '@/components/view-car-steam-ids'
+import { CarSteamIdControls, type CarSteamIdEntry } from '@/components/view-car-steam-ids'
 import { TeamCarsEditor, SaveTeamCarsButton, CarValidationProvider } from '@/components/team-cars-editor'
 import { Download, ShieldAlert } from 'lucide-react'
 import { updateTeam } from '@/app/equipos/actions/team-crud'
@@ -247,13 +246,12 @@ export async function TeamVehiclesSection({
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {isAdmin && (
-                              <CopyVehicleDriverIdsButton
-                                driverSteamIds={carDriverSteamIds}
-                                className={theme.skinBtn}
-                              />
-                            )}
+                          <CarSteamIdControls
+                            entries={steamIdEntries}
+                            driverSteamIds={carDriverSteamIds}
+                            className={theme.skinBtn}
+                            labels={{ show: t.viewSteamIds, hide: t.hideSteamIds, reserve: t.reserve, copied: t.copiedShort }}
+                          >
                             {car.skinUrl && (
                               <a
                                 href={car.skinUrl}
@@ -266,14 +264,8 @@ export async function TeamVehiclesSection({
                                 {t.skin}
                               </a>
                             )}
-                          </div>
+                          </CarSteamIdControls>
                         </div>
-
-                        <ViewCarSteamIds
-                          entries={steamIdEntries}
-                          className={theme.skinBtn}
-                          labels={{ show: t.viewSteamIds, hide: t.hideSteamIds, reserve: t.reserve, copied: t.copiedShort }}
-                        />
 
                         {/* Drivers slots */}
                         <div className={`border-t pt-2 ${theme.line}`}>

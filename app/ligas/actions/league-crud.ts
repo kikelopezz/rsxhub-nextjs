@@ -6,6 +6,9 @@ import { getCurrentUser, getAdminAccessContext, getLeagueRole, canManageLeague }
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
 
+const CREATE_STATUSES = ['open', 'ongoing', 'closed']
+const FORMATS = ['sprint', 'endurance', 'gt3', 'prototype', 'formula', 'multiclass', 'time_attack']
+
 export async function createLeagueAction(formData: FormData) {
   const session = await getCurrentUser()
   if (!session) throw new Error('Unauthorized')
@@ -15,11 +18,13 @@ export async function createLeagueAction(formData: FormData) {
 
   const title = String(formData.get('title') || '').trim()
   const simulator = String(formData.get('simulator') || 'ac').trim()
-  const format = String(formData.get('format') || 'sprint').trim()
+  const formatRaw = String(formData.get('format') || 'sprint').trim()
+  const format = FORMATS.includes(formatRaw) ? formatRaw : 'sprint'
   const classTagsRaw = String(formData.get('classTags') || 'GT3').trim()
   const startsAt = String(formData.get('startsAt') || '').trim()
   const endsAt = String(formData.get('endsAt') || '').trim()
-  const registrationOpen = formData.has('registrationOpen') ? formData.get('registrationOpen') === 'true' : true
+  const statusRaw = String(formData.get('status') || 'open').trim()
+  const status = CREATE_STATUSES.includes(statusRaw) ? statusRaw : 'open'
   const bannerUrl = String(formData.get('bannerUrl') || '').trim()
   const logoUrl = String(formData.get('logoUrl') || '').trim()
   const accentColor = String(formData.get('accentColor') || '').trim()
@@ -47,7 +52,7 @@ export async function createLeagueAction(formData: FormData) {
       classTags: classTagsRaw.split(',').map((tag) => tag.trim().toUpperCase()).filter(Boolean),
       startsAt: new Date(startsAt),
       endsAt: new Date(endsAt),
-      status: registrationOpen ? 'open' : 'draft',
+      status: status as any,
       bannerUrl: bannerUrl || null,
       logoUrl: logoUrl || null,
       accentColor: accentColor || null,
@@ -57,7 +62,7 @@ export async function createLeagueAction(formData: FormData) {
       rulebookUrl: rulebookUrl || null,
       driveUrl: driveUrl || null,
       isFeatured: false,
-      registrationMode: 'individual',
+      registrationMode: (formData.get('registrationMode') === 'team' ? 'team' : 'individual') as any,
     },
   })
 

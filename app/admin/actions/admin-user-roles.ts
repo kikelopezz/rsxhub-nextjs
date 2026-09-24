@@ -91,6 +91,31 @@ export async function updateUserRoleAction(formData: FormData) {
   revalidatePath('/admin')
 }
 
+export async function updateDriverNameAction(formData: FormData) {
+  await guardPlatformAdmin()
+
+  const targetUserId = String(formData.get('targetUserId') || '')
+  const displayName = String(formData.get('displayName') || '').trim().slice(0, 60)
+  if (!targetUserId || !displayName) return
+
+  try {
+    // The name is denormalized in a few places (team roster, registrations), so keep them in sync.
+    await db.$transaction([
+      db.profile.updateMany({ where: { userId: targetUserId }, data: { displayName } }),
+      db.teamMember.updateMany({ where: { userId: targetUserId }, data: { displayName } }),
+      db.leagueRegistration.updateMany({ where: { userId: targetUserId }, data: { displayName } }),
+    ])
+  } catch (err) {
+    console.error('Failed to update driver name:', err)
+  }
+
+  invalidateCache(['platform_drivers', 'teams_dashboard', 'platform_leagues', 'leagues'])
+  revalidatePath('/admin')
+  revalidatePath('/equipos')
+  revalidatePath('/ligas')
+  revalidatePath(`/perfil/${targetUserId}`)
+}
+
 export async function deleteUserAccountAction(targetUserId: string) {
   const session = await guardPlatformAdmin()
 

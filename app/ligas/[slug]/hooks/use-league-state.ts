@@ -9,6 +9,8 @@ export type League = {
   title: string
   slug: string
   simulator: string
+  simulatorName?: string
+  simulatorLogoUrl?: string | null
   format: string
   classTags?: string[]
   startsAt: string

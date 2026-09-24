@@ -27,6 +27,7 @@ type League = {
 }
 
 type Props = {
+  simulators: Array<{ key: string; name: string; logoUrl: string | null }>
   initialLeagues: League[]
   registeredByLeague: Record<string, number>
   isAdmin: boolean
@@ -39,6 +40,7 @@ type Props = {
 }
 
 export default function LigasPageContent({
+  simulators,
   initialLeagues,
   registeredByLeague,
   isAdmin,
@@ -154,8 +156,9 @@ export default function LigasPageContent({
             className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none transition-colors focus:border-[#4ea1ff]"
           >
             <option value="">{t.list.allSimulators}</option>
-            <option value="ac">Assetto Corsa</option>
-            <option value="lmu">Le Mans Ultimate</option>
+            {simulators.map((s) => (
+              <option key={s.key} value={s.key}>{s.name}</option>
+            ))}
           </select>
           <select
             name="format"
@@ -165,7 +168,7 @@ export default function LigasPageContent({
             <option value="">Todos los formatos</option>
             <option value="endurance">Endurance</option>
             <option value="sprint">Sprint</option>
-            <option value="championship">Championship</option>
+            <option value="time_attack">Time Attack</option>
           </select>
           <select
             name="status"
@@ -176,6 +179,7 @@ export default function LigasPageContent({
             <option value="registering">Inscripciones abiertas</option>
             <option value="open">{t.list.statusOpen}</option>
             <option value="ongoing">{t.list.statusOngoing}</option>
+            <option value="closed">{t.list.statusClosed}</option>
             <option value="finished">{t.list.statusFinished}</option>
           </select>
           <button className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-[0_0_14px_rgba(78,161,255,0.4)] transition-all hover:bg-[#1f82ee]">
@@ -284,8 +288,9 @@ export default function LigasPageContent({
                       <div>
                         <label className="mb-1 block text-xs font-semibold uppercase text-slate-300">{t.createModal.simulator}</label>
                         <select name="simulator" required className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-[#4ea1ff]">
-                          <option value="ac">Assetto Corsa</option>
-                          <option value="lmu">Le Mans Ultimate</option>
+                          {simulators.map((s) => (
+                            <option key={s.key} value={s.key}>{s.name}</option>
+                          ))}
                         </select>
                       </div>
                       <div>
@@ -293,14 +298,15 @@ export default function LigasPageContent({
                         <select name="format" required className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-[#4ea1ff]">
                           <option value="endurance">{t.createModal.formatEndurance}</option>
                           <option value="sprint">{t.createModal.formatSprint}</option>
-                          <option value="championship">{t.createModal.formatChampionship}</option>
+                          <option value="time_attack">{t.createModal.formatTimeAttack}</option>
                         </select>
                       </div>
                       <div>
                         <label className="mb-1 block text-xs font-semibold uppercase text-slate-300">{t.createModal.leagueStatus}</label>
                         <select name="status" defaultValue="open" className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-[#4ea1ff]">
                           <option value="open">{t.createModal.statusOpenOption}</option>
-                          <option value="completed">{t.createModal.statusClosedOption}</option>
+                          <option value="ongoing">{t.createModal.statusOngoingOption}</option>
+                          <option value="closed">{t.createModal.statusClosedOption}</option>
                         </select>
                       </div>
                     </div>

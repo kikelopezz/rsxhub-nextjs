@@ -62,6 +62,11 @@ async function buildLineupChangeMessage(
   return `${teamName} ha modificado la alineación. ${lines.join(' | ')}`
 }
 
+// Team abbreviation shown on cards/banners instead of the auto-generated initials.
+function cleanAbbreviation(value: FormDataEntryValue | null) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+}
+
 export async function createTeam(formData: FormData) {
   const session = await guardSession()
 
@@ -80,6 +85,7 @@ export async function createTeam(formData: FormData) {
 
   const accentColor = String(formData.get('accentColor') || '#3b82f6').trim()
   const slogan = String(formData.get('slogan') || '').trim()
+  const abbreviation = cleanAbbreviation(formData.get('abbreviation'))
   const discordUrl = String(formData.get('discordUrl') || '').trim()
   const youtubeUrl = String(formData.get('youtubeUrl') || '').trim()
   const instagramUrl = String(formData.get('instagramUrl') || '').trim()
@@ -103,6 +109,7 @@ export async function createTeam(formData: FormData) {
       carSkinUrls: mergedSkinUrls,
       accentColor,
       slogan: slogan || null,
+      abbreviation: abbreviation || null,
       discordUrl: discordUrl || null,
       youtubeUrl: youtubeUrl || null,
       instagramUrl: instagramUrl || null,
@@ -337,6 +344,7 @@ export async function updateTeam(formData: FormData) {
 
   const accentColor = formData.has('accentColor') ? String(formData.get('accentColor') || '').trim() : existingTeam.accentColor || '#3b82f6'
   const slogan = formData.has('slogan') ? String(formData.get('slogan') || '').trim() : existingTeam.slogan
+  const abbreviation = formData.has('abbreviation') ? cleanAbbreviation(formData.get('abbreviation')) : existingTeam.abbreviation
   const discordUrl = formData.has('discordUrl') ? String(formData.get('discordUrl') || '').trim() : existingTeam.discordUrl
   const youtubeUrl = formData.has('youtubeUrl') ? String(formData.get('youtubeUrl') || '').trim() : existingTeam.youtubeUrl
   const instagramUrl = formData.has('instagramUrl') ? String(formData.get('instagramUrl') || '').trim() : existingTeam.instagramUrl
@@ -363,6 +371,7 @@ export async function updateTeam(formData: FormData) {
             classTags,
             accentColor,
             slogan: slogan || null,
+            abbreviation: abbreviation || null,
             discordUrl: discordUrl || null,
             youtubeUrl: youtubeUrl || null,
             instagramUrl: instagramUrl || null,
@@ -429,13 +438,16 @@ export async function updateTeam(formData: FormData) {
                   leagueId: car.leagueId,
                   skinUrl: car.skinUrl,
                   skinName: car.skinName || null,
+                  carModel: car.modelName || null,
                 },
               })
             } else if (existing.skinUrl !== car.skinUrl) {
               await tx.carSkinReview.update({
                 where: { carKey },
-                data: { skinUrl: car.skinUrl, skinName: car.skinName || null, status: 'pending', reviewedBy: null, reviewedAt: null },
+                data: { skinUrl: car.skinUrl, skinName: car.skinName || null, carModel: car.modelName || null, status: 'pending', reviewedBy: null, reviewedAt: null, rejectReason: null },
               })
+            } else if ((existing.carModel || null) !== (car.modelName || null)) {
+              await tx.carSkinReview.update({ where: { carKey }, data: { carModel: car.modelName || null } })
             }
           }
         }

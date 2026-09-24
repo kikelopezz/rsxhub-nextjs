@@ -195,7 +195,7 @@ export function resolveDrivers(
   myManagedTeams: ManagedTeam[],
   teamInfo: Record<string, TeamInfoEntry>,
   registrations: Registration[],
-): Array<{ name: string; steamId: string }> {
+): Array<{ name: string; steamId: string; userId?: string }> {
   const targetDorsal = String(carNumber ?? '').trim()
   const targetTag = String(classTag ?? '').trim().toUpperCase()
 
@@ -280,7 +280,8 @@ export function resolveDrivers(
           }
         }
 
-        return { name, steamId }
+        const resolvedUserId = member?.userId || member?.user_id || reg?.userId || undefined
+        return { name, steamId, userId: resolvedUserId }
       })
       .filter((d) => d.name)
     if (resolved.length > 0) return resolved
@@ -298,6 +299,7 @@ export function resolveDrivers(
       return {
         name: r.displayName || member?.displayName || member?.name || 'Driver',
         steamId: getSteam64Id(member, r, r.userId),
+        userId: r.userId,
       }
     })
   }
@@ -306,6 +308,7 @@ export function resolveDrivers(
     return teamMembers.map((m: any) => ({
       name: m.displayName || m.name || m.steamDisplayName || 'Driver',
       steamId: getSteam64Id(m, m.userId),
+      userId: m.userId,
     }))
   }
 
