@@ -492,6 +492,7 @@ export default function LeagueDetailPageContent({
           leagueId={league.id}
           classTags={classTags}
           onClose={() => setFinishingEventData(null)}
+          onSaved={() => router.refresh()}
           onSuccess={() => {
             setFinishingEventData(null)
             router.refresh()

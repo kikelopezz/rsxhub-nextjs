@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X, Upload, FileText, BarChart3, CheckCircle2, AlertCircle, RefreshCw, Edit3, Eraser, Timer, Flag } from 'lucide-react'
 import { ClassBadge, getCategoryStyles } from '@/components/class-badge'
 import type { LeagueEvent } from '../hooks/use-league-state'
@@ -13,6 +13,8 @@ interface FinishRoundModalProps {
   classTags: string[]
   onClose: () => void
   onSuccess: () => void
+  /** Se llama tras guardar una categoría sin cerrar el modal (para refrescar la página de fondo). */
+  onSaved?: () => void
 }
 
 export type ParsedRow = {
@@ -39,6 +41,7 @@ export function FinishRoundModal({
   classTags = ['GT3', 'LMP2'],
   onClose,
   onSuccess,
+  onSaved,
 }: FinishRoundModalProps) {
   const tr = useDictionary().ligas.finishRound
   const hasQualy = Boolean(event.hasQualy === true || String(event.hasQualy) === 'true' || event.qualyStartsAt)
@@ -55,10 +58,35 @@ export function FinishRoundModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
+  // Categoría a la que va TODO el JSON que se sube ('AUTO' = la que traiga cada coche en el archivo)
+  const defaultCategory = classTags[0] || 'GT3'
+  const [uploadCategory, setUploadCategory] = useState<string>(defaultCategory)
+  // Máximo de coches que se guardan por categoría (se recuerda entre subidas)
+  const [maxCars, setMaxCars] = useState<number>(() => {
+    try {
+      const saved = Number(window.localStorage.getItem('rsx_finish_round_max_cars'))
+      return Number.isInteger(saved) && saved >= 1 && saved <= 100 ? saved : 20
+    } catch {
+      return 20
+    }
+  })
+  const [infoMsg, setInfoMsg] = useState('')
+  const [truncatedNotes, setTruncatedNotes] = useState<string[]>([])
+  const [savedUploads, setSavedUploads] = useState<{ label: string; count: number }[]>([])
+
+  const changeMaxCars = (value: number) => {
+    const next = Math.max(1, Math.min(100, Math.floor(value) || 1))
+    setMaxCars(next)
+    try {
+      window.localStorage.setItem('rsx_finish_round_max_cars', String(next))
+    } catch {}
+  }
+
   // Handle JSON file selection or text input parsing
-  const handleParseJson = (rawContent: string) => {
+  const handleParseJson = (rawContent: string, opts?: { stay?: boolean }) => {
     try {
       setErrorMsg('')
+      setInfoMsg('')
       const parsed = JSON.parse(rawContent)
       let rawList: any[] = []
 
@@ -99,15 +127,18 @@ export function FinishRoundModal({
         const rawDorsal = item.carNumber ?? item.CarNumber ?? item.Driver?.CarNumber ?? item.ballast
         const dorsalDisplay = rawDorsal != null ? String(rawDorsal).trim() : String((idx % 90) + 1)
 
-        // Determine category tag
-        let classTag = item.classTag || item.ClassTag || item.CarModel || item.carModel || ''
-        if (!classTag || !classTags.includes(classTag)) {
-          classTag = classTags[idx % classTags.length] || 'GT3'
+        // Categoría: la que ha elegido el gestor para todo el archivo o, en modo automático, la que traiga el coche
+        let classTag = uploadCategory
+        if (uploadCategory === 'AUTO') {
+          const fromJson = String(item.classTag || item.ClassTag || item.CarModel || item.carModel || '')
+            .trim()
+            .toUpperCase()
+          classTag = classTags.find((c) => c.toUpperCase() === fromJson) || defaultCategory
         }
 
-        // Increment category position counter
+        // Posición dentro de la categoría: orden de llegada en el archivo
         classCounters[classTag] = (classCounters[classTag] || 0) + 1
-        const catPos = item.pos != null ? item.pos : classCounters[classTag]
+        const catPos = classCounters[classTag]
 
         // Calculate points based on category position unless points are explicitly specified
         const points = sessionType === 'qualifying'
@@ -135,12 +166,37 @@ export function FinishRoundModal({
         }
       })
 
-      setParsedRows(rows)
-      setActiveTab('preview')
+      // Solo los primeros `maxCars` de cada categoría
+      const totals: Record<string, number> = {}
+      rows.forEach((r) => {
+        totals[r.classTag] = (totals[r.classTag] || 0) + 1
+      })
+      const limited = rows.filter((r) => r.pos <= maxCars)
+      setTruncatedNotes(
+        Object.entries(totals)
+          .filter(([, total]) => total > maxCars)
+          .map(([cat, total]) =>
+            tr.carsTruncated.replace('{cat}', cat).replace('{total}', String(total)).replace('{max}', String(maxCars))
+          )
+      )
+
+      setParsedRows(limited)
+      if (!opts?.stay) setActiveTab('preview')
     } catch (err: any) {
       setErrorMsg(err.message || tr.parseError)
     }
   }
+
+  // Al cambiar la categoría o el máximo, el archivo ya cargado se vuelve a repartir con los nuevos valores
+  const firstRender = useRef(true)
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false
+      return
+    }
+    if (jsonText.trim() && parsedRows.length > 0) handleParseJson(jsonText, { stay: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadCategory, maxCars])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -231,14 +287,28 @@ export function FinishRoundModal({
 
       const res = await fetch('/api/admin/import-results', {
         method: 'POST',
+        headers: { 'x-requested-with': 'fetch' },
         body: formData,
       })
+      const data = await res.json().catch(() => ({}))
 
-      if (res.ok || res.redirected) {
-        onSuccess()
+      if (res.ok && data.ok) {
+        const tags = Array.from(new Set(parsedRows.map((r) => r.classTag)))
+        setSavedUploads((prev) => [...prev, { label: tags.join(' + '), count: Number(data.imported) || parsedRows.length }])
+        const warnings: string[] = []
+        if (data.notRegistered > 0) warnings.push(tr.notRegisteredWarn.replace('{n}', String(data.notRegistered)))
+        if (data.unresolved > 0) warnings.push(tr.unresolvedWarn.replace('{n}', String(data.unresolved)))
+        setInfoMsg([tr.uploadNext, ...warnings].join(' '))
+        // Listo para subir el JSON de otra categoría
+        setParsedRows([])
+        setJsonText('')
+        setFile(null)
+        setTruncatedNotes([])
+        setSelectedCategoryFilter('ALL')
+        setActiveTab('upload')
+        onSaved?.()
       } else {
-        const data = await res.json().catch(() => ({}))
-        setErrorMsg(data.message || tr.saveError)
+        setErrorMsg(data.code ? tr.saveErrorCode.replace('{code}', String(data.code)) : data.message || tr.saveError)
       }
     } catch (err: any) {
       setErrorMsg(err.message || tr.connectionError)
@@ -379,12 +449,92 @@ export function FinishRoundModal({
           </div>
         )}
 
+        {savedUploads.length > 0 && (
+          <div className="mb-4 rounded-lg border border-emerald-500/40 bg-emerald-950/30 p-3 text-xs text-emerald-200">
+            <p className="mb-1 flex items-center gap-2 font-extrabold uppercase text-emerald-300">
+              <CheckCircle2 className="h-4 w-4 shrink-0" /> {tr.savedUploads}
+            </p>
+            <ul className="space-y-0.5 pl-6">
+              {savedUploads.map((u, i) => (
+                <li key={i} className="font-mono-data">
+                  {tr.savedItem.replace('{cat}', u.label).replace('{n}', String(u.count))}
+                </li>
+              ))}
+            </ul>
+            {infoMsg && <p className="mt-2 text-emerald-100">{infoMsg}</p>}
+          </div>
+        )}
+
         {/* Modal Content Body */}
         <div className="flex-1 space-y-4 overflow-y-auto pr-1">
           {activeTab === 'upload' ? (
             <div className="space-y-4">
+              <div className="space-y-3 rounded-xl border border-white/10 bg-black/30 p-4">
+                <div className="space-y-2">
+                  <label className="block text-xs font-extrabold uppercase text-slate-300">{tr.jsonCategory}</label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {classTags.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setUploadCategory(cat)}
+                        className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase transition-all ${getCategoryStyles(cat, uploadCategory === cat)}`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setUploadCategory('AUTO')}
+                      className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase transition-all ${
+                        uploadCategory === 'AUTO'
+                          ? 'border-[#4ea1ff] bg-[#1274de] text-white shadow-[0_0_12px_rgba(78,161,255,0.45)]'
+                          : 'border-white/10 bg-black/30 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {tr.autoCategory}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    {uploadCategory === 'AUTO'
+                      ? tr.autoCategoryHint.replace('{cat}', defaultCategory)
+                      : tr.jsonCategoryHint}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-xs font-extrabold uppercase text-slate-300">{tr.maxCars}</label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={maxCars}
+                      onChange={(e) => changeMaxCars(Number(e.target.value))}
+                      className="font-mono-data w-20 rounded-lg border border-white/10 bg-black/50 px-2 py-1.5 text-center text-sm font-black text-amber-400 outline-none focus:border-[#4ea1ff]"
+                    />
+                    {[20, 25, 30, 40].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => changeMaxCars(n)}
+                        className={`font-mono-data rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${
+                          maxCars === n
+                            ? 'border-amber-400 bg-amber-500/20 text-amber-300'
+                            : 'border-white/10 bg-black/30 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-slate-400">{tr.maxCarsHint.replace('{max}', String(maxCars))}</p>
+                </div>
+              </div>
+
               <label className="group flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-white/10 bg-black/30 p-6 text-center transition-colors hover:border-[#4ea1ff]">
                 <input
+                  key={savedUploads.length}
                   type="file"
                   accept="application/json,.json"
                   onChange={handleFileChange}
@@ -419,6 +569,16 @@ export function FinishRoundModal({
             </div>
           ) : (
             <div className="space-y-6">
+              {truncatedNotes.length > 0 && (
+                <div className="space-y-1 rounded-lg border border-amber-500/40 bg-amber-950/30 p-3 text-xs text-amber-200">
+                  {truncatedNotes.map((note) => (
+                    <p key={note} className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" /> {note}
+                    </p>
+                  ))}
+                </div>
+              )}
+
               {/* Category Filter Pills */}
               <div className="flex items-center gap-2 overflow-x-auto border-b border-white/10 pb-2">
                 <span className="mr-2 shrink-0 text-xs font-extrabold uppercase text-slate-400">{tr.category}</span>
@@ -551,10 +711,10 @@ export function FinishRoundModal({
         <div className="mt-4 flex items-center justify-end gap-3 border-t border-white/10 pt-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={savedUploads.length > 0 ? onSuccess : onClose}
             className="rounded-lg border border-white/10 bg-black/30 px-4 py-2 text-xs font-bold uppercase text-slate-300 transition-colors hover:bg-white/5"
           >
-            {tr.cancel}
+            {savedUploads.length > 0 ? tr.finish : tr.cancel}
           </button>
           <button
             type="button"
@@ -565,9 +725,9 @@ export function FinishRoundModal({
             <CheckCircle2 className="h-4 w-4" />
             {isSubmitting
               ? tr.saving
-              : sessionType === 'qualifying'
-              ? tr.finalizeQualy
-              : tr.finalizeRace}
+              : tr.saveUpload
+                  .replace('{cat}', Array.from(new Set(parsedRows.map((r) => r.classTag))).join(' + ') || uploadCategory)
+                  .replace('{n}', String(parsedRows.length))}
           </button>
         </div>
       </div>
