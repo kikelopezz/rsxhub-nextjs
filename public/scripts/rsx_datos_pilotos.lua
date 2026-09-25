@@ -19,6 +19,9 @@ local carData = ac.OnlineEvent({
 }, function() end)
 
 local lastSent, lastLiters, lastCompound, lastPit = -1e9, -1, '', nil
+local sentCount, failCount = 0, 0
+
+ac.log('RSX datos pilotos: cargado')
 
 function script.update(dt)
   local car = ac.getCar(0)
@@ -37,6 +40,11 @@ function script.update(dt)
     }, true)
     if ok then
       lastSent, lastLiters, lastCompound, lastPit = now, liters, compound, car.isInPitlane
+      sentCount = sentCount + 1
+      if sentCount == 1 then ac.log('RSX datos pilotos: primer envío correcto') end
+    else
+      failCount = failCount + 1
+      if failCount == 1 or failCount % 50 == 0 then ac.log('RSX datos pilotos: envío rechazado (' .. failCount .. ')') end
     end
   end
 end
