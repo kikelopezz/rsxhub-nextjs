@@ -153,51 +153,93 @@ function HeaderStat({ label, value, tone = 'text-white' }: { label: string; valu
   )
 }
 
+type SessionTime = {
+  phase: 'countdown' | 'running' | 'laps' | 'unknown'
+  remainingMs: number
+  elapsedMs: number
+  totalMs: number
+  laps: number
+}
+
 /**
- * Tiempo restante de la sesión. El servidor solo manda el tiempo transcurrido con cada sondeo (cada 6 s), así que
- * entre sondeos el reloj avanza solo, pero únicamente si el reloj del servidor se está moviendo de verdad:
- * si dos sondeos seguidos dan el mismo valor, la sesión está detenida y no se inventa el paso del tiempo.
+ * Tiempo de la sesión. Sale del servidor de carrera (hora de inicio exacta de la sesión, como hace la web del
+ * Server Manager): el servidor de la web calcula lo que falta y aquí solo corre el reloj entre consultas, cada segundo.
+ * Si no se puede consultar, se usa el tiempo transcurrido del leaderboard, que solo se actualiza cada minuto.
  */
 function SessionClock({
-  sample,
-  totalSeconds,
+  source,
+  server,
+  fallbackTotalSeconds,
+  fallbackElapsedMs,
+  leaderLaps,
   labels,
 }: {
-  sample: LeaderboardResponse | null
-  totalSeconds: number
-  labels: { remaining: string; stopped: string }
+  source: string
+  server: number
+  fallbackTotalSeconds: number
+  fallbackElapsedMs: number | null
+  leaderLaps: number
+  labels: { remaining: string; countdown: string; over: string; lapsRemaining: string }
 }) {
-  const state = useRef<{ elapsedMs: number; at: number; running: boolean | null } | null>(null)
+  const [info, setInfo] = useState<{ data: SessionTime; at: number } | null>(null)
   const [, setTick] = useState(0)
 
   useEffect(() => {
-    const elapsed = sample?.ElapsedMilliseconds
-    if (elapsed == null) {
-      state.current = null
-    } else {
-      const prev = state.current
-      state.current = { elapsedMs: elapsed, at: Date.now(), running: prev ? elapsed > prev.elapsedMs : null }
+    setInfo(null)
+    let alive = true
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/live-timing/session?source=${source}&server=${server}`, { cache: 'no-store' })
+        if (!res.ok) return
+        const json = await res.json()
+        if (alive && json?.ok) setInfo({ data: json.session as SessionTime, at: Date.now() })
+      } catch {
+        // Sin dato del servidor se usa el respaldo
+      }
     }
-    setTick((n) => n + 1)
-  }, [sample])
+    load()
+    const id = setInterval(load, 15_000)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [source, server])
 
   useEffect(() => {
     const id = setInterval(() => setTick((n) => n + 1), 1000)
     return () => clearInterval(id)
   }, [])
 
-  const s = state.current
-  const elapsedSeconds = s ? (s.elapsedMs + (s.running ? Date.now() - s.at : 0)) / 1000 : 0
-  const timeLeft = totalSeconds > 0 ? Math.max(0, totalSeconds - elapsedSeconds) : 0
-  const progress = totalSeconds > 0 ? Math.min(100, (elapsedSeconds / totalSeconds) * 100) : 0
+  let seconds = 0
+  let progress = 0
+  let label = labels.remaining
+  let lapsLeft: number | null = null
+
+  if (info) {
+    const passed = Date.now() - info.at
+    const { data } = info
+    if (data.phase === 'countdown') {
+      seconds = Math.max(0, (data.remainingMs - passed) / 1000)
+      label = labels.countdown
+    } else if (data.phase === 'running') {
+      const remainingMs = Math.max(0, data.remainingMs - passed)
+      seconds = remainingMs / 1000
+      progress = data.totalMs > 0 ? Math.min(100, ((data.totalMs - remainingMs) / data.totalMs) * 100) : 0
+      if (remainingMs <= 0) label = labels.over
+    } else if (data.phase === 'laps') {
+      lapsLeft = Math.max(0, data.laps - leaderLaps)
+      progress = data.laps > 0 ? Math.min(100, (leaderLaps / data.laps) * 100) : 0
+      label = labels.lapsRemaining
+    }
+  } else if (fallbackTotalSeconds > 0 && fallbackElapsedMs != null) {
+    seconds = Math.max(0, fallbackTotalSeconds - fallbackElapsedMs / 1000)
+    progress = Math.min(100, (fallbackElapsedMs / 1000 / fallbackTotalSeconds) * 100)
+  }
 
   return (
     <div className="min-w-[200px] px-4 py-2.5 md:px-5">
-      <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
-        {labels.remaining}
-        {s?.running === false && <span className="rounded-[3px] bg-amber-500/15 px-1.5 py-px text-[8px] text-amber-400">{labels.stopped}</span>}
-      </p>
-      <p className="font-mono-data text-3xl font-bold leading-none tabular-nums text-white">{formatSeconds(timeLeft)}</p>
+      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{label}</p>
+      <p className="font-mono-data text-3xl font-bold leading-none tabular-nums text-white">{lapsLeft != null ? lapsLeft : formatSeconds(seconds)}</p>
       <div className="mt-1.5 h-1 w-full overflow-hidden bg-white/10">
         <div className="h-full bg-[#4ea1ff] transition-[width] duration-1000" style={{ width: `${progress}%` }} />
       </div>
@@ -635,7 +677,14 @@ export default function LiveTimingPage() {
               <p className="font-display-condensed truncate text-xl font-extrabold uppercase leading-tight text-white md:text-2xl">{formatTrackName(data?.Track) || '—'}</p>
               <p className="truncate font-mono-data text-[10px] text-slate-500">{data?.ServerName || t.serverConnecting}</p>
             </div>
-            <SessionClock sample={data} totalSeconds={totalSeconds} labels={{ remaining: t.remaining, stopped: t.clockStopped }} />
+            <SessionClock
+              source={championship}
+              server={selectedServer}
+              fallbackTotalSeconds={totalSeconds}
+              fallbackElapsedMs={data?.ElapsedMilliseconds ?? null}
+              leaderLaps={leaderLaps}
+              labels={{ remaining: t.remaining, countdown: t.countdown, over: t.clockOver, lapsRemaining: t.lapsRemaining }}
+            />
             <HeaderStat label={t.lap} value={leaderLaps || '—'} />
             <HeaderStat label={t.cars} value={connected.length ? `${connected.length}${inPitCount ? ` · ${inPitCount} ${t.pit}` : ''}` : '—'} />
             <HeaderStat label={t.air} value={data?.AmbientTemp != null ? `${data.AmbientTemp}°` : '—'} tone="text-amber-400" />

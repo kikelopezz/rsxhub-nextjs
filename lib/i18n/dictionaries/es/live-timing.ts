@@ -14,7 +14,9 @@ const liveTiming = {
   lap: 'VUELTA',
   cars: 'COCHES',
   fastestLaps: 'MEJORES VUELTAS',
-  clockStopped: 'RELOJ DETENIDO',
+  countdown: 'CUENTA ATRÁS',
+  clockOver: 'TIEMPO AGOTADO',
+  lapsRemaining: 'VUELTAS RESTANTES',
   map: {
     title: 'MAPA DEL CIRCUITO',
     show: 'Mostrar',

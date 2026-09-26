@@ -16,7 +16,9 @@ const liveTiming: typeof es = {
   lap: 'LAP',
   cars: 'CARS',
   fastestLaps: 'FASTEST LAPS',
-  clockStopped: 'CLOCK STOPPED',
+  countdown: 'COUNTDOWN',
+  clockOver: 'TIME UP',
+  lapsRemaining: 'LAPS REMAINING',
   map: {
     title: 'TRACK MAP',
     show: 'Show',
