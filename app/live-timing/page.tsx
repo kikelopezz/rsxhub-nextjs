@@ -16,6 +16,8 @@ import {
   type LeaderboardResponse,
   type LiveDriver,
 } from '@/lib/live-timing'
+import type { HubEntry } from '@/app/api/live-timing/entries/route'
+import { TrackMap, type MapSample } from './track-map'
 
 type SortKey = 'Position' | 'Class' | 'Number' | 'Driver' | 'Team' | 'BestLap' | 'LastLap' | 'Laps'
 type Tab = 'live' | 'results'
@@ -104,7 +106,7 @@ function NumberPlate({ number, cls }: { number?: string; cls: string }) {
       className="inline-flex h-6 min-w-[40px] items-center justify-center rounded-[3px] px-1.5 font-display-league text-[15px] leading-none text-white shadow-[inset_0_-2px_0_rgba(0,0,0,0.25)]"
       style={{ background: classColor(cls) }}
     >
-      {number || '0'}
+      {number || '–'}
     </span>
   )
 }
@@ -141,6 +143,58 @@ function HeaderStat({ label, value, tone = 'text-white' }: { label: string; valu
   )
 }
 
+/**
+ * Tiempo restante de la sesión. El servidor solo manda el tiempo transcurrido con cada sondeo (cada 6 s), así que
+ * entre sondeos el reloj avanza solo, pero únicamente si el reloj del servidor se está moviendo de verdad:
+ * si dos sondeos seguidos dan el mismo valor, la sesión está detenida y no se inventa el paso del tiempo.
+ */
+function SessionClock({
+  sample,
+  totalSeconds,
+  labels,
+}: {
+  sample: LeaderboardResponse | null
+  totalSeconds: number
+  labels: { remaining: string; stopped: string }
+}) {
+  const state = useRef<{ elapsedMs: number; at: number; running: boolean | null } | null>(null)
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    const elapsed = sample?.ElapsedMilliseconds
+    if (elapsed == null) {
+      state.current = null
+    } else {
+      const prev = state.current
+      state.current = { elapsedMs: elapsed, at: Date.now(), running: prev ? elapsed > prev.elapsedMs : null }
+    }
+    setTick((n) => n + 1)
+  }, [sample])
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const s = state.current
+  const elapsedSeconds = s ? (s.elapsedMs + (s.running ? Date.now() - s.at : 0)) / 1000 : 0
+  const timeLeft = totalSeconds > 0 ? Math.max(0, totalSeconds - elapsedSeconds) : 0
+  const progress = totalSeconds > 0 ? Math.min(100, (elapsedSeconds / totalSeconds) * 100) : 0
+
+  return (
+    <div className="min-w-[200px] px-4 py-2.5 md:px-5">
+      <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
+        {labels.remaining}
+        {s?.running === false && <span className="rounded-[3px] bg-amber-500/15 px-1.5 py-px text-[8px] text-amber-400">{labels.stopped}</span>}
+      </p>
+      <p className="font-mono-data text-3xl font-bold leading-none tabular-nums text-white">{formatSeconds(timeLeft)}</p>
+      <div className="mt-1.5 h-1 w-full overflow-hidden bg-white/10">
+        <div className="h-full bg-[#4ea1ff] transition-[width] duration-1000" style={{ width: `${progress}%` }} />
+      </div>
+    </div>
+  )
+}
+
 const LEGEND_COLUMNS = ['pos', 'cls', 'classPos', 'number', 'driverCar', 'team', 'tyre', 'gap', 'interval', 'last', 'best', 'laps', 'pits', 'stint', 'state'] as const
 
 export default function LiveTimingPage() {
@@ -153,6 +207,9 @@ export default function LiveTimingPage() {
   const [data, setData] = useState<LeaderboardResponse | null>(null)
   const [serverStatus, setServerStatus] = useState<Record<string, LeaderboardResponse | null>>({})
   const [stints, setStints] = useState<Record<string, number>>({})
+  // Equipo y dorsal según el apartado de Equipos del Hub, por Steam ID
+  const [hubEntries, setHubEntries] = useState<Record<string, HubEntry[]>>({})
+  const [showMap, setShowMap] = useState(true)
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'Position', dir: 'asc' })
   const [clock, setClock] = useState('')
@@ -167,6 +224,40 @@ export default function LiveTimingPage() {
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const res = await fetch('/api/live-timing/entries')
+        const json = await res.json()
+        if (alive && json?.entries) setHubEntries(json.entries)
+      } catch {
+        // Sin datos del Hub se muestran los del servidor de carrera
+      }
+    }
+    load()
+    const id = setInterval(load, 60_000)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem('rsx_lt_map') === 'hidden') setShowMap(false)
+    } catch {}
+  }, [])
+
+  const toggleMap = () => {
+    setShowMap((v) => {
+      try {
+        window.localStorage.setItem('rsx_lt_map', v ? 'hidden' : 'shown')
+      } catch {}
+      return !v
+    })
+  }
 
   const poll = useCallback(async () => {
     const key = serverStatusKey(championship, selectedServer)
@@ -238,6 +329,25 @@ export default function LiveTimingPage() {
 
   const connected = useMemo(() => data?.ConnectedDrivers ?? [], [data])
   const disconnected = useMemo(() => data?.DisconnectedDrivers ?? [], [data])
+
+  // Equipo y número del coche: mandan los del apartado de Equipos (vinculados por Steam ID); el servidor de
+  // carrera suele mandar el número a 0 y el equipo vacío, así que solo sirve de respaldo.
+  const resolveCar = useCallback(
+    (d: LiveDriver) => {
+      const info = d.CarInfo || {}
+      const cls = getClassTagFromModel(info.CarModel)
+      const steamId = String(info.DriverGUID || '').match(/\d{17}/)?.[0] || String(info.DriverGUID || '')
+      const entries = hubEntries[steamId] || []
+      const sameClass = entries.find((e) => e.category && (e.category === cls || cls.includes(e.category) || e.category.includes(cls)))
+      const pick = sameClass || entries.find((e) => e.dorsal) || entries[0]
+      const simNumber = Number(info.RaceNumber) > 0 ? String(info.RaceNumber) : null
+      return {
+        team: pick?.teamName || info.TeamName || info.DriverName || '-',
+        number: pick?.dorsal || simNumber,
+      }
+    },
+    [hubEntries]
+  )
 
   // Detecta adelantamientos: compara cada posición con la del sondeo anterior
   useEffect(() => {
@@ -343,16 +453,16 @@ export default function LiveTimingPage() {
             valB = getClassTagFromModel(b.CarInfo?.CarModel)
             break
           case 'Number':
-            valA = parseInt(a.CarInfo?.RaceNumber || '0', 10)
-            valB = parseInt(b.CarInfo?.RaceNumber || '0', 10)
+            valA = parseInt(resolveCar(a).number || '0', 10)
+            valB = parseInt(resolveCar(b).number || '0', 10)
             break
           case 'Driver':
             valA = (a.CarInfo?.DriverName || '').toLowerCase()
             valB = (b.CarInfo?.DriverName || '').toLowerCase()
             break
           case 'Team':
-            valA = (a.CarInfo?.TeamName || '').toLowerCase()
-            valB = (b.CarInfo?.TeamName || '').toLowerCase()
+            valA = resolveCar(a).team.toLowerCase()
+            valB = resolveCar(b).team.toLowerCase()
             break
           case 'BestLap':
             valA = getCarStats(a).BestLap || 9e14
@@ -376,7 +486,7 @@ export default function LiveTimingPage() {
       })
       return sorted
     },
-    [sort]
+    [sort, resolveCar]
   )
 
   const handleSort = (key: SortKey) => {
@@ -386,10 +496,31 @@ export default function LiveTimingPage() {
   const liveRows = useMemo(() => sortDrivers(filterDrivers(connected)), [connected, filterDrivers, sortDrivers])
   const resultRows = useMemo(() => sortDrivers(filterDrivers(disconnected)), [disconnected, filterDrivers, sortDrivers])
 
+  const mapSamples = useMemo<MapSample[]>(
+    () =>
+      connected
+        .filter((d) => d.LastPos && d.NormalisedSplinePos != null)
+        .map((d) => {
+          const car = resolveCar(d)
+          const cls = rowMeta.get(carKey(d))?.cls || getClassTagFromModel(d.CarInfo?.CarModel)
+          return {
+            key: carKey(d),
+            x: d.LastPos!.X,
+            z: d.LastPos!.Z,
+            spline: d.NormalisedSplinePos as number,
+            inPits: Boolean(d.IsInPits),
+            number: car.number || '–',
+            color: classColor(cls),
+            position: d.Position,
+            label: `P${d.Position} · #${car.number ?? '-'} ${car.team} — ${d.CarInfo?.DriverName || ''}`,
+            dim: filter !== 'ALL' && cls !== filter,
+          }
+        }),
+    [connected, resolveCar, rowMeta, filter]
+  )
+  const trackKey = data?.Track ? `${data.Track}_${data.TrackConfig || ''}` : ''
+
   const totalSeconds = data?.Time ? data.Time * 60 : 0
-  const elapsedSeconds = data?.ElapsedMilliseconds ? data.ElapsedMilliseconds / 1000 : 0
-  const timeLeft = totalSeconds > 0 ? Math.max(0, totalSeconds - elapsedSeconds) : 0
-  const progress = totalSeconds > 0 ? Math.min(100, (elapsedSeconds / totalSeconds) * 100) : 0
   const leaderLaps = useMemo(() => connected.reduce((max, d) => Math.max(max, d.TotalNumLaps || 0), 0), [connected])
   const inPitCount = useMemo(() => connected.filter((d) => d.IsInPits).length, [connected])
   const nowMs = Date.now()
@@ -483,13 +614,7 @@ export default function LiveTimingPage() {
               <p className="font-display-condensed truncate text-xl font-extrabold uppercase leading-tight text-white md:text-2xl">{formatTrackName(data?.Track) || '—'}</p>
               <p className="truncate font-mono-data text-[10px] text-slate-500">{data?.ServerName || t.serverConnecting}</p>
             </div>
-            <div className="min-w-[200px] px-4 py-2.5 md:px-5">
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{t.remaining}</p>
-              <p className="font-mono-data text-3xl font-bold leading-none tabular-nums text-white">{formatSeconds(timeLeft)}</p>
-              <div className="mt-1.5 h-1 w-full overflow-hidden bg-white/10">
-                <div className="h-full bg-[#4ea1ff] transition-[width] duration-1000" style={{ width: `${progress}%` }} />
-              </div>
-            </div>
+            <SessionClock sample={data} totalSeconds={totalSeconds} labels={{ remaining: t.remaining, stopped: t.clockStopped }} />
             <HeaderStat label={t.lap} value={leaderLaps || '—'} />
             <HeaderStat label={t.cars} value={connected.length ? `${connected.length}${inPitCount ? ` · ${inPitCount} ${t.pit}` : ''}` : '—'} />
             <HeaderStat label={t.air} value={data?.AmbientTemp != null ? `${data.AmbientTemp}°` : '—'} tone="text-amber-400" />
@@ -514,14 +639,15 @@ export default function LiveTimingPage() {
             {fastestClasses.map((cls) => {
               const item = fastest.byClass[cls]
               const info = item.driver.CarInfo || {}
+              const car = resolveCar(item.driver)
               return (
                 <div key={cls} className="flex min-w-[210px] flex-1 items-center gap-3 bg-[#04070d] px-4 py-2">
                   <span className="rounded-[3px] px-1.5 py-0.5 text-[10px] font-black text-white" style={{ background: classColor(cls) }}>
                     {CLASS_SHORT[cls] || cls}
                   </span>
-                  <NumberPlate number={info.RaceNumber} cls={cls} />
+                  <NumberPlate number={car.number ?? undefined} cls={cls} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[11px] font-bold uppercase text-white">{info.TeamName || info.DriverName || '-'}</p>
+                    <p className="truncate text-[11px] font-bold uppercase text-white">{car.team}</p>
                     <p className="truncate text-[9px] uppercase text-slate-500">{info.DriverName || '-'}</p>
                   </div>
                   <span className={`font-mono-data text-sm font-bold tabular-nums ${fastest.overall?.driver === item.driver ? 'text-fuchsia-400' : 'text-white'}`}>
@@ -606,6 +732,27 @@ export default function LiveTimingPage() {
         )}
       </div>
 
+      {/* Mapa del circuito con los coches en directo */}
+      <div className="border border-white/10 bg-[#04070d]">
+        <button
+          type="button"
+          onClick={toggleMap}
+          className="flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-white/[0.03]"
+        >
+          <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+            <span className="h-2 w-2 rounded-full bg-[#4ea1ff]" />
+            {t.map.title}
+            {data?.Track && <span className="text-slate-600">· {formatTrackName(data.Track)}</span>}
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{showMap ? t.map.hide : t.map.show}</span>
+        </button>
+        {showMap && (
+          <div className="border-t border-white/10">
+            <TrackMap trackKey={trackKey} samples={mapSamples} labels={{ building: t.map.building, empty: t.map.empty, coverage: t.map.coverage }} />
+          </div>
+        )}
+      </div>
+
       {/* Clasificación */}
       <div className="min-w-0 overflow-hidden border border-white/10 bg-[#04070d]">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-2.5">
@@ -680,6 +827,7 @@ export default function LiveTimingPage() {
                   liveRows.map((d) => {
                     const key = carKey(d)
                     const info = d.CarInfo || {}
+                    const car = resolveCar(d)
                     const stats = getCarStats(d)
                     const meta = rowMeta.get(key)
                     const cls = meta?.cls || getClassTagFromModel(info.CarModel)
@@ -721,7 +869,7 @@ export default function LiveTimingPage() {
                           </div>
                         </td>
                         <td className="px-2 py-1.5 text-center">
-                          <NumberPlate number={info.RaceNumber} cls={cls} />
+                          <NumberPlate number={car.number ?? undefined} cls={cls} />
                         </td>
                         <td className="px-2 py-1.5 text-center">
                           <span className="inline-flex items-center gap-1.5">
@@ -734,7 +882,7 @@ export default function LiveTimingPage() {
                           </span>
                         </td>
                         <td className="px-2 py-1.5">
-                          <div className="max-w-[240px] truncate text-[12px] font-bold uppercase leading-tight text-white">{info.TeamName || info.DriverName || '-'}</div>
+                          <div className="max-w-[240px] truncate text-[12px] font-bold uppercase leading-tight text-white">{car.team}</div>
                           <div className="max-w-[240px] truncate text-[10px] leading-tight text-slate-500">
                             {info.DriverName || '-'}
                             <span className="text-slate-700"> · </span>
@@ -815,6 +963,7 @@ export default function LiveTimingPage() {
                 ) : (
                   resultRows.map((d, idx) => {
                     const info = d.CarInfo || {}
+                    const car = resolveCar(d)
                     const stats = getCarStats(d)
                     const cls = getClassTagFromModel(info.CarModel)
                     const color = classColor(cls)
@@ -834,13 +983,13 @@ export default function LiveTimingPage() {
                       >
                         <td className="py-1.5 pl-3 pr-2 text-center font-display-league text-[15px] text-slate-400">{idx + 1}</td>
                         <td className="px-2 py-1.5 text-center">
-                          <NumberPlate number={info.RaceNumber} cls={cls} />
+                          <NumberPlate number={car.number ?? undefined} cls={cls} />
                         </td>
                         <td className="px-2 py-1.5 text-center text-[9px] font-black tracking-wider" style={{ color }}>
                           {CLASS_SHORT[cls] || cls}
                         </td>
                         <td className="px-2 py-1.5">
-                          <div className="text-[12px] font-bold uppercase leading-tight text-white">{info.TeamName || info.DriverName || '-'}</div>
+                          <div className="text-[12px] font-bold uppercase leading-tight text-white">{car.team}</div>
                           <div className="text-[10px] leading-tight text-slate-500">
                             {info.DriverName || '-'}
                             <span className="text-slate-700"> · </span>
