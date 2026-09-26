@@ -499,7 +499,7 @@ export default function LiveTimingPage() {
   const mapSamples = useMemo<MapSample[]>(
     () =>
       connected
-        .filter((d) => d.LastPos && d.NormalisedSplinePos != null)
+        .filter((d) => d.LastPos)
         .map((d) => {
           const car = resolveCar(d)
           const cls = rowMeta.get(carKey(d))?.cls || getClassTagFromModel(d.CarInfo?.CarModel)
@@ -507,7 +507,7 @@ export default function LiveTimingPage() {
             key: carKey(d),
             x: d.LastPos!.X,
             z: d.LastPos!.Z,
-            spline: d.NormalisedSplinePos as number,
+            initials: (d.CarInfo?.DriverInitials || d.CarInfo?.DriverName || '').slice(0, 3).toUpperCase(),
             inPits: Boolean(d.IsInPits),
             number: car.number || '–',
             color: classColor(cls),
@@ -518,7 +518,6 @@ export default function LiveTimingPage() {
         }),
     [connected, resolveCar, rowMeta, filter]
   )
-  const trackKey = data?.Track ? `${data.Track}_${data.TrackConfig || ''}` : ''
 
   const totalSeconds = data?.Time ? data.Time * 60 : 0
   const leaderLaps = useMemo(() => connected.reduce((max, d) => Math.max(max, d.TotalNumLaps || 0), 0), [connected])
@@ -748,7 +747,7 @@ export default function LiveTimingPage() {
         </button>
         {showMap && (
           <div className="border-t border-white/10">
-            <TrackMap trackKey={trackKey} samples={mapSamples} labels={{ building: t.map.building, empty: t.map.empty, coverage: t.map.coverage }} />
+            <TrackMap source={championship} track={data?.Track || ''} config={data?.TrackConfig || ''} samples={mapSamples} labels={{ loading: t.map.loading, unavailable: t.map.unavailable }} />
           </div>
         )}
       </div>

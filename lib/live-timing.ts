@@ -17,6 +17,7 @@ export type CarInfo = {
   RaceNumber?: string
   Tyres?: string
   DriverGUID?: string
+  DriverInitials?: string
 }
 
 export type LiveDriver = {

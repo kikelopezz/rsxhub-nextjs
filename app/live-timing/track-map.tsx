@@ -1,213 +1,165 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /**
- * Mapa del circuito con los coches en directo.
+ * Mapa del circuito estilo "pit wall", con los coches en directo.
  *
- * El servidor de carrera no manda el trazado, pero sí la posición (X, Z) de cada coche y su posición
- * normalizada sobre la pista (0 a 1 a lo largo de la vuelta). Con eso el trazado se dibuja solo: la pista
- * se divide en BINS tramos y en cada uno se promedia la posición de los coches que han pasado por ahí.
- * El resultado se guarda en el navegador por circuito, así la próxima vez el mapa ya sale completo.
+ * Usa el mapa oficial del circuito que tiene el servidor de carrera (map.png) y sus parámetros (map.ini) para pasar
+ * la posición de cada coche (X, Z del juego) a un punto del mapa, con la misma fórmula que el propio Server Manager:
+ *   px = (x + X_OFFSET) / SCALE_FACTOR + PADDING
+ *   py = (z + Z_OFFSET) / SCALE_FACTOR + PADDING
+ * Si el mapa es apaisado en vertical se gira 90° para aprovechar el ancho de la pantalla, como hace el Server Manager.
  */
 
-const BINS = 720
-const VIEW_W = 800
-const VIEW_H = 460
-const PAD = 44
-// Un punto que se aleja tanto de la media del tramo (metros) se descarta: es un coche fuera de la pista
-const OUTLIER_METERS = 80
-const STORAGE_PREFIX = 'rsx_track_outline_v1_'
+// Relación alto/ancho a partir de la cual el Server Manager gira el mapa
+const ROTATE_RATIO = 1.07
 
-type Bin = { x: number; z: number; n: number }
+type MapMeta = { width: number; height: number; scale: number; offsetX: number; offsetZ: number; padding: number }
 
 export type MapSample = {
   key: string
   x: number
   z: number
-  spline: number
   inPits: boolean
   number: string
+  initials: string
   color: string
   position: number
   label: string
   dim: boolean
 }
 
-function emptyBins(): Bin[] {
-  return Array.from({ length: BINS }, () => ({ x: 0, z: 0, n: 0 }))
-}
-
-function loadBins(trackKey: string): Bin[] {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_PREFIX + trackKey)
-    if (!raw) return emptyBins()
-    const parsed = JSON.parse(raw) as Array<[number, number, number]>
-    if (!Array.isArray(parsed) || parsed.length !== BINS) return emptyBins()
-    return parsed.map(([x, z, n]) => ({ x, z, n }))
-  } catch {
-    return emptyBins()
-  }
-}
-
-function saveBins(trackKey: string, bins: Bin[]) {
-  try {
-    window.localStorage.setItem(STORAGE_PREFIX + trackKey, JSON.stringify(bins.map((b) => [Math.round(b.x * 10) / 10, Math.round(b.z * 10) / 10, b.n])))
-  } catch {
-    // Sin almacenamiento el mapa se sigue dibujando, solo que hay que volver a recorrerlo
-  }
-}
-
 export function TrackMap({
-  trackKey,
+  source,
+  track,
+  config,
   samples,
   labels,
 }: {
-  trackKey: string
+  source: string
+  track: string
+  config: string
   samples: MapSample[]
-  labels: { building: string; coverage: string; empty: string }
+  labels: { loading: string; unavailable: string }
 }) {
-  const bins = useRef<Bin[]>(emptyBins())
-  const dirty = useRef(false)
-  const [version, setVersion] = useState(0)
+  const [meta, setMeta] = useState<MapMeta | null>(null)
+  const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading')
+  // Rumbo (en grados sobre el mapa) de cada coche, deducido de su movimiento entre dos actualizaciones
+  const headings = useRef<Map<string, { x: number; z: number; angle: number }>>(new Map())
 
-  // Al cambiar de circuito se carga el trazado guardado (o se empieza de cero)
+  const query = `source=${encodeURIComponent(source)}&track=${encodeURIComponent(track)}&config=${encodeURIComponent(config)}`
+  const imageUrl = `/api/live-timing/track-map?${query}&kind=image`
+
   useEffect(() => {
-    bins.current = trackKey ? loadBins(trackKey) : emptyBins()
-    dirty.current = false
-    setVersion((v) => v + 1)
-  }, [trackKey])
-
-  // Cada actualización de coches afina el trazado
-  useEffect(() => {
-    let changed = false
-    for (const s of samples) {
-      if (s.inPits || !(s.spline >= 0 && s.spline < 1)) continue
-      const bin = bins.current[Math.floor(s.spline * BINS)]
-      if (!bin) continue
-      if (bin.n === 0) {
-        bin.x = s.x
-        bin.z = s.z
-        bin.n = 1
-        changed = true
-      } else if (Math.hypot(s.x - bin.x, s.z - bin.z) <= OUTLIER_METERS) {
-        const w = Math.min(bin.n, 30)
-        bin.x = (bin.x * w + s.x) / (w + 1)
-        bin.z = (bin.z * w + s.z) / (w + 1)
-        bin.n = Math.min(bin.n + 1, 1000)
-        changed = true
-      }
+    if (!track) {
+      setMeta(null)
+      setState('loading')
+      return
     }
-    if (changed) {
-      dirty.current = true
-      setVersion((v) => v + 1)
+    let alive = true
+    setState('loading')
+    fetch(`/api/live-timing/track-map?${query}&kind=meta`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('no map'))))
+      .then((json: MapMeta) => {
+        if (!alive) return
+        setMeta(json)
+        setState('ready')
+      })
+      .catch(() => {
+        if (!alive) return
+        setMeta(null)
+        setState('unavailable')
+      })
+    return () => {
+      alive = false
     }
-  }, [samples])
+  }, [query, track])
 
-  // Guardado en el navegador cada pocos segundos, no en cada actualización
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (dirty.current && trackKey) {
-        saveBins(trackKey, bins.current)
-        dirty.current = false
-      }
-    }, 15_000)
-    return () => clearInterval(id)
-  }, [trackKey])
-
-  const geometry = useMemo(() => {
-    const filled = bins.current.filter((b) => b.n > 0)
-    if (filled.length < 12) return null
-    let minX = Infinity
-    let maxX = -Infinity
-    let minZ = Infinity
-    let maxZ = -Infinity
-    for (const b of filled) {
-      minX = Math.min(minX, b.x)
-      maxX = Math.max(maxX, b.x)
-      minZ = Math.min(minZ, b.z)
-      maxZ = Math.max(maxZ, b.z)
-    }
-    const spanX = Math.max(maxX - minX, 1)
-    const spanZ = Math.max(maxZ - minZ, 1)
-    const scale = Math.min((VIEW_W - PAD * 2) / spanX, (VIEW_H - PAD * 2) / spanZ)
-    const offsetX = (VIEW_W - spanX * scale) / 2
-    const offsetY = (VIEW_H - spanZ * scale) / 2
-    // Norte arriba: la Z del mundo crece hacia arriba en pantalla
-    const project = (x: number, z: number) => ({ x: offsetX + (x - minX) * scale, y: offsetY + (maxZ - z) * scale })
-
-    let d = ''
-    let last = -1
-    bins.current.forEach((b, i) => {
-      if (b.n === 0) return
-      const p = project(b.x, b.z)
-      d += `${last >= 0 && i - last <= 6 ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)} `
-      last = i
-    })
-    const coverage = filled.length / BINS
-    const closed = coverage > 0.92 && bins.current[0].n > 0 && bins.current[BINS - 1].n > 0
-    if (closed) d += 'Z'
-
-    // Línea de meta: pequeña marca perpendicular al sentido de la pista en el tramo 0
-    let finish: { x1: number; y1: number; x2: number; y2: number } | null = null
-    const a = bins.current[0]
-    const b = bins.current[3]
-    if (a.n > 0 && b.n > 0) {
-      const pa = project(a.x, a.z)
-      const pb = project(b.x, b.z)
-      const dx = pb.x - pa.x
-      const dy = pb.y - pa.y
-      const len = Math.hypot(dx, dy) || 1
-      const nx = (-dy / len) * 9
-      const ny = (dx / len) * 9
-      finish = { x1: pa.x - nx, y1: pa.y - ny, x2: pa.x + nx, y2: pa.y + ny }
-    }
-
-    return { d, coverage, project, finish }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version])
-
-  if (!geometry) {
+  if (state !== 'ready' || !meta) {
     return (
-      <div className="flex h-[260px] items-center justify-center px-6 text-center text-xs text-slate-600">
-        {samples.length > 0 ? labels.building : labels.empty}
+      <div className="flex h-[240px] items-center justify-center px-6 text-center text-xs text-slate-600">
+        {state === 'unavailable' ? labels.unavailable : labels.loading}
       </div>
     )
+  }
+
+  const rotated = meta.height / meta.width > ROTATE_RATIO
+  const viewW = rotated ? meta.height : meta.width
+  const viewH = rotated ? meta.width : meta.height
+  // Tamaño de los coches en unidades del mapa: se calcula para que midan lo mismo en pantalla sea cual sea la resolución del mapa
+  const unit = viewW / 900
+
+  const project = (x: number, z: number) => {
+    const px = (x + meta.offsetX) / meta.scale + meta.padding
+    const py = (z + meta.offsetZ) / meta.scale + meta.padding
+    return rotated ? { x: meta.height - py, y: px } : { x: px, y: py }
   }
 
   // Los coches se pintan de atrás hacia delante para que el líder quede por encima
   const ordered = [...samples].sort((a, b) => b.position - a.position)
 
+  // Rumbo: se recalcula solo si el coche se ha movido lo suficiente (más de 3 m); parado, conserva el último
+  const angleFor = (car: MapSample) => {
+    const prev = headings.current.get(car.key)
+    const from = prev ? project(prev.x, prev.z) : null
+    const to = project(car.x, car.z)
+    let angle = prev?.angle ?? 0
+    if (prev && from && Math.hypot(car.x - prev.x, car.z - prev.z) > 3) {
+      angle = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI
+      headings.current.set(car.key, { x: car.x, z: car.z, angle })
+    } else if (!prev) {
+      headings.current.set(car.key, { x: car.x, z: car.z, angle })
+    }
+    return angle
+  }
+
   return (
-    <div className="relative">
-      <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="h-[340px] w-full md:h-[400px]" preserveAspectRatio="xMidYMid meet">
-        {/* Asfalto: borde oscuro, pista y línea central fina */}
-        <path d={geometry.d} fill="none" stroke="#0b1424" strokeWidth={17} strokeLinecap="round" strokeLinejoin="round" />
-        <path d={geometry.d} fill="none" stroke="#1d2a40" strokeWidth={13} strokeLinecap="round" strokeLinejoin="round" />
-        <path d={geometry.d} fill="none" stroke="#33445f" strokeWidth={1} strokeDasharray="3 7" strokeLinecap="round" strokeLinejoin="round" />
-        {geometry.finish && <line x1={geometry.finish.x1} y1={geometry.finish.y1} x2={geometry.finish.x2} y2={geometry.finish.y2} stroke="#fff" strokeWidth={3} strokeDasharray="2 2" />}
+    <div className="relative bg-[radial-gradient(ellipse_at_center,#0a1030_0%,#02030f_78%)]">
+      <svg viewBox={`0 0 ${viewW} ${viewH}`} className="mx-auto block max-h-[520px] w-full" preserveAspectRatio="xMidYMid meet">
+        {/* Mapa oficial del servidor: la pista es blanca con el borde fino, así que sobre el fondo oscuro se lee tal cual */}
+        <g transform={rotated ? `translate(${meta.height} 0) rotate(90)` : undefined}>
+          <image href={imageUrl} width={meta.width} height={meta.height} style={{ filter: 'drop-shadow(0 0 2px #000)' }} />
+        </g>
 
         {ordered.map((car) => {
-          const p = geometry.project(car.x, car.z)
+          const p = project(car.x, car.z)
+          const r = (car.position === 1 ? 12 : 10) * unit
+          const angle = angleFor(car)
+          const labelW = (car.initials.length * 7 + 8) * unit
           return (
             <g
               key={car.key}
-              style={{ transform: `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`, transition: 'transform 6s linear', opacity: car.dim ? 0.3 : 1 }}
+              style={{ transform: `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`, transition: 'transform 6s linear', opacity: car.dim ? 0.28 : 1 }}
             >
               <title>{car.label}</title>
-              <circle r={car.position === 1 ? 12 : 10.5} fill={car.color} stroke={car.inPits ? '#f59e0b' : '#04070d'} strokeWidth={car.inPits ? 2.5 : 2} />
-              <text textAnchor="middle" dominantBaseline="central" fontSize={car.number.length > 2 ? 8 : 10} fontWeight={800} fill="#fff" style={{ pointerEvents: 'none' }}>
+              {/* Flecha de rumbo */}
+              <g transform={`rotate(${angle.toFixed(0)})`}>
+                <path d={`M ${r + 9 * unit} 0 L ${r - 1 * unit} ${-6 * unit} L ${r - 1 * unit} ${6 * unit} Z`} fill={car.color} stroke="#04070d" strokeWidth={1 * unit} />
+              </g>
+              {car.position === 1 && <circle r={r + 4 * unit} fill="none" stroke="#f5c518" strokeWidth={2 * unit} />}
+              <circle r={r} fill={car.color} stroke={car.inPits ? '#f59e0b' : '#04070d'} strokeWidth={(car.inPits ? 3 : 2) * unit} />
+              <text
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={(car.number.length > 2 ? 8 : 10) * unit}
+                fontWeight={800}
+                fill="#fff"
+                style={{ pointerEvents: 'none' }}
+              >
                 {car.number}
               </text>
+              {/* Etiqueta con las iniciales del piloto, como en el live map del servidor */}
+              <g transform={`translate(${(r + 4 * unit).toFixed(1)} ${(r + 3 * unit).toFixed(1)})`}>
+                <rect width={labelW} height={15 * unit} rx={3 * unit} fill="rgba(0,0,0,0.72)" />
+                <text x={labelW / 2} y={7.8 * unit} textAnchor="middle" dominantBaseline="central" fontSize={9 * unit} fontWeight={800} fill="#fff" style={{ pointerEvents: 'none' }}>
+                  {car.initials}
+                </text>
+              </g>
             </g>
           )
         })}
       </svg>
-      {geometry.coverage < 0.92 && (
-        <p className="absolute bottom-2 left-3 text-[9px] font-bold uppercase tracking-wider text-slate-600">
-          {labels.coverage.replace('{pct}', String(Math.round(geometry.coverage * 100)))}
-        </p>
-      )}
     </div>
   )
 }
