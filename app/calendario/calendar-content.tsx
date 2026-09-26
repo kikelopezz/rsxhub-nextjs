@@ -71,6 +71,7 @@ type League = {
   accentColor?: string | null
   logoUrl?: string | null
   classTags?: string[]
+  bannerUrl?: string | null
 }
 
 const EVENT_TYPE_DISPLAY_LABEL: Record<'RACE' | 'QUALIFYING' | 'TIME ATTACK', string> = {
@@ -778,15 +779,15 @@ export default function CalendarContent({
         const type = getEventType(nextSession)
         const typeColor = EVENT_TYPE_COLOR[type]
         const raceTitle = nextSession.title?.trim() || nextSession.circuitName
+        // Imagen del panel: circuito del evento, si no el banner del campeonato y, en último caso, una foto genérica de RSX
+        const panelImage = nextSession.circuitImageUrl || nextLeague?.bannerUrl || '/hero/hero-1.jpg'
 
         return (
           <section className="grid overflow-hidden rounded-2xl border border-white/10 bg-[#0d1420] shadow-lg md:grid-cols-[1.1fr_0.9fr]">
             <div
               className="relative hidden min-h-[190px] overflow-hidden md:block"
               style={{
-                backgroundImage: nextSession.circuitImageUrl
-                  ? `linear-gradient(90deg, #0d1420 0%, rgba(13,20,32,.82) 50%, rgba(13,20,32,.35) 100%), url(${nextSession.circuitImageUrl})`
-                  : `radial-gradient(600px 300px at 80% 20%, ${hexToRgba(typeColor, 0.35)}, transparent 60%), linear-gradient(160deg, #0d2038 0%, #071120 60%, #050a14 100%)`,
+                backgroundImage: `linear-gradient(90deg, #0d1420 0%, rgba(13,20,32,.82) 50%, rgba(13,20,32,.35) 100%), url(${panelImage})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               }}
