@@ -7,8 +7,8 @@ import { getDictionary } from '@/lib/i18n/get-dictionary'
 const socials = [
   {
     name: 'Instagram',
-    handle: '@rsx_liga',
-    href: 'https://www.instagram.com/rsx_liga',
+    handle: '@rsx.league',
+    href: 'https://www.instagram.com/rsx.league',
     color: 'text-pink-400 bg-pink-500/10 border-pink-500/20 group-hover:border-pink-500/40',
     icon: (
       <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -20,8 +20,8 @@ const socials = [
   },
   {
     name: 'TikTok',
-    handle: '@rsx_liga',
-    href: 'https://www.tiktok.com/@rsx_liga',
+    handle: '@rsx.league',
+    href: 'https://www.tiktok.com/@rsx.league',
     color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20 group-hover:border-cyan-500/40',
     icon: (
       <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
