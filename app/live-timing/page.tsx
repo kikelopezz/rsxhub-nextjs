@@ -195,7 +195,7 @@ function SessionClock({
   )
 }
 
-const LEGEND_COLUMNS = ['pos', 'cls', 'classPos', 'number', 'driverCar', 'team', 'tyre', 'gap', 'interval', 'last', 'best', 'laps', 'pits', 'stint', 'state'] as const
+const LEGEND_COLUMNS = ['pos', 'cls', 'classPos', 'number', 'name', 'team', 'tyre', 'gap', 'interval', 'last', 'best', 'laps', 'pits', 'stint', 'state'] as const
 
 export default function LiveTimingPage() {
   const t = useDictionary().liveTiming
@@ -794,13 +794,14 @@ export default function LiveTimingPage() {
 
         <div className="overflow-x-auto">
           {tab === 'live' ? (
-            <table className="w-full min-w-[1180px] border-collapse text-left font-mono-data text-[11px] whitespace-nowrap">
+            <table className="w-full min-w-[1260px] border-collapse text-left font-mono-data text-[11px] whitespace-nowrap">
               <thead className="sticky top-0 z-10">
                 <tr>
                   <Th sortKey="Position" onSort={handleSort} className="w-14 text-center">{t.col.pos}</Th>
                   <Th sortKey="Number" onSort={handleSort} className="w-16 text-center">{t.col.number}</Th>
                   <Th sortKey="Class" onSort={handleSort} className="w-24 text-center">{t.col.cls}</Th>
-                  <Th sortKey="Team" onSort={handleSort}>{t.col.team} / {t.col.driverCar}</Th>
+                  <Th sortKey="Driver" onSort={handleSort}>{t.col.name}</Th>
+                  <Th sortKey="Team" onSort={handleSort}>{t.col.team}</Th>
                   <Th className="text-center">{t.col.tyre}</Th>
                   <Th className="text-right">{t.col.gap}</Th>
                   <Th className="text-right !text-[#4ea1ff]">{t.col.interval}</Th>
@@ -818,7 +819,7 @@ export default function LiveTimingPage() {
               <tbody>
                 {liveRows.length === 0 ? (
                   <tr>
-                    <td colSpan={16} className="px-4 py-14 text-center text-xs text-slate-600">
+                    <td colSpan={17} className="px-4 py-14 text-center text-xs text-slate-600">
                       {t.noDrivers}
                     </td>
                   </tr>
@@ -881,13 +882,10 @@ export default function LiveTimingPage() {
                           </span>
                         </td>
                         <td className="px-2 py-1.5">
-                          <div className="max-w-[240px] truncate text-[12px] font-bold uppercase leading-tight text-white">{car.team}</div>
-                          <div className="max-w-[240px] truncate text-[10px] leading-tight text-slate-500">
-                            {info.DriverName || '-'}
-                            <span className="text-slate-700"> · </span>
-                            <span className="uppercase">{info.CarName || info.CarModel || '-'}</span>
-                          </div>
+                          <div className="max-w-[210px] truncate text-[12px] font-bold leading-tight text-white">{info.DriverName || '-'}</div>
+                          <div className="max-w-[210px] truncate text-[10px] uppercase leading-tight text-slate-500">{info.CarName || info.CarModel || '-'}</div>
                         </td>
+                        <td className="max-w-[200px] truncate px-2 py-1.5 text-[11px] font-bold uppercase text-slate-300">{car.team}</td>
                         <td className="px-2 py-1.5 text-center">
                           {tyre ? (
                             <span
@@ -943,7 +941,8 @@ export default function LiveTimingPage() {
                   <Th sortKey="Position" onSort={handleSort} className="w-12 text-center">{t.col.pos}</Th>
                   <Th sortKey="Number" onSort={handleSort} className="w-16 text-center">{t.col.number}</Th>
                   <Th sortKey="Class" onSort={handleSort} className="w-20 text-center">{t.col.cls}</Th>
-                  <Th sortKey="Team" onSort={handleSort}>{t.col.team} / {t.col.driverCar}</Th>
+                  <Th sortKey="Driver" onSort={handleSort}>{t.col.name}</Th>
+                  <Th sortKey="Team" onSort={handleSort}>{t.col.team}</Th>
                   <Th sortKey="BestLap" onSort={handleSort} className="text-right">{t.col.best}</Th>
                   <Th sortKey="Laps" onSort={handleSort} className="text-center">{t.col.laps}</Th>
                   <Th className="text-center !text-orange-400">{t.col.stint}</Th>
@@ -955,7 +954,7 @@ export default function LiveTimingPage() {
               <tbody>
                 {resultRows.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-14 text-center text-xs text-slate-600">
+                    <td colSpan={11} className="px-4 py-14 text-center text-xs text-slate-600">
                       {t.noResults}
                     </td>
                   </tr>
@@ -988,13 +987,10 @@ export default function LiveTimingPage() {
                           {CLASS_SHORT[cls] || cls}
                         </td>
                         <td className="px-2 py-1.5">
-                          <div className="text-[12px] font-bold uppercase leading-tight text-white">{car.team}</div>
-                          <div className="text-[10px] leading-tight text-slate-500">
-                            {info.DriverName || '-'}
-                            <span className="text-slate-700"> · </span>
-                            <span className="uppercase">{info.CarModel || '-'}</span>
-                          </div>
+                          <div className="text-[12px] font-bold leading-tight text-white">{info.DriverName || '-'}</div>
+                          <div className="text-[10px] uppercase leading-tight text-slate-500">{info.CarModel || '-'}</div>
                         </td>
+                        <td className="px-2 py-1.5 text-[11px] font-bold uppercase text-slate-300">{car.team}</td>
                         <td className="px-2 py-1.5 text-right font-bold tabular-nums text-white">{formatNanos(stats.BestLap)}</td>
                         <td className="px-2 py-1.5 text-center font-bold tabular-nums text-white">{d.TotalNumLaps || 0}</td>
                         <td className="px-2 py-1.5 text-center font-bold tabular-nums text-orange-400">{formatStintMs(stintMs)}</td>
