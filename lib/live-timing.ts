@@ -155,3 +155,14 @@ export function formatStintMs(ms: number): string {
   const s = sec % 60
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
+
+/** Nombre legible del circuito a partir de la carpeta del simulador ("jr_road_atlanta_2022" → "Road Atlanta"). */
+export function formatTrackName(raw?: string): string {
+  if (!raw) return ''
+  return raw
+    .replace(/^(ks|jr|acf|fsr|ac|ng|bm)_/i, '')
+    .replace(/[_-]?(19|20)\d{2}$/, '')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
