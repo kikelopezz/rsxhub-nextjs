@@ -69,16 +69,7 @@ export default async function CalendarioPage({
   const view: ViewMode = params.view === 'programme' ? 'programme' : 'month'
   const anchorDate = parseDateInput(params.date)
 
-  const [events, leagues, notes, simulators, circuits] = await Promise.all([
-    getLeagueEvents(),
-    getLeagues(),
-    getCalendarNotes(),
-    getSimulators(),
-    // Catálogo de circuitos: da imagen a los eventos que no traen la suya guardada
-    db.circuit.findMany({ select: { id: true, name: true, imageUrl: true } }).catch(() => []),
-  ])
-  const circuitImageById = new Map(circuits.map((c) => [c.id, c.imageUrl]))
-  const circuitImageByName = new Map(circuits.map((c) => [c.name.trim().toLowerCase(), c.imageUrl]))
+  const [events, leagues, notes, simulators] = await Promise.all([getLeagueEvents(), getLeagues(), getCalendarNotes(), getSimulators()])
 
   const monthStart = startOfMonthUTC(anchorDate)
   const monthEnd = endOfMonthUTC(anchorDate)
@@ -105,11 +96,7 @@ export default async function CalendarioPage({
     circuitId: e.circuitId ?? null,
     title: e.title ?? null,
     circuitName: e.circuitName,
-    circuitImageUrl:
-      e.circuitImageUrl ||
-      (e.circuitId ? circuitImageById.get(e.circuitId) : undefined) ||
-      circuitImageByName.get((e.circuitName || '').trim().toLowerCase()) ||
-      null,
+    circuitImageUrl: e.circuitImageUrl ?? null,
     startsAt: e.startsAt,
     endsAt: e.endsAt,
     status: e.status,
@@ -140,8 +127,6 @@ export default async function CalendarioPage({
     simulatorLogoUrl: simulatorLogo(l.simulator, simulators),
     accentColor: (l as any).accentColor || null,
     logoUrl: (l as any).logoUrl || null,
-    classTags: l.classTags || [],
-    bannerUrl: l.bannerUrl || null,
   }))
 
   return (
