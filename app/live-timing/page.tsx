@@ -56,6 +56,16 @@ function bestSplitFor(driver: LiveDriver, index: number, sessionBest: Record<num
   return { text: fmt, tone: 'yellow' as const }
 }
 
+/** Sectores de la mejor vuelta de un piloto (para la tabla de resultados, donde ya no hay vuelta en curso). */
+function bestLapSplit(driver: LiveDriver, index: number, sessionBest: Record<number, number>) {
+  const stats = getCarStats(driver)
+  const split = stats.BestSplits ? Object.values(stats.BestSplits).find((s) => s.SplitIndex === index) : undefined
+  const value = split?.SplitTime ?? 0
+  if (!value || value <= 0) return { text: '-', tone: 'empty' as const }
+  const text = (value / 1e9).toFixed(1)
+  return { text, tone: value <= (sessionBest[index] ?? Infinity) ? ('purple' as const) : ('green' as const) }
+}
+
 const SPLIT_TONE_CLASS: Record<string, string> = {
   purple: 'text-fuchsia-400 font-bold',
   green: 'text-emerald-400 font-semibold',
@@ -395,6 +405,18 @@ export default function LiveTimingPage() {
     })
     return best
   }, [connected])
+
+  const resultBestSplits = useMemo(() => {
+    const best: Record<number, number> = { 0: Infinity, 1: Infinity, 2: Infinity }
+    ;[...connected, ...disconnected].forEach((d) => {
+      const group = getCarStats(d).BestSplits
+      if (!group) return
+      Object.values(group).forEach((sp) => {
+        if (sp.SplitTime > 0 && sp.SplitTime < (best[sp.SplitIndex] ?? Infinity)) best[sp.SplitIndex] = sp.SplitTime
+      })
+    })
+    return best
+  }, [connected, disconnected])
 
   // Posición en su categoría e intervalo con el coche de delante: se calculan sobre el orden real de carrera,
   // no sobre lo que se vea tras filtrar u ordenar la tabla.
@@ -935,7 +957,7 @@ export default function LiveTimingPage() {
               </tbody>
             </table>
           ) : (
-            <table className="w-full min-w-[900px] border-collapse text-left font-mono-data text-[11px] whitespace-nowrap">
+            <table className="w-full min-w-[1040px] border-collapse text-left font-mono-data text-[11px] whitespace-nowrap">
               <thead>
                 <tr>
                   <Th sortKey="Position" onSort={handleSort} className="w-12 text-center">{t.col.pos}</Th>
@@ -944,6 +966,9 @@ export default function LiveTimingPage() {
                   <Th sortKey="Driver" onSort={handleSort}>{t.col.name}</Th>
                   <Th sortKey="Team" onSort={handleSort}>{t.col.team}</Th>
                   <Th sortKey="BestLap" onSort={handleSort} className="text-right">{t.col.best}</Th>
+                  <Th className="w-12 text-center !text-slate-600">S1</Th>
+                  <Th className="w-12 text-center !text-slate-600">S2</Th>
+                  <Th className="w-12 text-center !text-slate-600">S3</Th>
                   <Th sortKey="Laps" onSort={handleSort} className="text-center">{t.col.laps}</Th>
                   <Th className="text-center !text-orange-400">{t.col.stint}</Th>
                   <Th className="text-center">{t.col.longPits}</Th>
@@ -954,7 +979,7 @@ export default function LiveTimingPage() {
               <tbody>
                 {resultRows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-14 text-center text-xs text-slate-600">
+                    <td colSpan={14} className="px-4 py-14 text-center text-xs text-slate-600">
                       {t.noResults}
                     </td>
                   </tr>
@@ -992,6 +1017,14 @@ export default function LiveTimingPage() {
                         </td>
                         <td className="px-2 py-1.5 text-[11px] font-bold uppercase text-slate-300">{car.team}</td>
                         <td className="px-2 py-1.5 text-right font-bold tabular-nums text-white">{formatNanos(stats.BestLap)}</td>
+                        {[0, 1, 2].map((i) => {
+                          const sector = bestLapSplit(d, i, resultBestSplits)
+                          return (
+                            <td key={i} className={`px-1 py-1.5 text-center tabular-nums ${SPLIT_TONE_CLASS[sector.tone]}`}>
+                              {sector.text}
+                            </td>
+                          )
+                        })}
                         <td className="px-2 py-1.5 text-center font-bold tabular-nums text-white">{d.TotalNumLaps || 0}</td>
                         <td className="px-2 py-1.5 text-center font-bold tabular-nums text-orange-400">{formatStintMs(stintMs)}</td>
                         <td className="px-2 py-1.5 text-center text-slate-400">{longPits}</td>
