@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { canAccessPlatformAdmin, canStewardLeague, getCurrentUser, getLeagueRole, getPlatformRole } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { findEntry, loadLeagueEntries } from '@/lib/league-entries'
 
 type ImportedResultRow = {
   userId?: string
@@ -218,12 +219,17 @@ export async function POST(req: Request) {
       users.forEach((u) => knownUserIds.add(u.id))
     }
 
+    // Inscripciones de la liga: sirven para completar el equipo y el dorsal reales de cada piloto
+    const leagueEntries = await loadLeagueEntries(leagueId)
+
     const resolved = parsed.results
       .map((row) => ({
         ...row,
         userId:
           (row.userId && knownUserIds.has(String(row.userId)) ? String(row.userId) : undefined) ||
-          (row.steamId ? steamToUserId.get(row.steamId) : undefined),
+          (row.steamId ? steamToUserId.get(row.steamId) : undefined) ||
+          // Sin Steam ID reconocido (p. ej. uno inventado): se busca por nombre de piloto entre los inscritos
+          findEntry(leagueEntries, { driverName: row.driverName })?.userId,
         points: row.points ?? null,
       }))
       .filter((row) => Boolean(row.userId))
@@ -239,7 +245,12 @@ export async function POST(req: Request) {
     const notRegisteredCount = resolved.length - filtered.length
 
     // Categoría de cada fila: la que manda el gestor de ronda o, si no, la de la inscripción del piloto
-    const rowsToSave = filtered.map((row) => ({ ...row, classTag: row.classTag || regClassByUser.get(String(row.userId)) }))
+    // El dorsal y el equipo salen de la inscripción del piloto (vinculada por Steam ID); si no hay, se usa lo que traiga el JSON.
+    const rowsToSave = filtered.map((row) => {
+      const classTag = row.classTag || regClassByUser.get(String(row.userId))
+      const entry = findEntry(leagueEntries, { userId: row.userId, steamId: row.steamId, driverName: row.driverName }, classTag)
+      return { ...row, classTag, dorsal: entry?.dorsal ?? row.dorsal, teamName: entry?.teamName ?? row.teamName }
+    })
     const uploadedTags = Array.from(new Set(rowsToSave.map((row) => row.classTag).filter(Boolean))) as string[]
 
     if (replaceExisting) {

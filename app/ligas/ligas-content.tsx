@@ -23,7 +23,7 @@ type League = {
   bannerUrl: string | null
   accentColor?: string | null
   shortDescription?: string
-  leader?: { name: string; logoUrl: string | null; points: number } | null
+  leaders?: Array<{ classTag: string; name: string | null; logoUrl: string | null; points: number }>
 }
 
 type Props = {

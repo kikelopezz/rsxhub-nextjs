@@ -30,6 +30,8 @@ export type ParsedRow = {
   points: number
   lapTime?: string
   raceTime?: string
+  /** true cuando el piloto se ha vinculado por Steam ID con su inscripción (equipo y dorsal reales) */
+  linked?: boolean
 }
 
 const DEFAULT_POINTS_SYSTEM = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
@@ -82,6 +84,40 @@ export function FinishRoundModal({
     } catch {}
   }
 
+  // Vincula cada piloto del archivo con su inscripción (por Steam ID; si no, por nombre) para poner
+  // el equipo y el dorsal reales en la vista previa.
+  const linkRowsToEntries = async (rows: ParsedRow[]) => {
+    try {
+      const res = await fetch('/api/admin/resolve-entries', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          leagueId,
+          rows: rows.map((r) => ({ steamId: r.steamId, driverName: r.driverName, classTag: r.classTag })),
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.ok || !Array.isArray(data.matches)) return
+      const byId = new Map<string, { userId: string; teamName: string | null; dorsal: string | null } | null>()
+      rows.forEach((r, i) => byId.set(r.id, data.matches[i] ?? null))
+      setParsedRows((prev) =>
+        prev.map((row) => {
+          const match = byId.get(row.id)
+          if (!match) return row
+          return {
+            ...row,
+            userId: row.userId || match.userId,
+            teamName: match.teamName || row.teamName,
+            dorsal: match.dorsal ?? row.dorsal,
+            linked: true,
+          }
+        })
+      )
+    } catch {
+      // Sin vinculación la vista previa sigue funcionando con lo que traiga el JSON
+    }
+  }
+
   // Handle JSON file selection or text input parsing
   const handleParseJson = (rawContent: string, opts?: { stay?: boolean }) => {
     try {
@@ -120,12 +156,14 @@ export function FinishRoundModal({
         let rawTeamName = item.TeamName || item.teamName || item.Driver?.Team || driverName
         let cleanTeamName = rawTeamName.split('|')[0].trim() || rawTeamName.trim()
 
-        const steamId =
-          item.DriverGuid || item.driverGuid || item.Driver?.Guid || item.guid || `76561198000000${idx + 1}`
+        const rawGuid = item.DriverGuid || item.driverGuid || item.Driver?.Guid || item.guid
+        // Steam ID real (17 dígitos); sin él la fila queda sin vincular en lugar de llevar uno inventado
+        const steamId = rawGuid ? String(rawGuid).match(/d{17}/)?.[0] || String(rawGuid) : ''
         const userId = item.userId || item.user_id
 
-        const rawDorsal = item.carNumber ?? item.CarNumber ?? item.Driver?.CarNumber ?? item.ballast
-        const dorsalDisplay = rawDorsal != null ? String(rawDorsal).trim() : String((idx % 90) + 1)
+        // Sin dorsal en el JSON se deja vacío: el real sale de la inscripción del piloto (no se inventa 1, 2, 3…)
+        const rawDorsal = item.carNumber ?? item.CarNumber ?? item.Driver?.CarNumber
+        const dorsalDisplay = rawDorsal != null ? String(rawDorsal).trim() : ''
 
         // Categoría: la que ha elegido el gestor para todo el archivo o, en modo automático, la que traiga el coche
         let classTag = uploadCategory
@@ -181,6 +219,7 @@ export function FinishRoundModal({
       )
 
       setParsedRows(limited)
+      void linkRowsToEntries(limited)
       if (!opts?.stay) setActiveTab('preview')
     } catch (err: any) {
       setErrorMsg(err.message || tr.parseError)
@@ -663,7 +702,7 @@ export function FinishRoundModal({
                                   <span className="text-xs font-extrabold uppercase tracking-wide text-white">
                                     {row.teamName}
                                   </span>
-                                  {row.dorsal != null && (
+                                  {row.dorsal != null && String(row.dorsal) !== '' && (
                                     <span className="font-mono-data shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">#{row.dorsal}</span>
                                   )}
                                 </div>

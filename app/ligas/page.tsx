@@ -6,6 +6,17 @@ import { getTeamsDashboard } from '@/lib/team-data'
 import { db } from '@/lib/db'
 import LigasPageContent from './ligas-content'
 import { getSimulators } from '@/lib/data/simulators'
+import { getLocale } from '@/lib/i18n/get-locale'
+import { pageMetadata } from '@/lib/seo'
+
+export async function generateMetadata() {
+  const en = (await getLocale()) === 'en'
+  return pageMetadata({
+    title: en ? "Sim racing leagues and championships" : "Ligas y campeonatos de simracing",
+    description: en ? "Browse RSX leagues and championships in Assetto Corsa and Le Mans Ultimate: formats, classes, calendar and open registrations." : "Explora las ligas y campeonatos de RSX en Assetto Corsa y Le Mans Ultimate: formatos, categorías, calendario e inscripciones abiertas.",
+    path: '/ligas',
+  })
+}
 
 interface Props {
   searchParams: Promise<{
@@ -60,40 +71,46 @@ export default async function LigasPage({ searchParams }: Props) {
     }
   }
 
-  // Current points leader per league, for the season-directory card preview.
-  // Leader is computed off the league's first class tag (the same one its
-  // standings panel opens on) so the card and the detail page agree.
-  const leaderByLeague = new Map<string, { name: string; logoUrl: string | null; points: number } | null>()
+  // Current points leader per league AND per class, for the season-directory card preview.
+  // A multi-class league (e.g. GT3 + Hypercar) has one leader per class, so the card shows
+  // each class with its own P1 — the same ranking the standings panel uses for that class.
+  type ClassLeader = { classTag: string; name: string; logoUrl: string | null; points: number } | { classTag: string; name: null; logoUrl: null; points: 0 }
+  const leadersByLeague = new Map<string, ClassLeader[]>()
   await Promise.all(
     leagues.map(async (league) => {
-      const primaryClass = (league.classTags || [])[0]
-      if (!primaryClass) {
-        leaderByLeague.set(league.id, null)
+      const classTags = Array.from(new Set((league.classTags || []).map((tag) => tag.trim().toUpperCase()).filter(Boolean))).slice(0, 4)
+      if (classTags.length === 0) {
+        leadersByLeague.set(league.id, [])
         return
       }
       const pointsMap = await getTeamPointsOverrides(league.id)
-      // Dedupe per car (team + dorsal), not per team — a team can field more than one car
-      // in the same class, and the real standings ladder ranks cars independently. Deduping
-      // by team alone kept only whichever car happened to register first, so a team's actual
-      // best-scoring car could lose the "leader" comparison to its own weaker entry.
-      const seenCars = new Set<string>()
-      let best: { name: string; logoUrl: string | null; points: number } | null = null
-      for (const reg of registrations) {
-        if (reg.leagueId !== league.id || reg.status === 'rejected') continue
-        if (reg.classTag && reg.classTag !== primaryClass) continue
-        if (!reg.teamId || !validTeamIds.has(reg.teamId)) continue
-        const dorsal = reg.assignedNumber != null ? String(reg.assignedNumber) : ''
-        const carKey = `${reg.teamId}_${dorsal}`
-        if (seenCars.has(carKey)) continue
-        seenCars.add(carKey)
-        const points = pointsMap[`${primaryClass.toUpperCase()}_${reg.teamId}_${dorsal}`] || 0
-        const team = teamById.get(reg.teamId)
-        if (!team) continue
-        if (!best || points > best.points) {
-          best = { name: team.name, logoUrl: team.logoUrl || null, points }
+      const leaders: ClassLeader[] = []
+      for (const classTag of classTags) {
+        // Dedupe per car (team + dorsal), not per team — a team can field more than one car
+        // in the same class, and the real standings ladder ranks cars independently. Deduping
+        // by team alone kept only whichever car happened to register first, so a team's actual
+        // best-scoring car could lose the "leader" comparison to its own weaker entry.
+        const seenCars = new Set<string>()
+        let best: { name: string; logoUrl: string | null; points: number } | null = null
+        for (const reg of registrations) {
+          if (reg.leagueId !== league.id || reg.status === 'rejected') continue
+          if (reg.classTag && reg.classTag.trim().toUpperCase() !== classTag) continue
+          if (!reg.teamId || !validTeamIds.has(reg.teamId)) continue
+          const dorsal = reg.assignedNumber != null ? String(reg.assignedNumber) : ''
+          const carKey = `${reg.teamId}_${dorsal}`
+          if (seenCars.has(carKey)) continue
+          seenCars.add(carKey)
+          const points = pointsMap[`${classTag}_${reg.teamId}_${dorsal}`] || 0
+          const team = teamById.get(reg.teamId)
+          if (!team) continue
+          if (!best || points > best.points) {
+            best = { name: team.name, logoUrl: team.logoUrl || null, points }
+          }
         }
+        // Zero points means nobody has scored in this class yet — no leader to show.
+        leaders.push(best && best.points > 0 ? { classTag, ...best } : { classTag, name: null, logoUrl: null, points: 0 })
       }
-      leaderByLeague.set(league.id, best)
+      leadersByLeague.set(league.id, leaders)
     }),
   )
 
@@ -114,7 +131,7 @@ export default async function LigasPage({ searchParams }: Props) {
     accentColor: league.accentColor || null,
     shortDescription: league.shortDescription || '',
     fullDescription: league.fullDescription || '',
-    leader: leaderByLeague.get(league.id) || null,
+    leaders: leadersByLeague.get(league.id) || [],
   }))
 
   return (

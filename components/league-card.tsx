@@ -16,7 +16,7 @@ export function LeagueCard({
   league,
   registeredCount = 0,
 }: {
-  league: League & { leader?: { name: string; logoUrl: string | null; points: number } | null }
+  league: League & { leaders?: Array<{ classTag: string; name: string | null; logoUrl: string | null; points: number }> }
   registeredCount?: number
 }) {
   const classes = Array.from(new Set((league.classTags || []).map((tag) => tag.trim().toUpperCase()))).slice(0, 4)
@@ -30,7 +30,8 @@ export function LeagueCard({
     : statusKey === 'finished'
       ? 'Finalizada'
       : 'En curso'
-  const leader = league.leader
+  const leaders = league.leaders || []
+  const hasAnyLeader = leaders.some((l) => l.name)
 
   const initials = league.title.slice(0, 2).toUpperCase()
 
@@ -91,24 +92,30 @@ export function LeagueCard({
             </div>
           )}
 
-          {/* Leader preview — the card's reason for being: who's winning right now */}
-          <div className="mb-3 flex items-center gap-2.5 rounded-lg border border-white/10 bg-black/30 px-3 py-2.5">
-            {leader ? (
-              <>
-                <span className="font-display-league w-5 text-center text-lg text-[#f5c518]">P1</span>
-                {leader.logoUrl ? (
-                  <Image src={leader.logoUrl} alt={leader.name} width={28} height={28} className="h-7 w-7 shrink-0 rounded-md border border-white/15 bg-[#0d1420] object-contain" />
-                ) : (
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/15 bg-[#0d1420] text-[10px] font-black text-slate-300">
-                    {leader.name.slice(0, 2).toUpperCase()}
-                  </span>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-bold text-white">{leader.name}</p>
-                  <p className="text-[9px] uppercase tracking-wider text-slate-500">Líder actual</p>
+          {/* Leader preview — the card's reason for being: who's winning right now, per class */}
+          <div className="mb-3 space-y-1.5 rounded-lg border border-white/10 bg-black/30 px-3 py-2.5">
+            {hasAnyLeader ? (
+              leaders.map((leader) => (
+                <div key={leader.classTag} className="flex items-center gap-2.5">
+                  <span className="font-display-league w-5 text-center text-sm text-[#f5c518]">P1</span>
+                  <ClassBadge classTag={leader.classTag} className="shrink-0" />
+                  {leader.name ? (
+                    <>
+                      {leader.logoUrl ? (
+                        <Image src={leader.logoUrl} alt={leader.name} width={24} height={24} className="h-6 w-6 shrink-0 rounded-md border border-white/15 bg-[#0d1420] object-contain" />
+                      ) : (
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-white/15 bg-[#0d1420] text-[9px] font-black text-slate-300">
+                          {leader.name.slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                      <p className="min-w-0 flex-1 truncate text-xs font-bold text-white">{leader.name}</p>
+                      <span className="font-mono-data text-sm font-bold text-[#4ea1ff]">{leader.points}</span>
+                    </>
+                  ) : (
+                    <p className="min-w-0 flex-1 truncate text-[11px] italic text-slate-500">Sin resultados</p>
+                  )}
                 </div>
-                <span className="font-mono-data text-sm font-bold text-[#4ea1ff]">{leader.points}</span>
-              </>
+              ))
             ) : (
               <p className="w-full py-1 text-center text-[11px] italic text-slate-500">Aún sin resultados</p>
             )}
