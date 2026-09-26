@@ -6,6 +6,17 @@ import { db } from '@/lib/db'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
 import CalendarContent from './calendar-content'
 import { getSimulators, simulatorLogo } from '@/lib/data/simulators'
+import { getLocale } from '@/lib/i18n/get-locale'
+import { pageMetadata } from '@/lib/seo'
+
+export async function generateMetadata() {
+  const en = (await getLocale()) === 'en'
+  return pageMetadata({
+    title: en ? "Sim racing race calendar" : "Calendario de carreras de simracing",
+    description: en ? "Race and event calendar for RSX leagues: dates, circuits and qualifying and race times." : "Calendario de carreras y eventos de las ligas de RSX: fechas, circuitos y horarios de clasificación y carrera.",
+    path: '/calendario',
+  })
+}
 
 const getCalendarNotes = () =>
   fetchWithTTLCache('calendar_notes', () => db.calendarNote.findMany({ orderBy: { date: 'asc' } }), 30)

@@ -1,3 +1,4 @@
+import { pageMetadata, toDescription } from '@/lib/seo'
 import { notFound } from 'next/navigation'
 import { getCurrentUser, getAdminAccessContext, canStewardLeague } from '@/lib/auth'
 import { getLeagueBySlug, getLeagueCars, getLeagueEvents, getRegistrations, getEventConfirmations, getTeamPointsOverrides, getCarPhotoOverrides } from '@/lib/platform-data'
@@ -7,6 +8,22 @@ import { getSimulators, simulatorName, simulatorLogo } from '@/lib/data/simulato
 
 export const revalidate = 0
 export const dynamic = 'force-dynamic'
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const league = await getLeagueBySlug(slug)
+  if (!league) return { title: 'Liga no encontrada', robots: { index: false, follow: false } }
+  return pageMetadata({
+    title: league.title,
+    description: toDescription(
+      league.shortDescription || league.fullDescription,
+      `${league.title}: campeonato de simracing en RSX (Real Sim Experience). Calendario, inscripciones, clasificación y resultados.`
+    ),
+    path: `/ligas/${league.slug}`,
+    image: league.bannerUrl || league.logoUrl,
+    noindex: league.status === 'draft',
+  })
+}
 
 export default async function LigaDetailPage({
   params,

@@ -12,6 +12,16 @@ import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 import type { Dictionary } from '@/lib/i18n/dictionaries/es'
 import type { StatusMessage } from '@/components/status-banner'
+import { pageMetadata } from '@/lib/seo'
+
+export async function generateMetadata() {
+  const en = (await getLocale()) === 'en'
+  return pageMetadata({
+    title: en ? "Sim racing teams" : "Equipos de simracing",
+    description: en ? "Discover the teams competing in RSX leagues, their drivers, cars and results." : "Descubre los equipos que compiten en las ligas de RSX, sus pilotos, coches y resultados.",
+    path: '/equipos',
+  })
+}
 
 function statusMessage(
   params: {

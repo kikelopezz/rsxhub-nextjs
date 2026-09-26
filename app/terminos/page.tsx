@@ -1,10 +1,12 @@
 import { getLocale } from '@/lib/i18n/get-locale'
+import { pageMetadata } from '@/lib/seo'
 
 export async function generateMetadata() {
   const locale = await getLocale()
-  return locale === 'en'
-    ? { title: 'Terms & Conditions - RSX', description: 'Terms and Conditions of use for realsimexperience.com.' }
-    : { title: 'Términos y Condiciones - RSX', description: 'Términos y condiciones de uso de realsimexperience.com.' }
+  const meta: { title: string; description: string } = locale === 'en'
+    ? { title: 'Terms & Conditions', description: 'Terms and Conditions of use for realsimexperience.com.' }
+    : { title: 'Términos y Condiciones', description: 'Términos y condiciones de uso de realsimexperience.com.' }
+  return pageMetadata({ ...meta, path: '/terminos' })
 }
 
 export default async function TermsPage() {

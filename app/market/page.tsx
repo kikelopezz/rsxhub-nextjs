@@ -4,6 +4,17 @@ import { getLeagues } from '@/lib/platform-data'
 import { db } from '@/lib/db'
 import type { SessionUser } from '@/types'
 import MarketPageContent from './market-content'
+import { getLocale } from '@/lib/i18n/get-locale'
+import { pageMetadata } from '@/lib/seo'
+
+export async function generateMetadata() {
+  const en = (await getLocale()) === 'en'
+  return pageMetadata({
+    title: en ? "Drivers and teams market" : "Mercado de pilotos y equipos",
+    description: en ? "RSX transfer market: drivers looking for a team and teams looking for drivers to race in sim racing." : "Mercado de fichajes de RSX: pilotos que buscan equipo y equipos que buscan pilotos para competir en simracing.",
+    path: '/market',
+  })
+}
 
 async function fetchListings(): Promise<any[]> {
   try {

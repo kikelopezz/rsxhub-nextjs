@@ -1,10 +1,12 @@
 import { getLocale } from '@/lib/i18n/get-locale'
+import { pageMetadata } from '@/lib/seo'
 
 export async function generateMetadata() {
   const locale = await getLocale()
-  return locale === 'en'
-    ? { title: 'Legal Notice - RSX', description: 'Legal Notice and ownership terms for realsimexperience.com.' }
-    : { title: 'Aviso Legal - RSX', description: 'Aviso legal y condiciones de titularidad de realsimexperience.com.' }
+  const meta: { title: string; description: string } = locale === 'en'
+    ? { title: 'Legal Notice', description: 'Legal Notice and ownership terms for realsimexperience.com.' }
+    : { title: 'Aviso Legal', description: 'Aviso legal y condiciones de titularidad de realsimexperience.com.' }
+  return pageMetadata({ ...meta, path: '/aviso-legal' })
 }
 
 export default async function LegalNoticePage() {

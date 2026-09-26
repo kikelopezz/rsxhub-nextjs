@@ -1,3 +1,5 @@
+import { db } from '@/lib/db'
+import { pageMetadata, toDescription } from '@/lib/seo'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
@@ -18,6 +20,24 @@ import { TeamVehiclesSection } from './components/team-vehicles-section'
 import { TeamLeaguesSection } from './components/team-leagues-section'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const team = await db.team
+    .findUnique({ where: { id }, select: { name: true, description: true, slogan: true, logoUrl: true, bannerUrl: true, status: true } })
+    .catch(() => null)
+  if (!team) return { title: 'Equipo no encontrado', robots: { index: false, follow: false } }
+  return pageMetadata({
+    title: team.name,
+    description: toDescription(
+      team.description || team.slogan,
+      `${team.name}: equipo de simracing en RSX (Real Sim Experience). Pilotos, coches y resultados en las ligas.`
+    ),
+    path: `/equipos/${id}`,
+    image: team.bannerUrl || team.logoUrl,
+    noindex: team.status !== 'approved',
+  })
+}
 
 export default async function TeamProfilePage({
   params,

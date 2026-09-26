@@ -1,10 +1,12 @@
 import { getLocale } from '@/lib/i18n/get-locale'
+import { pageMetadata } from '@/lib/seo'
 
 export async function generateMetadata() {
   const locale = await getLocale()
-  return locale === 'en'
-    ? { title: 'Privacy Policy - RSX', description: 'Privacy Policy and data processing terms for realsimexperience.com.' }
-    : { title: 'Política de Privacidad - RSX', description: 'Política de privacidad y tratamiento de datos de realsimexperience.com.' }
+  const meta: { title: string; description: string } = locale === 'en'
+    ? { title: 'Privacy Policy', description: 'Privacy Policy and data processing terms for realsimexperience.com.' }
+    : { title: 'Política de Privacidad', description: 'Política de privacidad y tratamiento de datos de realsimexperience.com.' }
+  return pageMetadata({ ...meta, path: '/privacidad' })
 }
 
 export default async function PrivacyPage() {

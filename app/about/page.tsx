@@ -11,14 +11,16 @@ import {
   Shield
 } from 'lucide-react'
 import { getLocale } from '@/lib/i18n/get-locale'
+import { pageMetadata } from '@/lib/seo'
 import { getLatestNewsPosts, type NewsPostDTO } from '@/lib/news-data'
 import { HomeNewsSection } from '@/components/home-news-section'
 
 export async function generateMetadata() {
   const locale = await getLocale()
-  return locale === 'en'
-    ? { title: 'About - Real Sim Experience', description: 'Learn about RSX sim racing community, our history, services, partners and how to compete in our competitive leagues.' }
-    : { title: 'Sobre nosotros - Real Sim Experience', description: 'Conoce la comunidad de sim racing RSX, nuestra historia, servicios, colaboradores y cómo competir en nuestros campeonatos.' }
+  const meta: { title: string; description: string } = locale === 'en'
+    ? { title: 'About', description: 'Learn about RSX sim racing community, our history, services, partners and how to compete in our competitive leagues.' }
+    : { title: 'Sobre nosotros', description: 'Conoce la comunidad de sim racing RSX, nuestra historia, servicios, colaboradores y cómo competir en nuestros campeonatos.' }
+  return pageMetadata({ ...meta, path: '/about' })
 }
 
 export default async function AboutPage() {

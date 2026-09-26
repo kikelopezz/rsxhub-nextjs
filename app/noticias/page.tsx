@@ -3,6 +3,16 @@ import { Newspaper } from 'lucide-react'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getNewsPosts } from '@/lib/news-data'
+import { pageMetadata } from '@/lib/seo'
+
+export async function generateMetadata() {
+  const en = (await getLocale()) === 'en'
+  return pageMetadata({
+    title: en ? "Sim racing news" : "Noticias de simracing",
+    description: en ? "Latest news from the RSX community: championship announcements, results and platform updates." : "Últimas novedades de la comunidad RSX: anuncios de campeonatos, resultados y actualizaciones de la plataforma.",
+    path: '/noticias',
+  })
+}
 
 export default async function NoticiasPage() {
   const dict = getDictionary(await getLocale())

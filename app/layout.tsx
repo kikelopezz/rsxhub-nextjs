@@ -1,5 +1,5 @@
 import './globals.css'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Roboto, Barlow_Condensed, JetBrains_Mono, Anton } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { AppShell } from '@/components/app-shell'
@@ -8,6 +8,7 @@ import { TopLoadingBar } from '@/components/top-loading-bar'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 import { LocaleProvider } from '@/lib/i18n/locale-provider'
+import { SITE_URL, SITE_NAME, DEFAULT_OG_IMAGE } from '@/lib/seo'
 
 const roboto = Roboto({
   subsets: ['latin'],
@@ -39,19 +40,77 @@ const anton = Anton({
   variable: '--font-anton',
 })
 
-// Emoji favicon: an inline SVG that just draws the character, so there's no separate
-// image asset to keep in sync with the tab icon.
-const emojiFavicon = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏁</text></svg>'
-)}`
+const SITE_TITLE = 'RSX — Real Sim Experience | Ligas y campeonatos de simracing'
+const SITE_DESCRIPTION =
+  'RSX es la plataforma de competición de simracing en español: ligas y campeonatos de Assetto Corsa y Le Mans Ultimate, equipos, calendario, resultados y live timing.'
 
 export const metadata: Metadata = {
-  title: 'RSX',
-  description: 'League platform for Assetto Corsa and Le Mans Ultimate',
-  icons: {
-    icon: emojiFavicon,
-    shortcut: emojiFavicon,
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_TITLE, template: '%s | RSX' },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    'simracing', 'sim racing', 'ligas simracing', 'campeonatos simracing', 'Assetto Corsa', 'Le Mans Ultimate',
+    'competición simracing', 'liga online', 'equipos simracing', 'Real Sim Experience', 'RSX',
+  ],
+  authors: [{ name: 'Real Sim Experience', url: SITE_URL }],
+  creator: 'Real Sim Experience',
+  publisher: 'Real Sim Experience',
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    locale: 'es_ES',
+    alternateLocale: ['en_US'],
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [{ url: DEFAULT_OG_IMAGE, alt: 'RSX — Real Sim Experience' }],
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [DEFAULT_OG_IMAGE],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
+  },
+  icons: {
+    icon: '/branding/rsx-logo.ico',
+    shortcut: '/branding/rsx-logo.ico',
+    apple: '/branding/rsx-logo.png',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#06080d',
+}
+
+// Datos estructurados (schema.org) para que Google entienda qué es el sitio y muestre el nombre y el logo.
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: 'Real Sim Experience',
+      alternateName: 'RSX',
+      url: SITE_URL,
+      logo: `${SITE_URL}/branding/rsx-logo.png`,
+      description: SITE_DESCRIPTION,
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: 'RSX',
+      alternateName: 'Real Sim Experience',
+      description: SITE_DESCRIPTION,
+      inLanguage: ['es', 'en'],
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+  ],
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -61,6 +120,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang={locale}>
       <body className={`${roboto.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} ${anton.variable} font-body`}>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }} />
         <LocaleProvider locale={locale} dictionary={dictionary}>
           <TopLoadingBar />
           <Toaster theme="dark" position="top-right" richColors closeButton />

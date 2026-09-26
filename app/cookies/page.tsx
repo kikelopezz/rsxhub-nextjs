@@ -1,10 +1,12 @@
 import { getLocale } from '@/lib/i18n/get-locale'
+import { pageMetadata } from '@/lib/seo'
 
 export async function generateMetadata() {
   const locale = await getLocale()
-  return locale === 'en'
-    ? { title: 'Cookie Policy - RSX', description: 'Cookie Policy and cookie usage information for realsimexperience.com.' }
-    : { title: 'Política de Cookies - RSX', description: 'Política de cookies e información de uso de cookies de realsimexperience.com.' }
+  const meta: { title: string; description: string } = locale === 'en'
+    ? { title: 'Cookie Policy', description: 'Cookie Policy and cookie usage information for realsimexperience.com.' }
+    : { title: 'Política de Cookies', description: 'Política de cookies e información de uso de cookies de realsimexperience.com.' }
+  return pageMetadata({ ...meta, path: '/cookies' })
 }
 
 export default async function CookiesPage() {
