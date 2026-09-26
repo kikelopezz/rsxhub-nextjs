@@ -127,6 +127,7 @@ export default async function CalendarioPage({
     simulatorLogoUrl: simulatorLogo(l.simulator, simulators),
     accentColor: (l as any).accentColor || null,
     logoUrl: (l as any).logoUrl || null,
+    classTags: l.classTags || [],
   }))
 
   return (

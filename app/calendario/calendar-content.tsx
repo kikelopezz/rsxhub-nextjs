@@ -9,6 +9,7 @@ import { Calendar, Clock, Trash2, Edit2, X, Play, ChevronLeft, ChevronRight, Gri
 import { saveCalendarEvent, deleteCalendarEvent, createCalendarNoteAction, deleteCalendarNoteAction } from './actions'
 import { ImagePicker } from '@/components/image-picker'
 import { COUNTRIES, getCountryFlagUrl } from '@/lib/countries'
+import { ClassBadge } from '@/components/class-badge'
 
 function hexToRgba(hex: string, alpha: number) {
   if (!hex || typeof hex !== 'string') return `rgba(78, 161, 255, ${alpha})`
@@ -69,6 +70,7 @@ type League = {
   registrationOpen?: boolean
   accentColor?: string | null
   logoUrl?: string | null
+  classTags?: string[]
 }
 
 const EVENT_TYPE_DISPLAY_LABEL: Record<'RACE' | 'QUALIFYING' | 'TIME ATTACK', string> = {
@@ -723,6 +725,18 @@ export default function CalendarContent({
     }
   }, [nextSession, now])
 
+  // Hora local del visitante una vez montado; antes (render de servidor) se muestra en UTC para no descuadrar la hidratación.
+  const isLocalTime = now !== null
+  const tzOpts = isLocalTime ? {} : { timeZone: 'UTC' }
+  const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', ...tzOpts })
+  const fmtDuration = (fromIso: string, toIso: string) => {
+    const mins = Math.round((new Date(toIso).getTime() - new Date(fromIso).getTime()) / 60_000)
+    if (!Number.isFinite(mins) || mins <= 0) return null
+    const h = Math.floor(mins / 60)
+    const m = mins % 60
+    return h > 0 ? (m > 0 ? `${h} h ${m} min` : `${h} h`) : `${m} min`
+  }
+
   return (
     <div className="space-y-6 text-white">
       <style>{`
@@ -771,12 +785,86 @@ export default function CalendarContent({
               className="relative hidden min-h-[190px] overflow-hidden md:block"
               style={{
                 backgroundImage: nextSession.circuitImageUrl
-                  ? `linear-gradient(90deg, #0d1420 0%, rgba(13,20,32,.55) 55%, rgba(13,20,32,.15) 100%), url(${nextSession.circuitImageUrl})`
+                  ? `linear-gradient(90deg, #0d1420 0%, rgba(13,20,32,.82) 50%, rgba(13,20,32,.35) 100%), url(${nextSession.circuitImageUrl})`
                   : `radial-gradient(600px 300px at 80% 20%, ${hexToRgba(typeColor, 0.35)}, transparent 60%), linear-gradient(160deg, #0d2038 0%, #071120 60%, #050a14 100%)`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               }}
-            />
+            >
+              {/* Marca de agua: logo del campeonato, o del simulador si no tiene */}
+              <Image
+                src={nextLeague?.logoUrl || getSimLogo(nextLeague)}
+                alt=""
+                width={220}
+                height={220}
+                className="pointer-events-none absolute -bottom-6 -right-4 h-44 w-44 object-contain opacity-[0.08]"
+              />
+
+              <div className="relative flex h-full flex-col justify-between gap-4 p-6 md:p-8">
+                {/* Cuándo: fecha y hora de la sesión */}
+                <div className="flex items-center gap-4">
+                  <div className="rounded-xl border border-white/10 bg-black/35 px-4 py-2 text-center backdrop-blur-sm">
+                    <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                      {new Date(nextSession.startsAt).toLocaleDateString('es-ES', { weekday: 'short', ...tzOpts }).replace('.', '')}
+                    </span>
+                    <b className="font-display-condensed block text-4xl leading-none text-white">
+                      {new Date(nextSession.startsAt).toLocaleDateString('es-ES', { day: 'numeric', ...tzOpts })}
+                    </b>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#4ea1ff]">
+                      {new Date(nextSession.startsAt).toLocaleDateString('es-ES', { month: 'short', ...tzOpts }).replace('.', '')}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-mono-data text-3xl font-bold leading-none text-white">{fmtTime(nextSession.startsAt)}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      {isLocalTime ? 'Tu hora local' : 'UTC'}
+                      {fmtDuration(nextSession.startsAt, nextSession.endsAt) && ` · ${fmtDuration(nextSession.startsAt, nextSession.endsAt)}`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Fin de semana: clasificación y carrera de esta ronda */}
+                {(() => {
+                  const isQualyNext = nextSession.id.endsWith('_qualy')
+                  const round = events.find((e) => e.id === nextSession.id.replace(/_qualy$/, ''))
+                  if (!round) return null
+                  const hasQualy = Boolean(round.hasQualy) && Boolean(round.qualyStartsAt)
+                  const steps = [
+                    ...(hasQualy ? [{ key: 'qualy', label: 'Clasificación', at: round.qualyStartsAt as string, to: round.qualyEndsAt || null, isNext: isQualyNext }] : []),
+                    { key: 'race', label: 'Carrera', at: round.startsAt, to: round.endsAt as string | null, isNext: !isQualyNext },
+                  ]
+                  return (
+                    <div className="space-y-1.5">
+                      {steps.map((step) => (
+                        <div
+                          key={step.key}
+                          className={`flex items-center gap-3 rounded-lg border px-3 py-1.5 text-xs ${step.isNext ? 'border-[#4ea1ff]/50 bg-[rgba(78,161,255,.12)]' : 'border-white/10 bg-black/25'}`}
+                        >
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${step.isNext ? 'bg-[#4ea1ff]' : 'bg-slate-600'}`} />
+                          <span className="w-24 font-bold uppercase tracking-wider text-slate-300">{step.label}</span>
+                          <span className="font-mono-data text-slate-400">
+                            {new Date(step.at).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', ...tzOpts }).replace('.', '')} · {fmtTime(step.at)}
+                          </span>
+                          {step.to && fmtDuration(step.at, step.to) && (
+                            <span className="ml-auto font-mono-data text-[10px] text-slate-500">{fmtDuration(step.at, step.to)}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+
+                {/* Quién corre: categorías del campeonato */}
+                {nextLeague?.classTags && nextLeague.classTags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Image src={getSimLogo(nextLeague)} alt="" width={20} height={20} className="h-5 w-5 object-contain opacity-80" />
+                    {Array.from(new Set(nextLeague.classTags.map((tag) => tag.trim().toUpperCase()))).map((tag) => (
+                      <ClassBadge key={tag} classTag={tag} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="flex flex-col justify-between gap-4 p-6 md:p-8">
               <div>
                 <div className="flex items-center gap-2">
