@@ -104,10 +104,14 @@ const EVENT_TYPE_COLOR: Record<string, string> = {
   'TIME ATTACK': '#f59e0b',
 }
 
+// Color que el editor de eventos guarda cuando no se toca el selector; no se considera una elección.
+const DEFAULT_EVENT_COLOR = '#00f2fe'
+
 function getEventColor(event: LeagueEvent, league?: League) {
-  // The championship's own color wins so every race/qualy day lights up consistently
-  // (ERC = blue, ERC Next Gen = orange); the per-event color is only a fallback.
-  return league?.accentColor || event.color || '#4ea1ff'
+  // El color elegido a mano en el evento manda; sin elegir, el del campeonato
+  // (ERC = azul, ERC Next Gen = naranja) para que todos sus días se iluminen igual.
+  const picked = event.color && event.color.trim().toLowerCase() !== DEFAULT_EVENT_COLOR ? event.color : null
+  return picked || league?.accentColor || event.color || '#4ea1ff'
 }
 
 function getSimLogo(league?: League) {
@@ -166,9 +170,14 @@ function DayCell({
   const hasNotes = dayNotes.length > 0
   const isCarousel = hasEvents && hasNotes
   const glowColor = hasEvents ? getEventColor(shownEvents[0], leagueById.get(shownEvents[0].leagueId)) : null
-  const glowStyle = glowColor
-    ? { boxShadow: `inset 0 0 0 2px ${glowColor}, 0 0 20px ${hexToRgba(glowColor, 0.55)}` }
-    : undefined
+  const glowBorder = glowColor ? (
+    <div
+      className="pointer-events-none absolute inset-0 z-10"
+      style={{
+        boxShadow: `inset 0 0 0 2px ${glowColor}, inset 0 0 16px ${hexToRgba(glowColor, 0.5)}, 0 0 22px ${hexToRgba(glowColor, 0.65)}`,
+      }}
+    />
+  ) : null
 
   const [showNote, setShowNote] = useState(false)
   useEffect(() => {
@@ -290,20 +299,22 @@ function DayCell({
 
   if (!isCarousel) {
     return (
-      <div style={glowStyle} className={`group/cell relative flex min-h-[168px] flex-col border-b border-r border-white/10 last:border-r-0 ${hasEvents ? 'z-[1]' : ''}`}>
+      <div className={`group/cell relative flex min-h-[168px] flex-col border-b border-r border-white/10 last:border-r-0 ${hasEvents ? 'z-[1]' : ''}`}>
         {hasEvents ? eventFace : noteFace}
+        {glowBorder}
       </div>
     )
   }
 
   return (
-    <div style={glowStyle} className="group/cell relative z-[1] min-h-[168px] border-b border-r border-white/10 last:border-r-0">
+    <div className="group/cell relative z-[1] min-h-[168px] border-b border-r border-white/10 last:border-r-0">
       <div className={`absolute inset-0 transition-opacity duration-700 ${showNote ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
         {eventFace}
       </div>
       <div className={`absolute inset-0 transition-opacity duration-700 ${showNote ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
         {noteFace}
       </div>
+      {glowBorder}
     </div>
   )
 }
