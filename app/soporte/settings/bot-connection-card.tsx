@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Bot, CheckCircle2, ExternalLink, XCircle } from 'lucide-react'
-import { saveDiscordBotTokenAction, disconnectDiscordBotAction } from '../actions'
+import { saveDiscordBotTokenAction } from '../actions'
 import type { BotStatus } from '@/lib/discord-bot/status'
 
 // Permisos que necesita en el servidor: ver canales, enviar mensajes, adjuntar archivos, gestionar
@@ -10,13 +10,10 @@ import type { BotStatus } from '@/lib/discord-bot/status'
 const INVITE_PERMISSIONS = '268553232'
 
 export function BotConnectionCard({ initialStatus }: { initialStatus: BotStatus }) {
-  const [status, setStatus] = useState(initialStatus)
+  const [status] = useState(initialStatus)
   const [token, setToken] = useState('')
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [pending, startTransition] = useTransition()
-  // Con el bot ya conectado no hace falta el formulario a la vista; queda un enlace discreto
-  // para cambiarlo si algún día hiciera falta (token filtrado, rotarlo, etc.).
-  const [showForm, setShowForm] = useState(!initialStatus.ready)
 
   const managedByEnv = status.source === 'env'
 
@@ -26,20 +23,6 @@ export function BotConnectionCard({ initialStatus }: { initialStatus: BotStatus 
       const formData = new FormData()
       formData.set('token', token)
       const res = await saveDiscordBotTokenAction(formData)
-      setResult(res)
-      if (res.ok) {
-        setToken('')
-        setStatus((s) => ({ ...s, configured: true }))
-        // El estado real (conectado, tag, servidores) se refresca solo al recargar; con esto basta
-        // para no dejar el formulario pidiendo un token que ya se guardó.
-        window.location.reload()
-      }
-    })
-
-  const disconnect = () =>
-    startTransition(async () => {
-      setResult(null)
-      const res = await disconnectDiscordBotAction()
       setResult(res)
       if (res.ok) window.location.reload()
     })
@@ -91,47 +74,33 @@ export function BotConnectionCard({ initialStatus }: { initialStatus: BotStatus 
         <p className="text-xs text-slate-500">
           El token viene de <code className="text-slate-300">DISCORD_BOT_TOKEN</code> en el servidor; para cambiarlo, cambia esa variable ahí.
         </p>
-      ) : !showForm ? (
-        <button type="button" onClick={() => setShowForm(true)} className="text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-white">
-          Cambiar el token
-        </button>
       ) : (
-        <div className="space-y-2">
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
-            {status.configured ? 'Reemplazar el token' : 'Token del bot'}
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="password"
-              autoComplete="off"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Pégalo desde Discord Developer Portal → Bot → Reset Token"
-              className="w-full max-w-md rounded-lg border border-shell-line bg-black/40 px-3 py-2.5 text-xs text-white outline-none focus:border-[#4ea1ff]"
-            />
-            <button
-              type="button"
-              disabled={pending || !token.trim()}
-              onClick={save}
-              className="rounded-lg bg-[#1274de] px-4 py-2.5 text-xs font-black uppercase text-white hover:bg-[#1f82ee] disabled:opacity-50"
-            >
-              {pending ? 'Conectando…' : 'Guardar y conectar'}
-            </button>
-            {status.configured && (
+        !status.configured && (
+          <div className="space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">Token del bot</label>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="password"
+                autoComplete="off"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Pégalo desde Discord Developer Portal → Bot → Reset Token"
+                className="w-full max-w-md rounded-lg border border-shell-line bg-black/40 px-3 py-2.5 text-xs text-white outline-none focus:border-[#4ea1ff]"
+              />
               <button
                 type="button"
-                disabled={pending}
-                onClick={disconnect}
-                className="rounded-lg border border-white/10 px-4 py-2.5 text-xs font-bold uppercase text-slate-400 hover:border-rose-400/40 hover:text-rose-300 disabled:opacity-50"
+                disabled={pending || !token.trim()}
+                onClick={save}
+                className="rounded-lg bg-[#1274de] px-4 py-2.5 text-xs font-black uppercase text-white hover:bg-[#1f82ee] disabled:opacity-50"
               >
-                Quitar
+                {pending ? 'Conectando…' : 'Guardar y conectar'}
               </button>
-            )}
+            </div>
+            <p className="text-[10px] text-slate-500">
+              Se guarda cifrado en la base de datos. Nunca vuelve a mostrarse entero, solo sus últimos 4 caracteres.
+            </p>
           </div>
-          <p className="text-[10px] text-slate-500">
-            Se guarda cifrado en la base de datos. Nunca vuelve a mostrarse entero, solo sus últimos 4 caracteres.
-          </p>
-        </div>
+        )
       )}
 
       {result && (
