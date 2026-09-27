@@ -14,6 +14,9 @@ export function BotConnectionCard({ initialStatus }: { initialStatus: BotStatus 
   const [token, setToken] = useState('')
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [pending, startTransition] = useTransition()
+  // Con el bot ya conectado no hace falta el formulario a la vista; queda un enlace discreto
+  // para cambiarlo si algún día hiciera falta (token filtrado, rotarlo, etc.).
+  const [showForm, setShowForm] = useState(!initialStatus.ready)
 
   const managedByEnv = status.source === 'env'
 
@@ -88,6 +91,10 @@ export function BotConnectionCard({ initialStatus }: { initialStatus: BotStatus 
         <p className="text-xs text-slate-500">
           El token viene de <code className="text-slate-300">DISCORD_BOT_TOKEN</code> en el servidor; para cambiarlo, cambia esa variable ahí.
         </p>
+      ) : !showForm ? (
+        <button type="button" onClick={() => setShowForm(true)} className="text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-white">
+          Cambiar el token
+        </button>
       ) : (
         <div className="space-y-2">
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
