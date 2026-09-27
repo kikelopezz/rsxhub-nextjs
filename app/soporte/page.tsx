@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ChevronDown, ExternalLink, Ticket as TicketIcon } from 'lucide-react'
 import { db } from '@/lib/db'
 import { getBotGuildIds, getGuildSummary } from '@/lib/discord-bot/guild-info'
-import { hasDiscordBot } from '@/lib/discord-bot/client'
+import { isDiscordConfigured } from '@/lib/discord-bot/client'
 import { TicketActions } from './ticket-actions'
 import type { SupportTicketStatus } from '@prisma/client'
 
@@ -33,16 +33,21 @@ export default async function SoportePage({
   searchParams: Promise<{ guild?: string; status?: string; ok?: string; error?: string }>
 }) {
   const params = await searchParams
-  const guildIds = getBotGuildIds()
-  const guildId = guildIds.includes(params.guild || '') ? (params.guild as string) : guildIds[0]
 
-  if (!hasDiscordBot) {
+  if (!(await isDiscordConfigured())) {
     return (
       <div className="rounded-2xl border border-dashed border-white/10 p-14 text-center text-sm text-slate-500">
-        El bot de soporte no está configurado (falta <code className="text-slate-300">DISCORD_BOT_TOKEN</code>).
+        El bot de soporte no está configurado todavía.{' '}
+        <Link href="/soporte/settings" className="text-[#4ea1ff] hover:underline">
+          Configúralo en Ajustes
+        </Link>
+        .
       </div>
     )
   }
+
+  const guildIds = getBotGuildIds()
+  const guildId = guildIds.includes(params.guild || '') ? (params.guild as string) : guildIds[0]
 
   if (!guildId) {
     return (

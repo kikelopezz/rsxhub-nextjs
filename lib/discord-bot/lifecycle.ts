@@ -1,7 +1,7 @@
 import { EmbedBuilder, OverwriteType, type TextChannel } from 'discord.js'
 import { db } from '@/lib/db'
 import type { SupportTicket } from '@prisma/client'
-import { discordClient, ensureDiscordLogin, hasDiscordBot } from './client'
+import { discordClient, ensureDiscordLogin } from './client'
 import { getGuildConfig } from './config'
 import { saveTranscript } from './transcript'
 
@@ -11,7 +11,6 @@ export type Staff = { userId?: string; name: string }
 
 /** Canal de Discord del ticket, o null si el bot no está disponible o el canal ya no existe (no lanza). */
 async function tryGetChannel(channelId: string): Promise<TextChannel | null> {
-  if (!hasDiscordBot) return null
   try {
     await ensureDiscordLogin()
     const channel = await discordClient.channels.fetch(channelId)

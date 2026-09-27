@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Ticket, Settings, Users } from 'lucide-react'
 import { guardTicketAccess } from '@/lib/ticket-access'
+import { ensureBotStarted } from '@/lib/discord-bot'
 
 const tabs = [
   { href: '/soporte', label: 'Tickets', icon: Ticket },
@@ -10,6 +11,10 @@ const tabs = [
 
 export default async function SoporteLayout({ children }: { children: React.ReactNode }) {
   await guardTicketAccess()
+  // Si hay un token guardado (por env o por la base de datos) pero el bot no está conectado
+  // todavía — el servidor se acaba de reiniciar, o alguien acaba de guardar uno nuevo desde otra
+  // pestaña — se intenta conectar aquí, para que baste con entrar en /soporte para que arranque.
+  await ensureBotStarted()
 
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-5">

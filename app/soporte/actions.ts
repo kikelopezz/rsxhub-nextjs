@@ -9,6 +9,10 @@ import * as lifecycle from '@/lib/discord-bot/lifecycle'
 import { publishPanel } from '@/lib/discord-bot/panel'
 import { updateGuildConfig, type SettingsInput } from '@/lib/discord-bot/config'
 import { createChannel, type CreatedChannel } from '@/lib/discord-bot/channels'
+import { discordClient, disconnectDiscordBot } from '@/lib/discord-bot/client'
+import { startDiscordBot } from '@/lib/discord-bot'
+import { getBotStatus, type BotStatus } from '@/lib/discord-bot/status'
+import { clearStoredToken, saveStoredToken } from '@/lib/discord-bot/token-store'
 
 const GUILD_ID = /^\d{5,25}$/
 const STEAM_ID = /^\d{10,20}$/
@@ -98,6 +102,54 @@ export async function saveTicketSettingsAction(guildId: string, settings: Settin
   } catch (e) {
     return { ok: false, message: errorMessage(e, 'No se pudo guardar la configuración.') }
   }
+}
+
+// ---------------------------------------------------------------- Bot de Discord (conexión)
+
+const TOKEN_SHAPE = /^[\w-]{20,}\.[\w-]{5,}\.[\w-]{20,}$/
+
+export async function getDiscordBotStatusAction(): Promise<BotStatus> {
+  await guardTicketAccess()
+  return getBotStatus()
+}
+
+/**
+ * Guarda el token del bot (cifrado, ver token-store.ts) y lo conecta al momento. Solo un admin de
+ * la plataforma puede hacerlo: es una credencial global del bot, no algo de un servidor de
+ * Discord concreto, así que pedir solo acceso a Soporte se quedaría corto.
+ */
+export async function saveDiscordBotTokenAction(formData: FormData): Promise<ActionResult> {
+  await guardPlatformAdmin()
+  if (process.env.DISCORD_BOT_TOKEN) {
+    return { ok: false, message: 'El token ya está fijado por una variable de entorno del servidor: no se puede cambiar desde aquí.' }
+  }
+  const token = String(formData.get('token') || '').trim()
+  if (!TOKEN_SHAPE.test(token)) return { ok: false, message: 'Eso no tiene forma de token de bot de Discord.' }
+
+  await saveStoredToken(token)
+  try {
+    await startDiscordBot()
+    revalidatePath('/soporte')
+    revalidatePath('/soporte/settings')
+    return { ok: true, message: `Conectado como ${discordClient.user?.tag ?? 'el bot'}.` }
+  } catch (e) {
+    // Sin esto quedaría guardado un token que no funciona, y ni la web ni el aviso de "sin
+    // configurar" volverían a dejar intentarlo con claridad.
+    await clearStoredToken()
+    return { ok: false, message: errorMessage(e, 'No se pudo conectar con ese token. Comprueba que sea correcto y no haya caducado.') }
+  }
+}
+
+export async function disconnectDiscordBotAction(): Promise<ActionResult> {
+  await guardPlatformAdmin()
+  if (process.env.DISCORD_BOT_TOKEN) {
+    return { ok: false, message: 'No se puede desconectar: el token está fijado por una variable de entorno del servidor.' }
+  }
+  await clearStoredToken()
+  disconnectDiscordBot()
+  revalidatePath('/soporte')
+  revalidatePath('/soporte/settings')
+  return { ok: true, message: 'Token eliminado. El bot se ha desconectado.' }
 }
 
 export async function publishTicketPanelAction(guildId: string): Promise<ActionResult> {
