@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
-import type { HubEntry } from '@/lib/hub-entries'
-import type { LeagueEntry } from '@/lib/league-entries'
+import { getHubEntries, type HubEntry } from '@/lib/hub-entries'
+import { findEntry, loadLeagueEntries, type LeagueEntry } from '@/lib/league-entries'
 
 /**
  * Detección y revisión del coche que ha quedado en cada posición de unos resultados.
@@ -114,4 +114,81 @@ export function detectCar(args: {
   else if (storedTeam && detection.teamName && storedTeam.trim().toLowerCase() !== detection.teamName.trim().toLowerCase() && detection.source !== 'file') flags.push('file-differs')
 
   return { ...detection, flags }
+}
+
+/* ------------------------------------------------------------- correlación */
+
+/** Datos necesarios para vincular filas de resultados con equipos y coches (se cargan una vez por sesión). */
+export type CorrelationContext = {
+  hub: Record<string, HubEntry[]>
+  entries: LeagueEntry[]
+  reviews: ReviewMap
+}
+
+export async function loadCorrelationContext(leagueId: string, eventId: string, sessionType: string): Promise<CorrelationContext> {
+  // Si alguna de las tres fuentes falla, esa parte se salta: los resultados se siguen mostrando con lo que haya
+  const safely = async <T,>(load: () => Promise<T>, fallback: T): Promise<T> => {
+    try {
+      return await load()
+    } catch {
+      return fallback
+    }
+  }
+  const [hub, entries, reviews] = await Promise.all([
+    safely(() => getHubEntries(), {} as Record<string, HubEntry[]>),
+    safely(() => loadLeagueEntries(leagueId), [] as LeagueEntry[]),
+    safely(() => readReviews(eventId, sessionType), {} as ReviewMap),
+  ])
+  return { hub, entries, reviews }
+}
+
+export type CorrelatedRow = {
+  classTag: string
+  teamName: string | null
+  dorsal: string | null
+  carModel: string | null
+  detection: CarDetection
+  reviewKey: string
+  review: ReviewEntry | undefined
+}
+
+/**
+ * Vincula una fila de resultados con su equipo, número y modelo de coche a través del Steam ID del piloto. Es la única
+ * regla que usan todas las pantallas y APIs que muestran resultados: coche de Equipos → equipo → inscripción en la liga
+ * → lo que traía el archivo, y por encima de todo lo que un admin haya corregido a mano.
+ */
+export function correlateRow(
+  ctx: CorrelationContext,
+  row: {
+    userId?: string | null
+    steamId?: string | null
+    driverName?: string | null
+    classTag?: string | null
+    teamName?: string | null
+    dorsal?: string | null
+  }
+): CorrelatedRow {
+  const classTag = (row.classTag || 'GT3').trim().toUpperCase()
+  const steamId = row.steamId || ''
+  const driverName = row.driverName || ''
+  const registration = findEntry(ctx.entries, { userId: row.userId, steamId, driverName }, classTag)
+  const detection = detectCar({
+    steamId,
+    classTag,
+    storedTeam: row.teamName ?? null,
+    storedDorsal: row.dorsal ?? null,
+    hub: ctx.hub[steamId],
+    registration,
+  })
+
+  const reviewKey = reviewRowKey(steamId, driverName, classTag)
+  const review = ctx.reviews[reviewKey]
+  let teamName = detection.teamName || row.teamName || null
+  let dorsal = detection.dorsal || row.dorsal || null
+  // Lo que un admin ha corregido a mano manda sobre cualquier detección
+  if (review?.status === 'override') {
+    if (review.teamName) teamName = review.teamName
+    if (review.dorsal) dorsal = review.dorsal
+  }
+  return { classTag, teamName, dorsal, carModel: detection.carModel, detection, reviewKey, review }
 }

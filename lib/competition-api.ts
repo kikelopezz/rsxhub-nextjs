@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { simulatorLabel } from '@/lib/utils'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
+import { correlateRow, loadCorrelationContext } from '@/lib/result-review'
 
 export const COMPETITION_SCHEMA_VERSION = 1
 
@@ -200,6 +201,32 @@ export async function buildSnapshot(base: string) {
 
 /* ------------------------------------------------------------ grid / results */
 
+/**
+ * Equipo, número y modelo de coche de cada fila de resultados, vinculados por el Steam ID del piloto con el apartado de
+ * Equipos (los archivos de carrera suelen traer el número inventado y el equipo abreviado o vacío).
+ */
+async function withCorrelatedCars<
+  T extends { userId: string; steamId: string | null; driverName: string | null; classTag: string | null; teamName: string | null; dorsal: string | null },
+>(leagueId: string, eventId: string, sessionType: 'qualifying' | 'race', rows: T[]) {
+  const userIds = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean)))
+  const [ctx, accounts] = await Promise.all([
+    loadCorrelationContext(leagueId, eventId, sessionType),
+    userIds.length > 0 ? db.steamAccount.findMany({ where: { userId: { in: userIds } }, select: { userId: true, steamId: true } }) : Promise.resolve([]),
+  ])
+  const steamByUser = new Map(accounts.map((a) => [a.userId, a.steamId]))
+  return rows.map((row) => ({
+    row,
+    car: correlateRow(ctx, {
+      userId: row.userId,
+      steamId: steamByUser.get(row.userId) || row.steamId,
+      driverName: row.driverName,
+      classTag: row.classTag,
+      teamName: row.teamName,
+      dorsal: row.dorsal,
+    }),
+  }))
+}
+
 export async function buildGrid(eventId: string) {
   const event = await db.leagueEvent.findUnique({ where: { id: eventId } })
   if (!event) return null
@@ -207,20 +234,20 @@ export async function buildGrid(eventId: string) {
     where: { eventId, sessionType: 'qualifying' },
     orderBy: [{ position: 'asc' }],
   })
+  const cars = await withCorrelatedCars(event.leagueId, eventId, 'qualifying', rows.filter((r) => r.position != null))
   return {
     schemaVersion: COMPETITION_SCHEMA_VERSION,
     eventId,
     official: event.qualyCompleted && rows.length > 0,
-    entries: rows
-      .filter((r) => r.position != null)
-      .map((r) => ({
-        position: r.position as number,
-        driverName: r.driverName || 'Piloto',
-        teamName: r.teamName || null,
-        dorsal: r.dorsal || null,
-        classTag: r.classTag || null,
-        lapTime: r.lapTime || null,
-      })),
+    entries: cars.map(({ row: r, car }) => ({
+      position: r.position as number,
+      driverName: r.driverName || 'Piloto',
+      teamName: car.teamName,
+      dorsal: car.dorsal,
+      carModel: car.carModel,
+      classTag: r.classTag || null,
+      lapTime: r.lapTime || null,
+    })),
   }
 }
 
@@ -231,23 +258,23 @@ export async function buildResults(eventId: string) {
     where: { eventId, sessionType: 'race' },
     orderBy: [{ position: 'asc' }],
   })
+  const cars = await withCorrelatedCars(event.leagueId, eventId, 'race', rows.filter((r) => r.position != null))
   return {
     schemaVersion: COMPETITION_SCHEMA_VERSION,
     eventId,
     official: event.status === 'completed' && event.completedAt !== null && rows.length > 0,
     completedAt: event.completedAt?.toISOString() ?? null,
-    entries: rows
-      .filter((r) => r.position != null)
-      .map((r) => ({
-        position: r.position as number,
-        driverName: r.driverName || 'Piloto',
-        teamName: r.teamName || null,
-        dorsal: r.dorsal || null,
-        classTag: r.classTag || null,
-        raceTime: r.raceTime || null,
-        points: r.points ?? null,
-        status: r.status,
-      })),
+    entries: cars.map(({ row: r, car }) => ({
+      position: r.position as number,
+      driverName: r.driverName || 'Piloto',
+      teamName: car.teamName,
+      dorsal: car.dorsal,
+      carModel: car.carModel,
+      classTag: r.classTag || null,
+      raceTime: r.raceTime || null,
+      points: r.points ?? null,
+      status: r.status,
+    })),
   }
 }
 

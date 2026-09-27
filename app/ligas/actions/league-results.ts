@@ -4,11 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentUser, getAdminAccessContext, canStewardLeague } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { fetchWithTTLCache, invalidateCache } from '@/lib/ttl-cache'
-import { detectCar, readReviews, reviewRowKey, writeReviews, WARNING_FLAGS, type CarDetection, type ReviewFlag } from '@/lib/result-review'
+import { correlateRow, loadCorrelationContext, readReviews, writeReviews, WARNING_FLAGS, type CarDetection, type ReviewFlag } from '@/lib/result-review'
 import { isDorsalValid } from '@/lib/dorsal-utils'
 import { getTeamsDashboard } from '@/lib/team-data'
-import { getHubEntries } from '@/lib/hub-entries'
-import { findEntry, loadLeagueEntries } from '@/lib/league-entries'
 
 export type EventResultRow = {
   id: string
@@ -35,13 +33,11 @@ async function buildResults(leagueId: string, eventId: string, sessionType: 'qua
   if (rows.length === 0) return []
 
   const userIds = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean)))
-  const [{ teams }, profiles, steamAccounts, hubEntries, leagueEntries, reviews] = await Promise.all([
+  const [{ teams }, profiles, steamAccounts, ctx] = await Promise.all([
     getTeamsDashboard(),
     userIds.length > 0 ? db.profile.findMany({ where: { userId: { in: userIds } } }) : Promise.resolve([]),
     userIds.length > 0 ? db.steamAccount.findMany({ where: { userId: { in: userIds } } }) : Promise.resolve([]),
-    getHubEntries().catch(() => ({})),
-    loadLeagueEntries(leagueId).catch(() => []),
-    readReviews(eventId, sessionType).catch(() => ({})),
+    loadCorrelationContext(leagueId, eventId, sessionType),
   ])
 
   const profilesMap = new Map(profiles.map((p) => [p.userId, p.displayName]))
@@ -52,33 +48,14 @@ async function buildResults(leagueId: string, eventId: string, sessionType: 'qua
     const stm = steamMap.get(row.userId)
     const dName = profName || stm?.name || row.driverName || (row.userId ? `Driver ${row.userId.slice(0, 4)}` : 'Driver')
     const sId = stm?.steamId || row.steamId || ''
-    const classTag = (row.classTag || 'GT3').toUpperCase()
 
-    // Equipo y número del coche: mandan los del apartado de Equipos (por Steam ID), luego la inscripción en la liga y,
-    // por último, lo que trajera el archivo de la carrera (a menudo inventado: 1, 2, 3…)
-    const registration = findEntry(leagueEntries, { userId: row.userId, steamId: sId, driverName: dName }, classTag)
-    const detection = detectCar({
-      steamId: sId,
-      classTag,
-      storedTeam: row.teamName,
-      storedDorsal: row.dorsal,
-      hub: (hubEntries as Record<string, any[]>)[sId],
-      registration,
-    })
+    // Equipo y número del coche por Steam ID (misma regla que el resto de pantallas y APIs)
+    const c = correlateRow(ctx, { userId: row.userId, steamId: sId, driverName: dName, classTag: row.classTag, teamName: row.teamName, dorsal: row.dorsal })
 
-    const key = reviewRowKey(sId, dName, classTag)
-    const review = (reviews as Record<string, any>)[key]
-
-    let teamName = detection.teamName || row.teamName || ''
+    let teamName = c.teamName || ''
     if (!teamName) {
       const matchedTeam = teams.find((t: any) => t.members?.some((m: any) => m.userId === row.userId))
       if (matchedTeam) teamName = matchedTeam.name
-    }
-    let dorsal = detection.dorsal || row.dorsal || null
-    // Lo que un admin ha corregido a mano manda sobre cualquier detección
-    if (review?.status === 'override') {
-      if (review.teamName) teamName = review.teamName
-      if (review.dorsal) dorsal = review.dorsal
     }
 
     const result: EventResultRow = {
@@ -88,17 +65,17 @@ async function buildResults(leagueId: string, eventId: string, sessionType: 'qua
       driverName: dName,
       teamName: teamName || 'Independent',
       steamId: sId,
-      classTag,
-      dorsal,
+      classTag: c.classTag,
+      dorsal: c.dorsal,
       points: row.points ?? 0,
       lapTime: row.lapTime,
       raceTime: row.raceTime,
     }
     if (forReview) {
-      result.reviewKey = key
-      result.car = { teamName: detection.teamName, dorsal: detection.dorsal, carModel: detection.carModel, source: detection.source }
-      result.flags = [...detection.flags]
-      result.review = review ? { status: review.status, by: review.by, at: review.at } : null
+      result.reviewKey = c.reviewKey
+      result.car = { teamName: c.detection.teamName, dorsal: c.detection.dorsal, carModel: c.detection.carModel, source: c.detection.source }
+      result.flags = [...c.detection.flags]
+      result.review = c.review ? { status: c.review.status, by: c.review.by, at: c.review.at } : null
     }
     return result
   })

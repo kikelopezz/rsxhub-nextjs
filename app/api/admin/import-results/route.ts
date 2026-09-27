@@ -4,7 +4,8 @@ import { canAccessPlatformAdmin, canStewardLeague, getCurrentUser, getLeagueRole
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { redirectTo } from '@/lib/redirect'
-import { findEntry, loadLeagueEntries } from '@/lib/league-entries'
+import { findEntry } from '@/lib/league-entries'
+import { correlateRow, loadCorrelationContext } from '@/lib/result-review'
 
 type ImportedResultRow = {
   userId?: string
@@ -220,8 +221,9 @@ export async function POST(req: Request) {
       users.forEach((u) => knownUserIds.add(u.id))
     }
 
-    // Inscripciones de la liga: sirven para completar el equipo y el dorsal reales de cada piloto
-    const leagueEntries = await loadLeagueEntries(leagueId)
+    // Equipos, coches e inscripciones de la liga: completan el equipo y el dorsal reales de cada piloto (por Steam ID)
+    const correlation = await loadCorrelationContext(leagueId, eventId, sessionType)
+    const leagueEntries = correlation.entries
 
     const resolved = parsed.results
       .map((row) => ({
@@ -246,11 +248,11 @@ export async function POST(req: Request) {
     const notRegisteredCount = resolved.length - filtered.length
 
     // Categoría de cada fila: la que manda el gestor de ronda o, si no, la de la inscripción del piloto
-    // El dorsal y el equipo salen de la inscripción del piloto (vinculada por Steam ID); si no hay, se usa lo que traiga el JSON.
+    // El equipo y el dorsal salen del apartado de Equipos vinculado por Steam ID (luego la inscripción y, por último, el archivo)
     const rowsToSave = filtered.map((row) => {
       const classTag = row.classTag || regClassByUser.get(String(row.userId))
-      const entry = findEntry(leagueEntries, { userId: row.userId, steamId: row.steamId, driverName: row.driverName }, classTag)
-      return { ...row, classTag, dorsal: entry?.dorsal ?? row.dorsal, teamName: entry?.teamName ?? row.teamName }
+      const c = correlateRow(correlation, { userId: row.userId, steamId: row.steamId, driverName: row.driverName, classTag, teamName: row.teamName, dorsal: row.dorsal })
+      return { ...row, classTag, dorsal: c.dorsal ?? undefined, teamName: c.teamName ?? undefined }
     })
     const uploadedTags = Array.from(new Set(rowsToSave.map((row) => row.classTag).filter(Boolean))) as string[]
 
