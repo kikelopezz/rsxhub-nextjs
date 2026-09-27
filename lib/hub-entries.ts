@@ -12,6 +12,8 @@ export type HubEntry = {
   teamLogoUrl: string | null
   dorsal: string | null
   category: string | null
+  /** Modelo del coche del equipo (solo si la entrada viene de un coche con piloto asignado) */
+  carModel: string | null
 }
 
 type TeamLite = { name: string; logoUrl: string | null; status: string }
@@ -21,7 +23,7 @@ async function loadEntries(): Promise<Record<string, HubEntry[]>> {
   const [carDrivers, members] = await Promise.all([
     db.teamCarDriver.findMany({
       where: { isReserve: false },
-      select: { userId: true, car: { select: { dorsal: true, category: true, team: { select: teamSelect } } } },
+      select: { userId: true, car: { select: { dorsal: true, category: true, modelName: true, team: { select: teamSelect } } } },
     }),
     db.teamMember.findMany({ select: { userId: true, steamId: true, team: { select: teamSelect } } }),
   ])
@@ -31,18 +33,18 @@ async function loadEntries(): Promise<Record<string, HubEntry[]>> {
   const steamByUser = new Map(accounts.map((a) => [a.userId, a.steamId]))
 
   const out: Record<string, HubEntry[]> = {}
-  const push = (steamId: string, team: TeamLite, dorsal: string | null, category: string | null) => {
+  const push = (steamId: string, team: TeamLite, dorsal: string | null, category: string | null, carModel: string | null = null) => {
     if (team.status === 'rejected') return
     const list = (out[steamId] ||= [])
     if (list.some((e) => e.teamName === team.name && e.dorsal === dorsal && e.category === category)) return
-    list.push({ teamName: team.name, teamLogoUrl: team.logoUrl, dorsal, category })
+    list.push({ teamName: team.name, teamLogoUrl: team.logoUrl, dorsal, category, carModel })
   }
 
   // Coches con piloto asignado: aportan equipo, dorsal y categoría
   for (const row of carDrivers) {
     const steamId = steamByUser.get(row.userId)
     if (!steamId) continue
-    push(steamId, row.car.team, row.car.dorsal?.trim() || null, row.car.category?.trim().toUpperCase() || null)
+    push(steamId, row.car.team, row.car.dorsal?.trim() || null, row.car.category?.trim().toUpperCase() || null, row.car.modelName?.trim() || null)
   }
 
   // Miembros de un equipo sin coche asignado: al menos aportan el equipo

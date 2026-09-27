@@ -2,9 +2,10 @@
 
 import { formatLapTime } from '@/lib/format-time'
 import { useState, useEffect } from 'react'
-import { X, Trophy, ShieldCheck, Loader2, Timer, Flag } from 'lucide-react'
+import { X, Trophy, ShieldCheck, Loader2, Timer, Flag, AlertTriangle, CheckCircle2, Pencil } from 'lucide-react'
 import { ClassBadge, getCategoryStyles } from '@/components/class-badge'
-import { getEventResultsAction } from '@/app/ligas/actions'
+import { getEventResultsAction, getEventResultsForReviewAction, saveResultReviewAction } from '@/app/ligas/actions'
+import type { EventResultRow } from '@/app/ligas/actions/league-results'
 import type { LeagueEvent } from '../hooks/use-league-state'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
@@ -12,27 +13,16 @@ interface ViewResultsModalProps {
   event: LeagueEvent
   leagueId: string
   classTags: string[]
+  /** Admins y comisarios: ven el coche detectado de cada posición y pueden confirmarlo o corregirlo */
+  canReview?: boolean
   onClose: () => void
-}
-
-export type EventResultRow = {
-  id: string
-  sessionType?: 'qualifying' | 'race'
-  position: number
-  driverName: string
-  teamName: string
-  steamId: string
-  classTag: string
-  dorsal: string | number | null
-  points: number
-  lapTime?: string | null
-  raceTime?: string | null
 }
 
 export function ViewResultsModal({
   event,
   leagueId,
   classTags = ['GT3', 'LMP2'],
+  canReview = false,
   onClose,
 }: ViewResultsModalProps) {
   const t = useDictionary().ligas.viewResults
@@ -41,13 +31,21 @@ export function ViewResultsModal({
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL')
   const [results, setResults] = useState<EventResultRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [reloadTick, setReloadTick] = useState(0)
+  const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [editTeam, setEditTeam] = useState('')
+  const [editDorsal, setEditDorsal] = useState('')
+  const [busyKey, setBusyKey] = useState<string | null>(null)
+  const [actionError, setActionError] = useState('')
 
   useEffect(() => {
     let isMounted = true
     async function loadResults() {
       setLoading(true)
       try {
-        const data = await getEventResultsAction(leagueId, event.id, sessionFilter)
+        const data = canReview
+          ? await getEventResultsForReviewAction(leagueId, event.id, sessionFilter)
+          : await getEventResultsAction(leagueId, event.id, sessionFilter)
         if (isMounted) {
           setResults(data)
         }
@@ -61,7 +59,39 @@ export function ViewResultsModal({
     return () => {
       isMounted = false
     }
-  }, [leagueId, event.id, sessionFilter])
+  }, [leagueId, event.id, sessionFilter, canReview, reloadTick])
+
+  const runReview = async (row: EventResultRow, action: 'confirm' | 'override' | 'clear') => {
+    if (!row.reviewKey) return
+    setBusyKey(row.reviewKey)
+    setActionError('')
+    try {
+      await saveResultReviewAction({
+        leagueId,
+        eventId: event.id,
+        sessionType: sessionFilter,
+        reviewKey: row.reviewKey,
+        action,
+        teamName: editTeam,
+        dorsal: editDorsal,
+      })
+      setEditingKey(null)
+      setReloadTick((n) => n + 1)
+    } catch {
+      setActionError(t.review.saveError)
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  const startEditing = (row: EventResultRow) => {
+    setEditingKey(row.reviewKey || null)
+    setEditTeam(row.teamName === 'Independent' ? '' : row.teamName)
+    setEditDorsal(row.dorsal || '')
+    setActionError('')
+  }
+
+  const pendingCount = canReview ? results.filter((r) => r.needsReview).length : 0
 
   const sessionLabel = sessionFilter === 'qualifying' ? t.sessionQualifying : t.sessionRace
   const availableCategories = Array.from(new Set(results.map((r) => r.classTag).filter(Boolean)))
@@ -89,7 +119,7 @@ export function ViewResultsModal({
               {t.officialResults}
             </span>
             <span className="font-mono-data rounded border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.12)] px-2 py-0.5 text-[10px] font-bold uppercase text-[#4ea1ff]">
-              {t.readOnlyView}
+              {canReview ? t.review.mode : t.readOnlyView}
             </span>
           </div>
           <h2 className="font-display-league mt-2 flex items-center gap-2 text-2xl uppercase text-white md:text-3xl">
@@ -98,7 +128,7 @@ export function ViewResultsModal({
           </h2>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-            {t.verifiedNote}
+            {canReview ? t.review.note : t.verifiedNote}
           </p>
         </div>
 
@@ -131,6 +161,18 @@ export function ViewResultsModal({
             </button>
           </div>
         )}
+
+        {canReview && !loading && results.length > 0 && (
+          <div
+            className={`mb-4 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold uppercase tracking-wider ${
+              pendingCount > 0 ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+            }`}
+          >
+            {pendingCount > 0 ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+            {pendingCount > 0 ? t.review.pending.replace('{n}', String(pendingCount)) : t.review.allClear}
+          </div>
+        )}
+        {actionError && <p className="mb-3 text-xs font-bold text-rose-400">{actionError}</p>}
 
         {/* Category Filters */}
         <div className="mb-4 flex items-center gap-2 overflow-x-auto border-b border-white/10 pb-3">
@@ -198,13 +240,14 @@ export function ViewResultsModal({
                     <p className="py-2 text-xs italic text-slate-500">{t.noPositionsCategory}</p>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[560px] border-collapse text-left text-xs">
+                      <table className={`w-full border-collapse text-left text-xs ${canReview ? 'min-w-[980px]' : 'min-w-[560px]'}`}>
                         <thead>
                           <tr className="font-mono-data border-b border-white/10 bg-white/[0.03] text-[10px] uppercase tracking-wider text-slate-400">
                             <th className="w-16 p-2 text-center">{t.pos}</th>
                             <th className="p-2">{t.driver}</th>
                             <th className="p-2">{t.team}</th>
                             <th className="w-20 p-2 text-center">{t.carNumber}</th>
+                            {canReview && <th className="w-72 p-2">{t.review.detected}</th>}
                             {sessionFilter === 'qualifying' ? (
                               <th className="w-28 p-2 text-right">{t.bestLap}</th>
                             ) : (
@@ -245,6 +288,87 @@ export function ViewResultsModal({
                                 <td className="font-mono-data p-2 text-center font-bold text-[#4ea1ff]">
                                   {row.dorsal ? `#${row.dorsal}` : '—'}
                                 </td>
+                                {canReview && (
+                                  <td className="p-2 align-top">
+                                    {(() => {
+                                      const warnings = (row.flags || []).filter((f) => f !== 'file-differs')
+                                      const infos = (row.flags || []).filter((f) => f === 'file-differs')
+                                      const isBusy = busyKey === row.reviewKey
+                                      const badge =
+                                        row.review?.status === 'override'
+                                          ? { text: t.review.adjusted, cls: 'border-sky-500/40 bg-sky-500/10 text-sky-300' }
+                                          : row.review?.status === 'confirmed'
+                                            ? { text: t.review.confirmed, cls: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' }
+                                            : row.needsReview
+                                              ? { text: t.review.toReview, cls: 'border-amber-500/40 bg-amber-500/10 text-amber-300' }
+                                              : { text: t.review.ok, cls: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' }
+                                      return (
+                                        <div className="space-y-1.5">
+                                          <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                              <p className="truncate font-bold leading-tight text-white">
+                                                {row.car?.teamName || t.review.noCar}
+                                                {row.car?.dorsal && <span className="font-mono-data ml-1.5 text-[#4ea1ff]">#{row.car.dorsal}</span>}
+                                              </p>
+                                              <p className="truncate text-[10px] uppercase text-slate-500">
+                                                {row.car?.carModel ? `${row.car.carModel} · ` : ''}
+                                                {t.review.sources[row.car?.source || 'none']}
+                                              </p>
+                                            </div>
+                                            <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${badge.cls}`}>{badge.text}</span>
+                                          </div>
+                                          {[...warnings, ...infos].map((flag) => (
+                                            <p key={flag} className={`text-[10px] leading-tight ${flag === 'file-differs' ? 'text-slate-500' : 'text-amber-300/90'}`}>
+                                              {t.review.flags[flag]}
+                                            </p>
+                                          ))}
+                                          {editingKey === row.reviewKey ? (
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                              <input
+                                                value={editTeam}
+                                                onChange={(e) => setEditTeam(e.target.value)}
+                                                placeholder={t.review.teamPlaceholder}
+                                                maxLength={60}
+                                                className="w-28 rounded border border-white/15 bg-black/50 px-2 py-1 text-[11px] text-white outline-none focus:border-[#4ea1ff]"
+                                              />
+                                              <input
+                                                value={editDorsal}
+                                                onChange={(e) => setEditDorsal(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                                                placeholder={t.review.numberPlaceholder}
+                                                inputMode="numeric"
+                                                className="font-mono-data w-14 rounded border border-white/15 bg-black/50 px-2 py-1 text-center text-[11px] text-white outline-none focus:border-[#4ea1ff]"
+                                              />
+                                              <button type="button" disabled={isBusy} onClick={() => runReview(row, 'override')} className="rounded bg-[#1274de] px-2 py-1 text-[10px] font-black uppercase text-white hover:bg-[#1f82ee] disabled:opacity-50">
+                                                {t.review.save}
+                                              </button>
+                                              <button type="button" onClick={() => setEditingKey(null)} className="rounded border border-white/15 px-2 py-1 text-[10px] font-bold uppercase text-slate-300 hover:bg-white/10">
+                                                {t.review.cancel}
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                              {!row.review && row.needsReview && (
+                                                <button type="button" disabled={isBusy} onClick={() => runReview(row, 'confirm')} className="flex items-center gap-1 rounded border border-emerald-500/40 px-2 py-1 text-[10px] font-black uppercase text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50">
+                                                  <CheckCircle2 className="h-3 w-3" />
+                                                  {t.review.confirm}
+                                                </button>
+                                              )}
+                                              <button type="button" onClick={() => startEditing(row)} className="flex items-center gap-1 rounded border border-white/15 px-2 py-1 text-[10px] font-bold uppercase text-slate-300 hover:bg-white/10">
+                                                <Pencil className="h-3 w-3" />
+                                                {t.review.edit}
+                                              </button>
+                                              {row.review && (
+                                                <button type="button" disabled={isBusy} onClick={() => runReview(row, 'clear')} className="rounded border border-white/10 px-2 py-1 text-[10px] font-bold uppercase text-slate-500 hover:text-white disabled:opacity-50">
+                                                  {t.review.clear}
+                                                </button>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )
+                                    })()}
+                                  </td>
+                                )}
                                 {sessionFilter === 'qualifying' ? (
                                   <td className="font-mono-data p-2 text-right text-xs font-bold text-[#4ea1ff]">
                                     {formatLapTime(row.lapTime)}

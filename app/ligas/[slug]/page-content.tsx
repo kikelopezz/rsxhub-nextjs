@@ -480,6 +480,7 @@ export default function LeagueDetailPageContent({
           event={viewingResultsEvent}
           leagueId={league.id}
           classTags={classTags}
+          canReview={isAdmin || isSteward}
           onClose={() => setViewingResultsEvent(null)}
         />
       )}
