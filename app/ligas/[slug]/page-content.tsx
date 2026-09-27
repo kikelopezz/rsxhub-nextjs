@@ -492,6 +492,12 @@ export default function LeagueDetailPageContent({
           initialSessionType={finishingEventData.initialSessionType}
           leagueId={league.id}
           classTags={classTags}
+          classLimits={Object.fromEntries(
+            classTags.map((tag) => [
+              tag,
+              (finishingEventData.event as any).classLimits?.[tag] ?? (league as any).classLimits?.[tag] ?? 30,
+            ])
+          )}
           onClose={() => setFinishingEventData(null)}
           onSaved={() => router.refresh()}
           onSuccess={() => {

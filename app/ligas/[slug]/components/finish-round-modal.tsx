@@ -11,11 +11,15 @@ interface FinishRoundModalProps {
   initialSessionType?: 'qualifying' | 'race'
   leagueId: string
   classTags: string[]
+  /** Máximo de coches por categoría, el mismo que se configuró al crear la ronda/el campeonato. */
+  classLimits: Record<string, number>
   onClose: () => void
   onSuccess: () => void
   /** Se llama tras guardar una categoría sin cerrar el modal (para refrescar la página de fondo). */
   onSaved?: () => void
 }
+
+const DEFAULT_MAX_CARS = 30
 
 export type ParsedRow = {
   id: string
@@ -41,6 +45,7 @@ export function FinishRoundModal({
   initialSessionType,
   leagueId,
   classTags = ['GT3', 'LMP2'],
+  classLimits,
   onClose,
   onSuccess,
   onSaved,
@@ -63,26 +68,13 @@ export function FinishRoundModal({
   // Categoría a la que va TODO el JSON que se sube ('AUTO' = la que traiga cada coche en el archivo)
   const defaultCategory = classTags[0] || 'GT3'
   const [uploadCategory, setUploadCategory] = useState<string>(defaultCategory)
-  // Máximo de coches que se guardan por categoría (se recuerda entre subidas)
-  const [maxCars, setMaxCars] = useState<number>(() => {
-    try {
-      const saved = Number(window.localStorage.getItem('rsx_finish_round_max_cars'))
-      return Number.isInteger(saved) && saved >= 1 && saved <= 100 ? saved : 20
-    } catch {
-      return 20
-    }
-  })
   const [infoMsg, setInfoMsg] = useState('')
   const [truncatedNotes, setTruncatedNotes] = useState<string[]>([])
   const [savedUploads, setSavedUploads] = useState<{ label: string; count: number }[]>([])
 
-  const changeMaxCars = (value: number) => {
-    const next = Math.max(1, Math.min(100, Math.floor(value) || 1))
-    setMaxCars(next)
-    try {
-      window.localStorage.setItem('rsx_finish_round_max_cars', String(next))
-    } catch {}
-  }
+  // El máximo por categoría es el que ya se configuró para esta ronda (o para el campeonato, si la
+  // ronda no tiene uno propio) — no algo que se elija aquí cada vez que se sube un archivo.
+  const maxForClass = (tag: string) => classLimits[tag.trim().toUpperCase()] ?? DEFAULT_MAX_CARS
 
   // Vincula cada piloto del archivo con su inscripción (por Steam ID; si no, por nombre) para poner
   // el equipo y el dorsal reales en la vista previa.
@@ -204,17 +196,17 @@ export function FinishRoundModal({
         }
       })
 
-      // Solo los primeros `maxCars` de cada categoría
+      // Solo los primeros coches de cada categoría, hasta el máximo configurado para ella
       const totals: Record<string, number> = {}
       rows.forEach((r) => {
         totals[r.classTag] = (totals[r.classTag] || 0) + 1
       })
-      const limited = rows.filter((r) => r.pos <= maxCars)
+      const limited = rows.filter((r) => r.pos <= maxForClass(r.classTag))
       setTruncatedNotes(
         Object.entries(totals)
-          .filter(([, total]) => total > maxCars)
+          .filter(([cat, total]) => total > maxForClass(cat))
           .map(([cat, total]) =>
-            tr.carsTruncated.replace('{cat}', cat).replace('{total}', String(total)).replace('{max}', String(maxCars))
+            tr.carsTruncated.replace('{cat}', cat).replace('{total}', String(total)).replace('{max}', String(maxForClass(cat)))
           )
       )
 
@@ -226,7 +218,7 @@ export function FinishRoundModal({
     }
   }
 
-  // Al cambiar la categoría o el máximo, el archivo ya cargado se vuelve a repartir con los nuevos valores
+  // Al cambiar la categoría, el archivo ya cargado se vuelve a repartir con el nuevo valor
   const firstRender = useRef(true)
   useEffect(() => {
     if (firstRender.current) {
@@ -235,7 +227,7 @@ export function FinishRoundModal({
     }
     if (jsonText.trim() && parsedRows.length > 0) handleParseJson(jsonText, { stay: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadCategory, maxCars])
+  }, [uploadCategory])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -541,34 +533,6 @@ export function FinishRoundModal({
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-xs font-extrabold uppercase text-slate-300">{tr.maxCars}</label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={maxCars}
-                      onChange={(e) => changeMaxCars(Number(e.target.value))}
-                      className="font-mono-data w-20 rounded-lg border border-white/10 bg-black/50 px-2 py-1.5 text-center text-sm font-black text-amber-400 outline-none focus:border-[#4ea1ff]"
-                    />
-                    {[20, 25, 30, 40].map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => changeMaxCars(n)}
-                        className={`font-mono-data rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${
-                          maxCars === n
-                            ? 'border-amber-400 bg-amber-500/20 text-amber-300'
-                            : 'border-white/10 bg-black/30 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-[11px] text-slate-400">{tr.maxCarsHint.replace('{max}', String(maxCars))}</p>
-                </div>
               </div>
 
               <label className="group flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-white/10 bg-black/30 p-6 text-center transition-colors hover:border-[#4ea1ff]">
