@@ -1,9 +1,7 @@
 import Link from 'next/link'
 import { ChevronDown, ExternalLink, Ticket as TicketIcon } from 'lucide-react'
 import { db } from '@/lib/db'
-import { getBotGuildIds, getGuildSummary } from '@/lib/discord-bot/guild-info'
-import { isDiscordConfigured } from '@/lib/discord-bot/client'
-import { ensureBotStarted } from '@/lib/discord-bot'
+import { getBotStatus } from '@/lib/support-bot-client'
 import { TicketActions } from './ticket-actions'
 import type { SupportTicketStatus } from '@prisma/client'
 
@@ -35,40 +33,43 @@ export default async function SoportePage({
 }) {
   const params = await searchParams
 
-  if (!(await isDiscordConfigured())) {
+  const status = await getBotStatus()
+  if (!status.ready) {
     return (
       <div className="rounded-2xl border border-dashed border-white/10 p-14 text-center text-sm text-slate-500">
-        El bot de soporte no está configurado todavía.{' '}
-        <Link href="/soporte/settings" className="text-[#4ea1ff] hover:underline">
-          Configúralo en Ajustes
-        </Link>
-        .
+        {status.configured ? (
+          'El bot de soporte no está conectado ahora mismo.'
+        ) : (
+          <>
+            El bot de soporte no está configurado todavía.{' '}
+            <Link href="/soporte/settings" className="text-[#4ea1ff] hover:underline">
+              Revisa Ajustes
+            </Link>
+            .
+          </>
+        )}
       </div>
     )
   }
 
-  // Se espera aquí mismo a que intente conectar (no basta con lo que haga el layout: en el App
-  // Router layout y página se resuelven en paralelo, así que si solo se fía del layout la primera
-  // visita puede leer "sin servidores" un instante antes de que el login termine).
-  await ensureBotStarted()
-
-  const guildIds = getBotGuildIds()
+  const guildIds = status.guilds.map((g) => g.id)
   const guildId = guildIds.includes(params.guild || '') ? (params.guild as string) : guildIds[0]
 
   if (!guildId) {
     return (
       <div className="rounded-2xl border border-dashed border-white/10 p-14 text-center text-sm text-slate-500">
-        El bot todavía no está en ningún servidor de Discord, o se está conectando. Invítalo y recarga esta página.
+        El bot todavía no está en ningún servidor de Discord. Invítalo y recarga esta página.
       </div>
     )
   }
 
   const statusFilter = STATUS_TABS.some((t) => t.key === params.status) && params.status !== 'all' ? (params.status as SupportTicketStatus) : null
 
-  const [tickets, counts, guilds] = await Promise.all([
+  const guilds = status.guilds
+
+  const [tickets, counts] = await Promise.all([
     db.supportTicket.findMany({ where: { guildId, ...(statusFilter ? { status: statusFilter } : {}) }, orderBy: { createdAt: 'desc' }, take: 200 }),
     db.supportTicket.groupBy({ by: ['status'], where: { guildId }, _count: { _all: true } }),
-    Promise.resolve(guildIds.map((id) => getGuildSummary(id)).filter((g): g is NonNullable<typeof g> => Boolean(g))),
   ])
 
   const countByStatus = Object.fromEntries(counts.map((c) => [c.status, c._count._all]))

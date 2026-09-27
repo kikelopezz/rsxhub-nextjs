@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { GuildDetails } from '@/lib/discord-bot/guild-info'
-import type { ButtonColor, Campeonato, GuildConfigDTO, TicketType } from '@/lib/discord-bot/config'
-import type { CreatedChannel } from '@/lib/discord-bot/channels'
+import type { GuildDetails } from '@/lib/support-types'
+import type { ButtonColor, Campeonato, GuildConfigDTO, TicketType } from '@/lib/support-config'
+import type { CreatedChannel } from '@/lib/support-bot-client'
 import { CreateChannelInline } from './create-channel-inline'
 import { PanelPreview } from './panel-preview'
 import { saveTicketSettingsAction, publishTicketPanelAction } from '../actions'

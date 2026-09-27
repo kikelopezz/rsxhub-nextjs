@@ -1,6 +1,6 @@
 'use client'
 
-import type { TicketType } from '@/lib/discord-bot/config'
+import type { TicketType } from '@/lib/support-config'
 
 export function PanelPreview({
   title,

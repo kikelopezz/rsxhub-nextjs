@@ -1,32 +1,11 @@
-'use client'
-
-import { useState, useTransition } from 'react'
 import { Bot, CheckCircle2, ExternalLink, XCircle } from 'lucide-react'
-import { saveDiscordBotTokenAction } from '../actions'
-import type { BotStatus } from '@/lib/discord-bot/status'
+import type { BotStatus } from '@/lib/support-bot-client'
 
 // Permisos que necesita en el servidor: ver canales, enviar mensajes, adjuntar archivos, gestionar
 // mensajes e historial, y crear/gestionar los canales de cada ticket.
 const INVITE_PERMISSIONS = '268553232'
 
-export function BotConnectionCard({ initialStatus }: { initialStatus: BotStatus }) {
-  const [status] = useState(initialStatus)
-  const [token, setToken] = useState('')
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
-  const [pending, startTransition] = useTransition()
-
-  const managedByEnv = status.source === 'env'
-
-  const save = () =>
-    startTransition(async () => {
-      setResult(null)
-      const formData = new FormData()
-      formData.set('token', token)
-      const res = await saveDiscordBotTokenAction(formData)
-      setResult(res)
-      if (res.ok) window.location.reload()
-    })
-
+export function BotConnectionCard({ status }: { status: BotStatus }) {
   return (
     <section className="space-y-4 rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
       <h2 className="flex items-center gap-2 border-b border-shell-line pb-3 font-display-condensed text-sm font-bold uppercase tracking-wide text-white">
@@ -43,7 +22,7 @@ export function BotConnectionCard({ initialStatus }: { initialStatus: BotStatus 
         ) : (
           <span className="flex items-center gap-1.5 rounded-full border border-rose-400/40 bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-300">
             <XCircle className="h-3.5 w-3.5" />
-            {status.configured ? 'Desconectado' : 'Sin token configurado'}
+            {status.configured ? 'Desconectado' : 'No se pudo contactar con el bot'}
           </span>
         )}
         {status.ready && (
@@ -51,17 +30,10 @@ export function BotConnectionCard({ initialStatus }: { initialStatus: BotStatus 
             En {status.guildCount} servidor{status.guildCount === 1 ? '' : 'es'}
           </span>
         )}
-        {status.configured && (
-          <span className="text-[10px] text-slate-500">
-            Token {managedByEnv ? 'fijado por el servidor' : `guardado, acabado en ${status.tokenHint}`}
-          </span>
-        )}
       </div>
 
       {!status.ready && status.lastError && (
-        <p className="rounded-lg border border-rose-400/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300">
-          Último intento de conexión: {status.lastError}
-        </p>
+        <p className="rounded-lg border border-rose-400/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300">{status.lastError}</p>
       )}
 
       {status.applicationId && (
@@ -76,44 +48,10 @@ export function BotConnectionCard({ initialStatus }: { initialStatus: BotStatus 
         </a>
       )}
 
-      {managedByEnv ? (
-        <p className="text-xs text-slate-500">
-          El token viene de <code className="text-slate-300">DISCORD_BOT_TOKEN</code> en el servidor; para cambiarlo, cambia esa variable ahí.
-        </p>
-      ) : (
-        !status.configured && (
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">Token del bot</label>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="password"
-                autoComplete="off"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder="Pégalo desde Discord Developer Portal → Bot → Reset Token"
-                className="w-full max-w-md rounded-lg border border-shell-line bg-black/40 px-3 py-2.5 text-xs text-white outline-none focus:border-[#4ea1ff]"
-              />
-              <button
-                type="button"
-                disabled={pending || !token.trim()}
-                onClick={save}
-                className="rounded-lg bg-[#1274de] px-4 py-2.5 text-xs font-black uppercase text-white hover:bg-[#1f82ee] disabled:opacity-50"
-              >
-                {pending ? 'Conectando…' : 'Guardar y conectar'}
-              </button>
-            </div>
-            <p className="text-[10px] text-slate-500">
-              Se guarda cifrado en la base de datos. Nunca vuelve a mostrarse entero, solo sus últimos 4 caracteres.
-            </p>
-          </div>
-        )
-      )}
-
-      {result && (
-        <div className={`rounded-lg border px-4 py-2.5 text-xs font-bold ${result.ok ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200' : 'border-rose-400/30 bg-rose-500/10 text-rose-200'}`}>
-          {result.message}
-        </div>
-      )}
+      <p className="text-xs text-slate-500">
+        El bot corre como proceso aparte del Hub (carpeta <code className="text-slate-300">rsx ticket</code>); su token se configura ahí, en su
+        propio <code className="text-slate-300">.env</code> del servidor.
+      </p>
     </section>
   )
 }

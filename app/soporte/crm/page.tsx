@@ -1,8 +1,7 @@
 import Link from 'next/link'
 import { Users, Search } from 'lucide-react'
 import { db } from '@/lib/db'
-import { getBotGuildIds } from '@/lib/discord-bot/guild-info'
-import { ensureBotStarted } from '@/lib/discord-bot'
+import { getBotStatus } from '@/lib/support-bot-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,8 +12,8 @@ export const dynamic = 'force-dynamic'
  */
 export default async function SoporteCrmPage({ searchParams }: { searchParams: Promise<{ guild?: string; q?: string }> }) {
   const params = await searchParams
-  await ensureBotStarted()
-  const guildIds = getBotGuildIds()
+  const status = await getBotStatus()
+  const guildIds = status.guilds.map((g) => g.id)
   const guildId = guildIds.includes(params.guild || '') ? (params.guild as string) : guildIds[0]
 
   if (!guildId) {

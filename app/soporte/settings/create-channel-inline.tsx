@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Plus } from 'lucide-react'
 import { createDiscordChannelAction } from '../actions'
-import type { CreatedChannel } from '@/lib/discord-bot/channels'
+import type { CreatedChannel } from '@/lib/support-bot-client'
 
 export function CreateChannelInline({
   guildId,

@@ -5,14 +5,9 @@ import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { guardTicketAccess } from '@/lib/ticket-access'
 import { guardPlatformAdmin } from '@/app/admin/actions/admin-league'
-import * as lifecycle from '@/lib/discord-bot/lifecycle'
-import { publishPanel } from '@/lib/discord-bot/panel'
-import { updateGuildConfig, type SettingsInput } from '@/lib/discord-bot/config'
-import { createChannel, type CreatedChannel } from '@/lib/discord-bot/channels'
-import { discordClient, disconnectDiscordBot } from '@/lib/discord-bot/client'
-import { startDiscordBot } from '@/lib/discord-bot'
-import { getBotStatus, type BotStatus } from '@/lib/discord-bot/status'
-import { clearStoredToken, saveStoredToken } from '@/lib/discord-bot/token-store'
+import { updateGuildConfig, type SettingsInput } from '@/lib/support-config'
+import * as bot from '@/lib/support-bot-client'
+import type { CreatedChannel } from '@/lib/support-bot-client'
 
 const GUILD_ID = /^\d{5,25}$/
 const STEAM_ID = /^\d{10,20}$/
@@ -55,39 +50,41 @@ async function runTicketAction(
 }
 
 export async function claimTicketAction(formData: FormData) {
-  await runTicketAction(formData, 'claimed', ({ guildId, ticketId, name }) =>
-    lifecycle.claimTicket(guildId, ticketId, { name })
-  )
+  await runTicketAction(formData, 'claimed', ({ guildId, ticketId, name }) => bot.claimTicket(guildId, ticketId, { name }))
 }
 
 export async function unclaimTicketAction(formData: FormData) {
-  await runTicketAction(formData, 'unclaimed', ({ guildId, ticketId }) => lifecycle.unclaimTicket(guildId, ticketId))
+  await runTicketAction(formData, 'unclaimed', ({ guildId, ticketId }) => bot.unclaimTicket(guildId, ticketId))
 }
 
 export async function closeTicketAction(formData: FormData) {
-  await runTicketAction(formData, 'closed', ({ guildId, ticketId, name, reason }) =>
-    lifecycle.closeTicket(guildId, ticketId, { name }, reason || undefined)
-  )
+  await runTicketAction(formData, 'closed', ({ guildId, ticketId, name, reason }) => bot.closeTicket(guildId, ticketId, { name }, reason || undefined))
 }
 
 export async function reopenTicketAction(formData: FormData) {
-  await runTicketAction(formData, 'reopened', ({ guildId, ticketId, name }) => lifecycle.reopenTicket(guildId, ticketId, { name }))
+  await runTicketAction(formData, 'reopened', ({ guildId, ticketId, name }) => bot.reopenTicket(guildId, ticketId, { name }))
 }
 
 export async function mergeTicketAction(formData: FormData) {
   const targetTicketId = String(formData.get('targetTicketId') || '')
   await runTicketAction(formData, 'merged', ({ guildId, ticketId, name }) => {
     if (!targetTicketId) throw new Error('Elige el ticket principal con el que fusionar.')
-    return lifecycle.mergeTicket(guildId, ticketId, targetTicketId, { name })
+    return bot.mergeTicket(guildId, ticketId, targetTicketId, { name })
   })
 }
 
 export async function deleteTicketAction(formData: FormData) {
-  await runTicketAction(formData, 'deleted', ({ guildId, ticketId }) => lifecycle.deleteTicket(guildId, ticketId))
+  await runTicketAction(formData, 'deleted', ({ guildId, ticketId }) => bot.deleteTicket(guildId, ticketId))
 }
 
 export async function saveTicketNotesAction(formData: FormData) {
-  await runTicketAction(formData, 'notes', ({ guildId, ticketId }) => lifecycle.saveTicketNotes(guildId, ticketId, String(formData.get('notes') || '')))
+  // No toca Discord para nada, así que se escribe directo en la base de datos (no hace falta
+  // pasar por la API del bot, a diferencia del resto de acciones de esta lista).
+  await runTicketAction(formData, 'notes', async ({ guildId, ticketId }) => {
+    const ticket = await db.supportTicket.findUnique({ where: { id: ticketId } })
+    if (!ticket || ticket.guildId !== guildId) throw new Error('Ticket no encontrado.')
+    await db.supportTicket.update({ where: { id: ticketId }, data: { internalNotes: String(formData.get('notes') || '').slice(0, 4000) } })
+  })
 }
 
 type ActionResult = { ok: boolean; message: string }
@@ -104,59 +101,18 @@ export async function saveTicketSettingsAction(guildId: string, settings: Settin
   }
 }
 
-// ---------------------------------------------------------------- Bot de Discord (conexión)
+// ---------------------------------------------------------------- Bot de Discord (estado)
 
-const TOKEN_SHAPE = /^[\w-]{20,}\.[\w-]{5,}\.[\w-]{20,}$/
-
-export async function getDiscordBotStatusAction(): Promise<BotStatus> {
+export async function getDiscordBotStatusAction() {
   await guardTicketAccess()
-  return getBotStatus()
-}
-
-/**
- * Guarda el token del bot (cifrado, ver token-store.ts) y lo conecta al momento. Solo un admin de
- * la plataforma puede hacerlo: es una credencial global del bot, no algo de un servidor de
- * Discord concreto, así que pedir solo acceso a Soporte se quedaría corto.
- */
-export async function saveDiscordBotTokenAction(formData: FormData): Promise<ActionResult> {
-  await guardPlatformAdmin()
-  if (process.env.DISCORD_BOT_TOKEN) {
-    return { ok: false, message: 'El token ya está fijado por una variable de entorno del servidor: no se puede cambiar desde aquí.' }
-  }
-  const token = String(formData.get('token') || '').trim()
-  if (!TOKEN_SHAPE.test(token)) return { ok: false, message: 'Eso no tiene forma de token de bot de Discord.' }
-
-  await saveStoredToken(token)
-  try {
-    await startDiscordBot()
-    revalidatePath('/soporte')
-    revalidatePath('/soporte/settings')
-    return { ok: true, message: `Conectado como ${discordClient.user?.tag ?? 'el bot'}.` }
-  } catch (e) {
-    // Sin esto quedaría guardado un token que no funciona, y ni la web ni el aviso de "sin
-    // configurar" volverían a dejar intentarlo con claridad.
-    await clearStoredToken()
-    return { ok: false, message: errorMessage(e, 'No se pudo conectar con ese token. Comprueba que sea correcto y no haya caducado.') }
-  }
-}
-
-export async function disconnectDiscordBotAction(): Promise<ActionResult> {
-  await guardPlatformAdmin()
-  if (process.env.DISCORD_BOT_TOKEN) {
-    return { ok: false, message: 'No se puede desconectar: el token está fijado por una variable de entorno del servidor.' }
-  }
-  await clearStoredToken()
-  disconnectDiscordBot()
-  revalidatePath('/soporte')
-  revalidatePath('/soporte/settings')
-  return { ok: true, message: 'Token eliminado. El bot se ha desconectado.' }
+  return bot.getBotStatus()
 }
 
 export async function publishTicketPanelAction(guildId: string): Promise<ActionResult> {
   await guardTicketAccess()
   if (!GUILD_ID.test(guildId)) return { ok: false, message: 'Servidor no válido.' }
   try {
-    await publishPanel(guildId)
+    await bot.publishPanel(guildId)
     revalidatePath('/soporte/settings')
     return { ok: true, message: 'Panel publicado en Discord.' }
   } catch (e) {
@@ -171,7 +127,7 @@ export async function createDiscordChannelAction(
   await guardTicketAccess()
   if (!GUILD_ID.test(guildId)) return { ok: false, message: 'Servidor no válido.' }
   try {
-    const channel = await createChannel(guildId, input)
+    const channel = await bot.createChannel(guildId, input)
     revalidatePath('/soporte/settings')
     return { ok: true, message: 'Creado.', channel }
   } catch (e) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sanitizeSettings } from '@/lib/discord-bot/config'
+import { sanitizeSettings } from '@/lib/support-config'
 
 describe('saneado de los ajustes de soporte', () => {
   it('recorta texto y descarta ids que no parecen de Discord', () => {

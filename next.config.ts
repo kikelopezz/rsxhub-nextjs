@@ -18,13 +18,6 @@ const nextConfig: NextConfig = {
     },
   },
 
-  // discord.js tries to require() a handful of native, optional performance add-ons (compression,
-  // faster buffer ops) that aren't installed — fine at runtime (it falls back to a JS implementation),
-  // but webpack tries to resolve them statically at build time and fails. Treating the whole package
-  // (and its transitive @discordjs/* deps) as external makes Next just `require` it from node_modules
-  // at runtime instead of bundling it, which sidesteps the problem entirely.
-  serverExternalPackages: ['discord.js', '@discordjs/ws', '@discordjs/rest', 'zlib-sync', 'bufferutil', 'utf-8-validate', 'erlpack'],
-
   images: {
     // Enable image format negotiation (WebP/AVIF when browser supports it)
     formats: ['image/avif', 'image/webp'],

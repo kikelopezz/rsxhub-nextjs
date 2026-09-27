@@ -4,8 +4,9 @@ import type { SupportGuildConfig } from '@prisma/client'
 
 /**
  * Ajustes del servidor de soporte: saneado del formulario, valores por defecto y acceso a la
- * fila de configuración (una por guild). El bot y las páginas de Ajustes comparten este módulo,
- * así no hay dos copias de las reglas de validación como pasaba con el bot aparte.
+ * fila de configuración (una por guild). No toca Discord para nada (por eso vive en el Hub y no
+ * en el proceso del bot — ver rsx-ticket-bot/src/discord/config.ts, que tiene una copia literal
+ * de este mismo archivo porque el bot también la necesita internamente).
  */
 
 const BUTTON_COLORS = ['blue', 'gray', 'green', 'red'] as const
@@ -148,18 +149,4 @@ export async function updateGuildConfig(guildId: string, input: SettingsInput): 
   await ensureGuildConfig(guildId)
   const data = sanitizeSettings(input)
   return toDTO(await db.supportGuildConfig.update({ where: { guildId }, data }))
-}
-
-export async function setPanelMessage(guildId: string, panelChannelId: string, panelMessageId: string) {
-  await db.supportGuildConfig.update({ where: { guildId }, data: { panelChannelId, panelMessageId } })
-}
-
-/** Siguiente número de una secuencia (p. ej. "incidente-de-carrera"), incremento atómico. */
-export async function nextCounter(guildId: string, key: string): Promise<number> {
-  const row = await db.supportCounter.upsert({
-    where: { guildId_key: { guildId, key } },
-    create: { guildId, key, value: 1 },
-    update: { value: { increment: 1 } },
-  })
-  return row.value
 }

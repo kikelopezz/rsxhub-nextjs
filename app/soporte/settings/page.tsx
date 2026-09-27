@@ -1,6 +1,5 @@
-import { getBotGuildIds, getGuildDetails } from '@/lib/discord-bot/guild-info'
-import { ensureGuildConfig } from '@/lib/discord-bot/config'
-import { getBotStatus } from '@/lib/discord-bot/status'
+import { getBotStatus, getGuildDetails } from '@/lib/support-bot-client'
+import { ensureGuildConfig } from '@/lib/support-config'
 import { BotConnectionCard } from './bot-connection-card'
 import { TicketSettingsForm } from './settings-form'
 
@@ -9,22 +8,20 @@ export const dynamic = 'force-dynamic'
 export default async function SoporteSettingsPage({ searchParams }: { searchParams: Promise<{ guild?: string }> }) {
   const params = await searchParams
   const status = await getBotStatus()
-  const connectionCard = <BotConnectionCard initialStatus={status} />
+  const connectionCard = <BotConnectionCard status={status} />
 
   if (!status.ready) {
     return (
       <div className="space-y-5">
         {connectionCard}
         <div className="rounded-2xl border border-dashed border-white/10 p-14 text-center text-sm text-slate-500">
-          {status.configured
-            ? 'Conectando con Discord…'
-            : 'Pon el token del bot arriba para poder configurar el panel de tickets.'}
+          {status.configured ? 'Conectando con Discord…' : 'El bot de soporte no responde. Revisa que esté desplegado y accesible desde el Hub.'}
         </div>
       </div>
     )
   }
 
-  const guildIds = getBotGuildIds()
+  const guildIds = status.guilds.map((g) => g.id)
   const guildId = guildIds.includes(params.guild || '') ? (params.guild as string) : guildIds[0]
 
   if (!guildId) {

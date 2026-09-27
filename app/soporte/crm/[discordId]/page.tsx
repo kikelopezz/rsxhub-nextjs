@@ -1,8 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { db } from '@/lib/db'
-import { getBotGuildIds } from '@/lib/discord-bot/guild-info'
-import { ensureBotStarted } from '@/lib/discord-bot'
+import { getBotStatus } from '@/lib/support-bot-client'
 import { SubmitButton } from '@/components/submit-button'
 import { addCrmNoteAction, deleteCrmNoteAction } from '../../actions'
 
@@ -24,8 +23,8 @@ export default async function CrmProfilePage({
 }) {
   const { discordId } = await params
   const sp = await searchParams
-  await ensureBotStarted()
-  const guildIds = getBotGuildIds()
+  const status = await getBotStatus()
+  const guildIds = status.guilds.map((g) => g.id)
   const guildId = guildIds.includes(sp.guild || '') ? (sp.guild as string) : guildIds[0]
 
   if (!guildId) {
