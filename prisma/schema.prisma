@@ -59,22 +59,22 @@ model SimulatorConfig {
 }
 
 model Profile {
-  userId              String    @id @map("user_id")
-  displayName         String    @map("display_name")
-  mainSim             String    @default("ac") @map("main_sim")
-  avatarUrl           String?   @map("avatar_url")
-  countryCode         String    @default("ES") @map("country_code")
-  bio                 String    @default("")
-  onboarded           Boolean   @default(false)
-  preferredCategories String[]  @map("preferred_categories")
-  racingNumber        Int?      @map("racing_number")
-  isPublic            Boolean   @default(true) @map("is_public")
-  bannerUrl           String?   @map("banner_url")
-  accentColor         String?   @map("accent_color")
+  userId              String   @id @map("user_id")
+  displayName         String   @map("display_name")
+  mainSim             String   @default("ac") @map("main_sim")
+  avatarUrl           String?  @map("avatar_url")
+  countryCode         String   @default("ES") @map("country_code")
+  bio                 String   @default("")
+  onboarded           Boolean  @default(false)
+  preferredCategories String[] @map("preferred_categories")
+  racingNumber        Int?     @map("racing_number")
+  isPublic            Boolean  @default(true) @map("is_public")
+  bannerUrl           String?  @map("banner_url")
+  accentColor         String?  @map("accent_color")
   // Redes sociales / contacto del piloto: { twitch: "https://twitch.tv/x", discord: "usuario", ... }
-  connections         Json      @default("{}")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  connections         Json     @default("{}")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -118,6 +118,118 @@ model TicketAccessGrant {
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("ticket_access_grants")
+}
+
+// ============================================================
+// Soporte (tickets de Discord) — bot integrado en el propio Hub, sin proceso ni base
+// de datos aparte. Un guild puede tener como mucho una fila de configuración.
+// ============================================================
+
+// Categorías de ticket y campeonatos (ticketTypes / campeonatos) se guardan como JSON:
+// son listas cortas que se editan y se guardan enteras desde el formulario de Ajustes,
+// igual que classLimits en League — no hace falta una tabla aparte para esto.
+model SupportGuildConfig {
+  id                  String   @id @default(cuid())
+  guildId             String   @unique @map("guild_id")
+  guildName           String?  @map("guild_name")
+  panelChannelId      String?  @map("panel_channel_id")
+  panelMessageId      String?  @map("panel_message_id")
+  panelTitle          String   @default("Soporte") @map("panel_title")
+  panelDescription    String   @default("Pulsa el botón o elige una categoría para abrir un ticket con el equipo de staff.") @map("panel_description")
+  panelStyle          String   @default("menu") @map("panel_style")
+  embedColor          String   @default("#1274de") @map("embed_color")
+  categoryId          String?  @map("category_id")
+  transcriptChannelId String?  @map("transcript_channel_id")
+  logChannelId        String?  @map("log_channel_id")
+  staffRoleIds        String[] @default([]) @map("staff_role_ids")
+  pingRoleId          String?  @map("ping_role_id")
+  maxOpenTickets      Int      @default(1) @map("max_open_tickets")
+  reminderMinutes     Int      @default(0) @map("reminder_minutes")
+  welcomeMessage      String   @default("Gracias por abrir un ticket, {user}. El equipo de staff te atenderá en breve.") @map("welcome_message")
+  // Array de { id, emoji, label, description, welcome, color, pingRoleId }
+  ticketTypes         Json     @default("[]") @map("ticket_types")
+  // Array de { id, emoji, label, categoryId }
+  campeonatos         Json     @default("[]")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  counters SupportCounter[]
+  tickets  SupportTicket[]
+
+  @@map("support_guild_configs")
+}
+
+// Numeración de tickets por categoría ("Incidente de carrera 001", "002"...), incremento
+// atómico vía UPDATE ... SET value = value + 1 (fila con lock, sin condiciones de carrera).
+model SupportCounter {
+  id      String @id @default(cuid())
+  guildId String @map("guild_id")
+  key     String
+  value   Int    @default(0)
+
+  guild SupportGuildConfig @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@unique([guildId, key])
+  @@map("support_counters")
+}
+
+enum SupportTicketStatus {
+  open
+  claimed
+  closed
+  merged
+}
+
+model SupportTicket {
+  id              String              @id @default(cuid())
+  guildId         String              @map("guild_id")
+  channelId       String              @unique @map("channel_id")
+  number          Int
+  code            String
+  typeId          String?             @map("type_id")
+  typeLabel       String?             @map("type_label")
+  campeonatoId    String?             @map("campeonato_id")
+  campeonatoLabel String?             @map("campeonato_label")
+  openerId        String              @map("opener_id")
+  openerTag       String?             @map("opener_tag")
+  claimedBy       String?             @map("claimed_by")
+  claimedByTag    String?             @map("claimed_by_tag")
+  claimedAt       DateTime?           @map("claimed_at")
+  status          SupportTicketStatus @default(open)
+  closedAt        DateTime?           @map("closed_at")
+  closedBy        String?             @map("closed_by")
+  closedByTag     String?             @map("closed_by_tag")
+  closeReason     String?             @map("close_reason")
+  mergedIntoId    String?             @map("merged_into_id")
+  transcriptUrl   String?             @map("transcript_url")
+  internalNotes   String?             @map("internal_notes")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  guild      SupportGuildConfig @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  mergedInto SupportTicket?     @relation("SupportTicketMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom SupportTicket[]    @relation("SupportTicketMerge")
+
+  @@index([guildId, status])
+  @@index([openerId])
+  @@map("support_tickets")
+}
+
+// Notas de CRM por identidad de Discord (quien abre tickets no tiene por qué tener
+// cuenta en el Hub) — historial privado de staff sobre un piloto, independiente de
+// los tickets concretos que haya abierto.
+model SupportNote {
+  id              String   @id @default(cuid())
+  guildId         String   @map("guild_id")
+  targetDiscordId String   @map("target_discord_id")
+  targetTag       String?  @map("target_tag")
+  body            String
+  authorUserId    String   @map("author_user_id")
+  authorName      String   @map("author_name")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([guildId, targetDiscordId])
+  @@map("support_notes")
 }
 
 // ============================================================
@@ -649,22 +761,22 @@ enum SkinReviewStatus {
 // recreates every TeamCar on any team save, so a status column on TeamCar itself would get
 // wiped the next time the team saved an unrelated change (e.g. a driver swap).
 model CarSkinReview {
-  id         String           @id @default(cuid())
-  carKey     String           @unique @map("car_key")
-  teamId     String           @map("team_id")
-  category   String
-  dorsal     String
-  leagueId   String?          @map("league_id")
-  skinUrl    String           @map("skin_url")
-  skinName   String?          @map("skin_name")
+  id           String           @id @default(cuid())
+  carKey       String           @unique @map("car_key")
+  teamId       String           @map("team_id")
+  category     String
+  dorsal       String
+  leagueId     String?          @map("league_id")
+  skinUrl      String           @map("skin_url")
+  skinName     String?          @map("skin_name")
   // Coche al que pertenece la skin (p.ej. "BMW M4 GT3"), copiado del TeamCar al subirla.
   carModel     String?          @map("car_model")
   rejectReason String?          @map("reject_reason")
-  status     SkinReviewStatus @default(pending)
-  reviewedBy String?          @map("reviewed_by")
-  reviewedAt DateTime?        @map("reviewed_at")
-  createdAt  DateTime         @default(now()) @map("created_at")
-  updatedAt  DateTime         @updatedAt @map("updated_at")
+  status       SkinReviewStatus @default(pending)
+  reviewedBy   String?          @map("reviewed_by")
+  reviewedAt   DateTime?        @map("reviewed_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 

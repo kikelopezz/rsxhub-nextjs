@@ -6,7 +6,8 @@ campeonatos, calendario, equipos y coches, mercado de pilotos, live timing, resu
 - **Stack:** Next.js 15 (App Router) · React 19 · TypeScript · Tailwind · Prisma + PostgreSQL
 - **Login:** Steam (OpenID). No hay contraseñas.
 - **Archivos:** imágenes y skins en Cloudflare R2 (con disco local como alternativa en desarrollo).
-- **Servicios conectados:** bot de tickets de Discord (sección *Soporte*) y *rsxbot* (avisos a admins).
+- **Soporte:** bot de tickets de Discord integrado en el propio proceso (`lib/discord-bot/`, arrancado desde `instrumentation.ts`) — sin bot ni base de datos aparte.
+- **Servicios conectados:** *rsxbot* (avisos a admins, proceso aparte).
 
 ## Puesta en marcha
 
@@ -37,7 +38,7 @@ Las de `.env.example` con su explicación. Las imprescindibles:
 | `STEAM_REALM`, `STEAM_RETURN_URL` | Realm y callback de Steam |
 | `ADMIN_STEAM_IDS` | SteamIDs con acceso de *super admin* (además de los concedidos desde el panel) |
 | `R2_*` | Cloudflare R2. Sin ellas las subidas van al disco local |
-| `TICKET_API_URL`, `TICKET_API_KEY` | API interna del bot de tickets |
+| `DISCORD_BOT_TOKEN` | Bot de soporte (sección */soporte*). Sin él, la sección sigue ahí pero avisa de que falta |
 
 ### Login de Steam
 
@@ -76,7 +77,7 @@ fuente de verdad es Prisma.
 | `/live-timing` | Live timing de los servidores |
 | `/perfil`, `/perfil/[userId]` | Perfil del piloto (público o privado) |
 | `/admin`, `/admin/ligas/[id]` | Panel de administración |
-| `/soporte` | Tickets de Discord (admins y usuarios con permiso) |
+| `/soporte`, `/soporte/crm`, `/soporte/settings` | Tickets de Discord, CRM de pilotos y ajustes del bot (admins y usuarios con permiso) |
 
 ## Subidas
 

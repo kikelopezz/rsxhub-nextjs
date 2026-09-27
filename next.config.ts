@@ -18,6 +18,13 @@ const nextConfig: NextConfig = {
     },
   },
 
+  // discord.js tries to require() a handful of native, optional performance add-ons (compression,
+  // faster buffer ops) that aren't installed — fine at runtime (it falls back to a JS implementation),
+  // but webpack tries to resolve them statically at build time and fails. Treating the whole package
+  // (and its transitive @discordjs/* deps) as external makes Next just `require` it from node_modules
+  // at runtime instead of bundling it, which sidesteps the problem entirely.
+  serverExternalPackages: ['discord.js', '@discordjs/ws', '@discordjs/rest', 'zlib-sync', 'bufferutil', 'utf-8-validate', 'erlpack'],
+
   images: {
     // Enable image format negotiation (WebP/AVIF when browser supports it)
     formats: ['image/avif', 'image/webp'],
@@ -68,12 +75,8 @@ const nextConfig: NextConfig = {
   // that can't break the app (no script-src/img-src: Next inlines scripts and images come from
   // several CDNs) — it still stops clickjacking, <object>/<base> injection.
   //
-  // /soporte/transcripts/[file] gets its OWN, stricter Content-Security-Policy below (and also
-  // sets one itself, in its route handler) — it renders raw Discord message content, so it needs
-  // `sandbox` and a `default-src 'none'` baseline that this general policy doesn't have. Next.js
-  // headers() lets a later, more specific `source` override a key an earlier one already set for
-  // the same path; without this second entry the general policy above wins for every path
-  // (including this one) and silently strips the transcript route's own CSP.
+  // Las transcripciones de tickets ahora se sirven directamente desde R2 (URL pública), no desde
+  // una ruta de este Next — por eso ya no hay una entrada aparte de CSP para ellas aquí.
   async headers() {
     return [
       {
@@ -85,26 +88,6 @@ const nextConfig: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=15552000' },
           { key: 'Content-Security-Policy', value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'" },
-        ],
-      },
-      {
-        source: '/soporte/transcripts/:file*',
-        headers: [
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
-          { key: 'Strict-Transport-Security', value: 'max-age=15552000' },
-          // Must match the route handler's own CSP — kept in sync there. `sandbox allow-scripts`
-          // (no allow-same-origin) plus script-src let the transcript's own renderer run
-          // (discord-html-transcripts' <discord-message> custom elements need it to draw anything
-          // at all — without it the page is blank), while everything else a transcript never
-          // needs (frames, forms, top navigation, same-origin access) stays blocked.
-          {
-            key: 'Content-Security-Policy',
-            value:
-              "sandbox allow-scripts; default-src 'none'; script-src https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src https: data:; font-src https: data: https://cdn.jsdelivr.net",
-          },
         ],
       },
     ]
