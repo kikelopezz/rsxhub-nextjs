@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { canAccessPlatformAdmin, canManageLeague, getCurrentUser, getLeagueRole, getPlatformRole } from '@/lib/auth'
 import { getLeagues, getRegistrations } from '@/lib/platform-data'
 import { db } from '@/lib/db'
+import { redirectTo } from '@/lib/redirect'
 
 const DEFAULT_MODEL = 'RSX_Porsche_992_GT3R'
 
@@ -38,11 +39,11 @@ function uniqueCarSlot(desired: number | null, used: Set<number>) {
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id: leagueId } = await context.params
   const session = await getCurrentUser()
-  if (!session) return NextResponse.redirect(new URL('/perfil', request.url))
+  if (!session) return redirectTo('/perfil')
 
   const [platformRole, leagueRole] = await Promise.all([getPlatformRole(session.userId), getLeagueRole(leagueId, session.userId)])
   if (!(canAccessPlatformAdmin(platformRole) || canManageLeague(leagueRole))) {
-    return NextResponse.redirect(new URL('/admin', request.url))
+    return redirectTo('/admin')
   }
 
   const leagues = await getLeagues()

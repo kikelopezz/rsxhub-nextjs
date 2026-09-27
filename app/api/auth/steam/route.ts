@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { STEAM_STATE_COOKIE, buildSteamAuthUrl } from '@/lib/steam'
 import { rateLimit } from '@/lib/rate-limit'
+import { redirectTo } from '@/lib/redirect'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     url = buildSteamAuthUrl(request, origin, state)
   } catch (err) {
     console.error('Failed to build Steam auth URL:', err)
-    return NextResponse.redirect(new URL('/?login=error', request.url))
+    return redirectTo('/?login=error')
   }
 
   const response = NextResponse.redirect(url)

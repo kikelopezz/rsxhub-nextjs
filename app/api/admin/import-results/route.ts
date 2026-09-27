@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { canAccessPlatformAdmin, canStewardLeague, getCurrentUser, getLeagueRole, getPlatformRole } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { redirectTo } from '@/lib/redirect'
 import { findEntry, loadLeagueEntries } from '@/lib/league-entries'
 
 type ImportedResultRow = {
@@ -23,8 +24,8 @@ function cleanText(value: unknown) {
   return text || undefined
 }
 
-function toAdminLeagueUrl(req: Request, leagueId: string, query: string) {
-  return new URL(`/admin/ligas/${leagueId}${query ? `?${query}` : ''}`, req.url)
+function toAdminLeagueUrl(leagueId: string, query: string) {
+  return `/admin/ligas/${leagueId}${query ? `?${query}` : ''}`
 }
 
 function normalizeIdentityToken(value: string) {
@@ -157,16 +158,16 @@ export async function POST(req: Request) {
   const fail = (code: string, status = 400) =>
     wantsJson
       ? NextResponse.json({ ok: false, code }, { status })
-      : NextResponse.redirect(toAdminLeagueUrl(req, leagueId, `resultsError=${code}`))
+      : redirectTo(toAdminLeagueUrl(leagueId, `resultsError=${code}`))
 
   const session = await getCurrentUser()
-  if (!session) return wantsJson ? NextResponse.json({ ok: false, code: 'unauthorized' }, { status: 401 }) : NextResponse.redirect(new URL('/perfil', req.url))
-  if (!leagueId) return wantsJson ? NextResponse.json({ ok: false, code: 'league-required' }, { status: 400 }) : NextResponse.redirect(new URL('/admin', req.url))
+  if (!session) return wantsJson ? NextResponse.json({ ok: false, code: 'unauthorized' }, { status: 401 }) : redirectTo('/perfil')
+  if (!leagueId) return wantsJson ? NextResponse.json({ ok: false, code: 'league-required' }, { status: 400 }) : redirectTo('/admin')
 
   const platformRole = await getPlatformRole(session.userId)
   const leagueRole = await getLeagueRole(leagueId, session.userId)
   if (!canAccessPlatformAdmin(platformRole) && !canStewardLeague(leagueRole)) {
-    return wantsJson ? NextResponse.json({ ok: false, code: 'forbidden' }, { status: 403 }) : NextResponse.redirect(new URL('/admin', req.url))
+    return wantsJson ? NextResponse.json({ ok: false, code: 'forbidden' }, { status: 403 }) : redirectTo('/admin')
   }
 
   const uploadedRaw = formData.get('resultsFile')
@@ -331,7 +332,7 @@ export async function POST(req: Request) {
     }
     const unresolvedFlag = unresolvedCount > 0 ? `&resultsUnresolved=${unresolvedCount}` : ''
     const notRegisteredFlag = notRegisteredCount > 0 ? `&resultsNotRegistered=${notRegisteredCount}` : ''
-    return NextResponse.redirect(toAdminLeagueUrl(req, leagueId, `resultsImported=${rowsToSave.length}${unresolvedFlag}${notRegisteredFlag}`))
+    return redirectTo(toAdminLeagueUrl(leagueId, `resultsImported=${rowsToSave.length}${unresolvedFlag}${notRegisteredFlag}`))
   } catch (error) {
     console.error('Failed to import race results REST API:', error)
     return fail('insert-failed', 500)
