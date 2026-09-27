@@ -2,12 +2,14 @@ import {
   ActionRowBuilder,
   ChannelType,
   EmbedBuilder,
+  OverwriteType,
   PermissionsBitField,
   StringSelectMenuBuilder,
   type ButtonInteraction,
   type StringSelectMenuInteraction,
 } from 'discord.js'
 import { db } from '@/lib/db'
+import { discordClient } from './client'
 import { PANEL_BUTTON_PREFIX, PANEL_SELECT_ID, safeEmoji } from './panel'
 import { getGuildConfig, nextCounter, type Campeonato, type GuildConfigDTO } from './config'
 import { channelNameFor, ticketCode } from './naming'
@@ -148,12 +150,30 @@ async function finishCreateTicket(
   const code = ticketCode(typeLabel, seq)
   const campeonatoLabel = campeonato && campeonato.id !== '__general__' ? `${campeonato.emoji ? `${campeonato.emoji} ` : ''}${campeonato.label}` : campeonato?.label || null
 
+  // El tipo (rol o miembro) se indica siempre explícito: sin el intent de miembros, un usuario
+  // que abre su primer ticket puede no estar en caché todavía, y discord.js necesita saberlo
+  // para resolver el overwrite en vez de adivinarlo buscándolo en caché (y fallar si no está).
   const overwrites = [
-    { id: guild.roles.everyone.id, deny: [OVERWRITE.ViewChannel] },
-    { id: interaction.user.id, allow: [OVERWRITE.ViewChannel, OVERWRITE.SendMessages, OVERWRITE.ReadMessageHistory, OVERWRITE.AttachFiles] },
+    { id: guild.roles.everyone.id, deny: [OVERWRITE.ViewChannel], type: OverwriteType.Role },
+    {
+      id: interaction.user.id,
+      allow: [OVERWRITE.ViewChannel, OVERWRITE.SendMessages, OVERWRITE.ReadMessageHistory, OVERWRITE.AttachFiles],
+      type: OverwriteType.Member,
+    },
+    // Sin esto, el propio bot se queda fuera de un canal que él mismo acaba de crear: al ocultarlo
+    // a @everyone, si el bot no tiene Administrator necesita su propio permiso explícito para entrar.
+    // (Nunca ManageChannels/ManageRoles aquí: Discord no deja concederlos vía overwrite aunque el
+    // bot ya los tenga a nivel de servidor — es su protección contra escalado de permisos; como
+    // nada los deniega en ningún sitio, el bot los conserva igual sin necesidad de repetirlos.)
+    {
+      id: discordClient.user!.id,
+      allow: [OVERWRITE.ViewChannel, OVERWRITE.SendMessages, OVERWRITE.ReadMessageHistory, OVERWRITE.AttachFiles, OVERWRITE.EmbedLinks],
+      type: OverwriteType.Member,
+    },
     ...config.staffRoleIds.map((roleId) => ({
       id: roleId,
       allow: [OVERWRITE.ViewChannel, OVERWRITE.SendMessages, OVERWRITE.ReadMessageHistory, OVERWRITE.ManageMessages],
+      type: OverwriteType.Role,
     })),
   ]
 

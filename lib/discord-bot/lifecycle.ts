@@ -1,4 +1,4 @@
-import { EmbedBuilder, type TextChannel } from 'discord.js'
+import { EmbedBuilder, OverwriteType, type TextChannel } from 'discord.js'
 import { db } from '@/lib/db'
 import type { SupportTicket } from '@prisma/client'
 import { discordClient, ensureDiscordLogin, hasDiscordBot } from './client'
@@ -37,10 +37,12 @@ async function postNote(channel: TextChannel | null, text: string) {
   }
 }
 
+// El tipo va siempre explícito (ver el mismo comentario en create-ticket.ts): sin él, discord.js
+// intenta adivinarlo buscando a la persona en caché y falla si no la tiene.
 async function lockChannel(channel: TextChannel | null, openerId: string) {
   if (!channel) return
   try {
-    await channel.permissionOverwrites.edit(openerId, { SendMessages: false })
+    await channel.permissionOverwrites.edit(openerId, { SendMessages: false }, { type: OverwriteType.Member })
   } catch (err) {
     console.error('[support] no se pudo bloquear el canal del ticket:', err)
   }
@@ -49,7 +51,7 @@ async function lockChannel(channel: TextChannel | null, openerId: string) {
 async function unlockChannel(channel: TextChannel | null, openerId: string) {
   if (!channel) return
   try {
-    await channel.permissionOverwrites.edit(openerId, { SendMessages: true })
+    await channel.permissionOverwrites.edit(openerId, { SendMessages: true }, { type: OverwriteType.Member })
   } catch (err) {
     console.error('[support] no se pudo reabrir el canal del ticket:', err)
   }

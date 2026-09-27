@@ -1,5 +1,7 @@
-import { ChannelType, PermissionsBitField } from 'discord.js'
+import { ChannelType, OverwriteType, PermissionsBitField } from 'discord.js'
 import { discordClient, ensureDiscordLogin } from './client'
+
+const OVERWRITE = PermissionsBitField.Flags
 
 export type CreatedChannel = { id: string; name: string; parentId: string | null; kind: 'text' | 'category' }
 
@@ -15,7 +17,13 @@ export async function createChannel(
   const channel = await guild.channels.create({
     name,
     type: input.kind === 'category' ? ChannelType.GuildCategory : ChannelType.GuildText,
-    permissionOverwrites: input.staffOnly ? [{ id: guild.roles.everyone.id, deny: [PermissionsBitField.Flags.ViewChannel] }] : undefined,
+    // Sin la propia del bot, se quedaría fuera de un canal que oculta a @everyone y él mismo acaba de crear.
+    permissionOverwrites: input.staffOnly
+      ? [
+          { id: guild.roles.everyone.id, deny: [OVERWRITE.ViewChannel], type: OverwriteType.Role },
+          { id: discordClient.user!.id, allow: [OVERWRITE.ViewChannel, OVERWRITE.SendMessages], type: OverwriteType.Member },
+        ]
+      : undefined,
   })
 
   return { id: channel.id, name: channel.name, parentId: 'parentId' in channel ? channel.parentId : null, kind: input.kind }
