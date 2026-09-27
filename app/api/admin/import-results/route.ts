@@ -296,11 +296,9 @@ export async function POST(req: Request) {
       })
     }
 
-    if (sessionType === 'qualifying') {
-      await db.leagueEvent.update({ where: { id: eventId }, data: { qualyCompleted: true } })
-    } else {
-      await db.leagueEvent.update({ where: { id: eventId }, data: { status: 'completed', completedAt: new Date() } })
-    }
+    // Guardar ya no publica: la ronda solo se marca como completada/con parrilla cuando se pulsa
+    // "Publicar" (ver /api/admin/publish-results) — así se pueden subir varias categorías antes
+    // de que los pilotos vean nada, en vez de quedar "oficial" con solo la primera subida.
 
     await db.leagueResultImport.create({
       data: {

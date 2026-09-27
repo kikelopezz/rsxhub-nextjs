@@ -100,9 +100,22 @@ async function buildResults(leagueId: string, eventId: string, sessionType: 'qua
   return built.sort((a, b) => a.position - b.position)
 }
 
+/**
+ * Guardar una categoría no la hace visible por sí sola: hasta que se pulsa "Publicar" (ver
+ * /api/admin/publish-results), lo que haya guardado es un borrador que solo ven admins y
+ * comisarios desde el modo de revisión — el resto solo ve la última clasificación/carrera
+ * publicada, aunque ya haya datos más nuevos sin publicar por debajo.
+ */
+async function isSessionPublished(eventId: string, sessionType: 'qualifying' | 'race'): Promise<boolean> {
+  const event = await db.leagueEvent.findUnique({ where: { id: eventId }, select: { qualyCompleted: true, status: true } })
+  if (!event) return false
+  return sessionType === 'qualifying' ? Boolean(event.qualyCompleted) : event.status === 'completed'
+}
+
 export async function getEventResultsAction(leagueId: string, eventId: string, sessionType: 'qualifying' | 'race' = 'race') {
   return fetchWithTTLCache(`event_results_${eventId}_${sessionType}`, async () => {
     try {
+      if (!(await isSessionPublished(eventId, sessionType))) return []
       return await buildResults(leagueId, eventId, sessionType, false)
     } catch (err) {
       console.error('Failed to load event results:', err)

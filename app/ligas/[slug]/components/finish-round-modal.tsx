@@ -53,10 +53,16 @@ export function FinishRoundModal({
   const tr = useDictionary().ligas.finishRound
   const hasQualy = Boolean(event.hasQualy === true || String(event.hasQualy) === 'true' || event.qualyStartsAt)
   const isQualyCompleted = Boolean((event as any).qualyCompleted || (event as any).qualy_completed)
-  
+  const isRaceCompleted = (event as any).status === 'completed'
+
   const [sessionType, setSessionType] = useState<'qualifying' | 'race'>(
     hasQualy ? (isQualyCompleted ? (initialSessionType || 'race') : 'qualifying') : 'race'
   )
+  // Lo publicado al abrir el modal, más lo que se haya publicado ya en esta misma sesión (el prop
+  // `event` no se actualiza solo mientras el modal sigue abierto).
+  const [publishedNow, setPublishedNow] = useState<Partial<Record<'qualifying' | 'race', boolean>>>({})
+  const isPublished = publishedNow[sessionType] ?? (sessionType === 'qualifying' ? isQualyCompleted : isRaceCompleted)
+  const [isPublishing, setIsPublishing] = useState(false)
   const [activeTab, setActiveTab] = useState<'upload' | 'preview'>('upload')
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL')
   const [jsonText, setJsonText] = useState('')
@@ -345,6 +351,32 @@ export function FinishRoundModal({
       setErrorMsg(err.message || tr.connectionError)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  // Hace oficial lo ya guardado de esta sesión (parrilla de clasificación, o ronda completada si es
+  // carrera): a partir de aquí lo ven los pilotos en "Ver resultados" y lo lee la API de competición.
+  const handlePublish = async () => {
+    setIsPublishing(true)
+    setErrorMsg('')
+    try {
+      const res = await fetch('/api/admin/publish-results', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ leagueId, eventId: event.id, sessionType }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.ok) {
+        setPublishedNow((prev) => ({ ...prev, [sessionType]: true }))
+        setInfoMsg(sessionType === 'qualifying' ? tr.publishedQualy : tr.publishedRace)
+        onSaved?.()
+      } else {
+        setErrorMsg(data.code === 'no-results-to-publish' ? tr.publishNoResults : tr.publishError)
+      }
+    } catch {
+      setErrorMsg(tr.connectionError)
+    } finally {
+      setIsPublishing(false)
     }
   }
 
@@ -711,27 +743,43 @@ export function FinishRoundModal({
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="mt-4 flex items-center justify-end gap-3 border-t border-white/10 pt-4">
-          <button
-            type="button"
-            onClick={savedUploads.length > 0 ? onSuccess : onClose}
-            className="rounded-lg border border-white/10 bg-black/30 px-4 py-2 text-xs font-bold uppercase text-slate-300 transition-colors hover:bg-white/5"
-          >
-            {savedUploads.length > 0 ? tr.finish : tr.cancel}
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting || parsedRows.length === 0}
-            className="flex items-center gap-2 rounded-lg border border-[#4ea1ff] bg-[#1274de] px-5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-[0_0_15px_rgba(78,161,255,0.4)] transition-all hover:bg-[#1f82ee] disabled:opacity-40"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            {isSubmitting
-              ? tr.saving
-              : tr.saveUpload
-                  .replace('{cat}', Array.from(new Set(parsedRows.map((r) => r.classTag))).join(' + ') || uploadCategory)
-                  .replace('{n}', String(parsedRows.length))}
-          </button>
+        <div className="mt-4 space-y-2.5 border-t border-white/10 pt-4">
+          <p className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${isPublished ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {isPublished ? (sessionType === 'qualifying' ? tr.publishedQualy : tr.publishedRace) : tr.notPublishedYet}
+          </p>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={savedUploads.length > 0 ? onSuccess : onClose}
+              className="rounded-lg border border-white/10 bg-black/30 px-4 py-2 text-xs font-bold uppercase text-slate-300 transition-colors hover:bg-white/5"
+            >
+              {savedUploads.length > 0 ? tr.finish : tr.cancel}
+            </button>
+            <button
+              type="button"
+              onClick={handlePublish}
+              disabled={isPublishing || isPublished}
+              title={isPublished ? undefined : tr.publishHint}
+              className="flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-500/15 px-5 py-2 text-xs font-bold uppercase tracking-wider text-amber-300 transition-all hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Upload className="h-4 w-4" />
+              {isPublishing ? tr.publishing : isPublished ? tr.published : sessionType === 'qualifying' ? tr.finalizeQualy : tr.finalizeRace}
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting || parsedRows.length === 0}
+              className="flex items-center gap-2 rounded-lg border border-[#4ea1ff] bg-[#1274de] px-5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-[0_0_15px_rgba(78,161,255,0.4)] transition-all hover:bg-[#1f82ee] disabled:opacity-40"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {isSubmitting
+                ? tr.saving
+                : tr.saveUpload
+                    .replace('{cat}', Array.from(new Set(parsedRows.map((r) => r.classTag))).join(' + ') || uploadCategory)
+                    .replace('{n}', String(parsedRows.length))}
+            </button>
+          </div>
         </div>
       </div>
     </div>
