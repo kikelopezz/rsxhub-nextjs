@@ -36,7 +36,8 @@ export function ViewResultsModal({
   onClose,
 }: ViewResultsModalProps) {
   const t = useDictionary().ligas.viewResults
-  const [sessionFilter, setSessionFilter] = useState<'qualifying' | 'race'>('race')
+  const hasQualy = Boolean(event.hasQualy === true || String(event.hasQualy) === 'true' || event.qualyStartsAt)
+  const [sessionFilter, setSessionFilter] = useState<'qualifying' | 'race'>(hasQualy && event.status !== 'completed' ? 'qualifying' : 'race')
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL')
   const [results, setResults] = useState<EventResultRow[]>([])
   const [loading, setLoading] = useState(true)

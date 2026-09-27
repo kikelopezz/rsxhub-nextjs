@@ -196,8 +196,8 @@ export function LeagueSchedule({
                       </button>
                     )}
 
-                    {/* DRIVERS & NON-ADMINS/NON-STEWARDS: VIEW ROUND BUTTON */}
-                    {(!isAdmin && !isSteward) && onViewResults && (
+                    {/* VIEW RESULTS BUTTON: everyone, admins and stewards included (they upload results, so they must be able to check them) */}
+                    {onViewResults && (
                       <button
                         type="button"
                         onClick={() => onViewResults(ev)}
