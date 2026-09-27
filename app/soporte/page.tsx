@@ -3,6 +3,7 @@ import { ChevronDown, ExternalLink, Ticket as TicketIcon } from 'lucide-react'
 import { db } from '@/lib/db'
 import { getBotGuildIds, getGuildSummary } from '@/lib/discord-bot/guild-info'
 import { isDiscordConfigured } from '@/lib/discord-bot/client'
+import { ensureBotStarted } from '@/lib/discord-bot'
 import { TicketActions } from './ticket-actions'
 import type { SupportTicketStatus } from '@prisma/client'
 
@@ -45,6 +46,11 @@ export default async function SoportePage({
       </div>
     )
   }
+
+  // Se espera aquí mismo a que intente conectar (no basta con lo que haga el layout: en el App
+  // Router layout y página se resuelven en paralelo, así que si solo se fía del layout la primera
+  // visita puede leer "sin servidores" un instante antes de que el login termine).
+  await ensureBotStarted()
 
   const guildIds = getBotGuildIds()
   const guildId = guildIds.includes(params.guild || '') ? (params.guild as string) : guildIds[0]

@@ -21,6 +21,13 @@ declare global {
   var __rsxDiscordLoginPromise: Promise<void> | undefined
   // eslint-disable-next-line no-var
   var __rsxDiscordLoggedInToken: string | undefined
+  // eslint-disable-next-line no-var
+  var __rsxDiscordLastError: string | undefined
+}
+
+/** El motivo del último intento de conexión fallido, para enseñarlo en Ajustes sin depender de mirar logs del servidor. */
+export function getLastConnectError(): string | null {
+  return globalThis.__rsxDiscordLastError ?? null
 }
 
 function buildClient(): Client {
@@ -43,6 +50,27 @@ export function isDiscordReady(): boolean {
 }
 
 /**
+ * El login() de discord.js resuelve en cuanto el token queda validado (con `client.user` ya
+ * puesto), pero `isReady()` se pone a true un instante después — comprobado: hasta ~200ms de
+ * diferencia. Sin esto, cualquiera que comprobara el estado justo después de conectar (como la
+ * tarjeta de Ajustes) podía ver "desconectado" con un login perfectamente válido.
+ */
+function waitUntilReady(timeoutMs = 10_000): Promise<void> {
+  if (discordClient.isReady()) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      discordClient.off('ready', onReady)
+      reject(new Error('El bot validó el token pero no llegó a quedar listo a tiempo.'))
+    }, timeoutMs)
+    const onReady = () => {
+      clearTimeout(timer)
+      resolve()
+    }
+    discordClient.once('ready', onReady)
+  })
+}
+
+/**
  * Login perezoso e idempotente: aunque se llame varias veces a la vez, solo hay un intento de
  * conexión en curso. Si el token guardado ha cambiado desde la última vez (alguien lo actualizó
  * en Ajustes), se reconecta con el nuevo en vez de quedarse con la sesión vieja.
@@ -62,11 +90,14 @@ export async function ensureDiscordLogin(): Promise<void> {
   if (!globalThis.__rsxDiscordLoginPromise) {
     globalThis.__rsxDiscordLoginPromise = discordClient
       .login(resolved.token)
+      .then(() => waitUntilReady())
       .then(() => {
         globalThis.__rsxDiscordLoggedInToken = resolved.token
+        globalThis.__rsxDiscordLastError = undefined
       })
       .catch((err) => {
         globalThis.__rsxDiscordLoginPromise = undefined
+        globalThis.__rsxDiscordLastError = err instanceof Error ? err.message : String(err)
         throw err
       })
   }
@@ -77,5 +108,6 @@ export async function ensureDiscordLogin(): Promise<void> {
 export function disconnectDiscordBot(): void {
   globalThis.__rsxDiscordLoginPromise = undefined
   globalThis.__rsxDiscordLoggedInToken = undefined
+  globalThis.__rsxDiscordLastError = undefined
   if (discordClient.isReady()) discordClient.destroy()
 }

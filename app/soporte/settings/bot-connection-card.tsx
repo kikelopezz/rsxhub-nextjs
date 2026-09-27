@@ -58,6 +58,12 @@ export function BotConnectionCard({ initialStatus }: { initialStatus: BotStatus 
         )}
       </div>
 
+      {!status.ready && status.lastError && (
+        <p className="rounded-lg border border-rose-400/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300">
+          Último intento de conexión: {status.lastError}
+        </p>
+      )}
+
       {status.applicationId && (
         <a
           href={`https://discord.com/oauth2/authorize?client_id=${status.applicationId}&permissions=${INVITE_PERMISSIONS}&scope=bot`}
