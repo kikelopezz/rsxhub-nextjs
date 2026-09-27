@@ -1,5 +1,6 @@
 'use client'
 
+import { formatLapTime } from '@/lib/format-time'
 import { useState, useEffect } from 'react'
 import { X, Trophy, ShieldCheck, Loader2, Timer, Flag } from 'lucide-react'
 import { ClassBadge, getCategoryStyles } from '@/components/class-badge'
@@ -245,12 +246,12 @@ export function ViewResultsModal({
                                 </td>
                                 {sessionFilter === 'qualifying' ? (
                                   <td className="font-mono-data p-2 text-right text-xs font-bold text-[#4ea1ff]">
-                                    {row.lapTime || '—'}
+                                    {formatLapTime(row.lapTime)}
                                   </td>
                                 ) : (
                                   <>
                                     <td className="font-mono-data p-2 text-right text-xs text-slate-300">
-                                      {row.raceTime || '—'}
+                                      {formatLapTime(row.raceTime)}
                                     </td>
                                     <td className="font-mono-data p-2 text-right text-sm font-extrabold text-emerald-400">
                                       {row.points} {t.pts}

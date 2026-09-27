@@ -5,6 +5,8 @@ import { getCurrentUser, getAdminAccessContext, canStewardLeague } from '@/lib/a
 import { db } from '@/lib/db'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
 import { getTeamsDashboard } from '@/lib/team-data'
+import { getHubEntries, pickHubEntry } from '@/lib/hub-entries'
+import { findEntry, loadLeagueEntries } from '@/lib/league-entries'
 
 export async function getEventResultsAction(leagueId: string, eventId: string, sessionType: 'qualifying' | 'race' = 'race') {
   return fetchWithTTLCache(`event_results_${eventId}_${sessionType}`, async () => {
@@ -13,10 +15,12 @@ export async function getEventResultsAction(leagueId: string, eventId: string, s
       if (rows.length === 0) return []
 
       const userIds = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean)))
-      const [{ teams }, profiles, steamAccounts] = await Promise.all([
+      const [{ teams }, profiles, steamAccounts, hubEntries, leagueEntries] = await Promise.all([
         getTeamsDashboard(),
         userIds.length > 0 ? db.profile.findMany({ where: { userId: { in: userIds } } }) : Promise.resolve([]),
         userIds.length > 0 ? db.steamAccount.findMany({ where: { userId: { in: userIds } } }) : Promise.resolve([]),
+        getHubEntries().catch(() => ({})),
+        loadLeagueEntries(leagueId).catch(() => []),
       ])
 
       const profilesMap = new Map(profiles.map((p) => [p.userId, p.displayName]))
@@ -29,11 +33,18 @@ export async function getEventResultsAction(leagueId: string, eventId: string, s
           const dName = profName || stm?.name || row.driverName || (row.userId ? `Driver ${row.userId.slice(0, 4)}` : 'Driver')
           const sId = stm?.steamId || row.steamId || ''
 
-          let tName = row.teamName || 'Independent'
-          if (!row.teamName) {
+          const classTag = (row.classTag || 'GT3').toUpperCase()
+          // Equipo y número del coche: mandan los del apartado de Equipos (vinculados por Steam ID), luego la inscripción
+          // en la liga y, por último, lo que trajera el JSON de la carrera (a menudo inventado: 1, 2, 3…)
+          const hub = pickHubEntry((hubEntries as Record<string, any[]>)[sId], classTag)
+          const registration = findEntry(leagueEntries, { userId: row.userId, steamId: sId, driverName: dName }, classTag)
+
+          let tName = hub?.teamName || registration?.teamName || row.teamName || ''
+          if (!tName) {
             const matchedTeam = teams.find((t: any) => t.members?.some((m: any) => m.userId === row.userId))
             if (matchedTeam) tName = matchedTeam.name
           }
+          if (!tName) tName = 'Independent'
 
           return {
             id: row.id,
@@ -42,8 +53,8 @@ export async function getEventResultsAction(leagueId: string, eventId: string, s
             driverName: dName,
             teamName: tName,
             steamId: sId,
-            classTag: (row.classTag || 'GT3').toUpperCase(),
-            dorsal: row.dorsal,
+            classTag,
+            dorsal: hub?.dorsal || registration?.dorsal || row.dorsal,
             points: row.points ?? 0,
             lapTime: row.lapTime,
             raceTime: row.raceTime,
