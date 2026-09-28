@@ -36,4 +36,15 @@ describe('saneado de los ajustes de soporte', () => {
     expect(sanitizeSettings({ maxOpenTickets: -5 }).maxOpenTickets).toBe(1)
     expect(sanitizeSettings({ reminderMinutes: 99999 }).reminderMinutes).toBe(1440)
   })
+
+  it('cada campeonato tiene su propio color de botón, "blue" por defecto', () => {
+    const result = sanitizeSettings({
+      campeonatos: [
+        { id: 'erc', label: 'ERC', color: 'red' },
+        { id: 'erc-ng', label: 'ERC NextGen' },
+      ],
+    })
+    expect(result.campeonatos.find((c) => c.id === 'erc')?.color).toBe('red')
+    expect(result.campeonatos.find((c) => c.id === 'erc-ng')?.color).toBe('blue')
+  })
 })

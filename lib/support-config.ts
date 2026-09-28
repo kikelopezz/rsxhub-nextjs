@@ -27,6 +27,7 @@ export type Campeonato = {
   emoji: string
   label: string
   categoryId: string | null
+  color: ButtonColor
 }
 
 export type GuildConfigDTO = Omit<SupportGuildConfig, 'ticketTypes' | 'campeonatos'> & {
@@ -69,6 +70,7 @@ function sanitizeCampeonatos(list: unknown): Campeonato[] {
         emoji: text(raw?.emoji, 8),
         label: text(raw?.label, 60),
         categoryId: snowflakeOrNull(raw?.categoryId),
+        color: (BUTTON_COLORS as readonly string[]).includes(raw?.color as string) ? (raw!.color as ButtonColor) : 'blue',
       }
     })
     .filter((c) => c.label && !seen.has(c.id) && seen.add(c.id))

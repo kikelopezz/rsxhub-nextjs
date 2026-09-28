@@ -161,9 +161,12 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
         </section>
 
         <section className={card}>
-          <h2 className={heading}>Categorías de ticket</h2>
+          <h2 className={heading}>Categorías de la duda o incidencia</h2>
           <p className="text-xs text-slate-400">
-            Cada una es una opción del panel. Cada ticket se nombra con su categoría y un número propio (p. ej. «Incidente de carrera 001»).
+            {campeonatos.length > 0
+              ? 'Se preguntan después de elegir el campeonato (más abajo). Las mismas categorías valen para todos los campeonatos.'
+              : 'Son la opción del panel, ya que no hay campeonatos configurados.'}{' '}
+            Cada ticket se nombra con su categoría y un número propio (p. ej. «Incidente de carrera 001»).
           </p>
           {types.map((t, i) => (
             <div key={t.id} className="space-y-2 rounded-lg border border-white/10 bg-black/30 p-3">
@@ -228,30 +231,44 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
         <section className={card}>
           <h2 className={heading}>Campeonatos (opcional)</h2>
           <p className="text-xs text-slate-400">
-            Con al menos un campeonato, elegirlo pasa a ser obligatorio al abrir cualquier ticket (se añade automáticamente la opción «General»
-            para lo que no sea de un campeonato). Si le pones una categoría de Discord a uno, sus tickets se crean ahí en vez de en la categoría
-            general.
+            Con al menos un campeonato, el panel pregunta primero cuál de estos es (se añade automáticamente la opción «General» para lo que no
+            sea de ninguno) y la categoría de la duda se pregunta después. Si le pones una categoría de Discord a uno, sus tickets se crean ahí en
+            vez de en la categoría general.
           </p>
           {campeonatos.map((c, i) => (
-            <div key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-black/30 p-3">
-              <input value={c.emoji} onChange={(e) => updateCampeonato(i, { emoji: e.target.value })} placeholder="🏁" maxLength={8} className={`${input} w-16 text-center`} />
-              <input value={c.label} onChange={(e) => updateCampeonato(i, { label: e.target.value })} placeholder="Nombre del campeonato" maxLength={60} className={`${input} flex-1 min-w-[140px]`} />
-              <select className={`${input} flex-1 min-w-[160px]`} value={c.categoryId || ''} onChange={(e) => updateCampeonato(i, { categoryId: e.target.value || null })}>
-                <option value="">— Categoría general —</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
+            <div key={c.id} className="space-y-2 rounded-lg border border-white/10 bg-black/30 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <input value={c.emoji} onChange={(e) => updateCampeonato(i, { emoji: e.target.value })} placeholder="🏁" maxLength={8} className={`${input} w-16 text-center`} />
+                <input value={c.label} onChange={(e) => updateCampeonato(i, { label: e.target.value })} placeholder="Nombre del campeonato" maxLength={60} className={`${input} flex-1 min-w-[140px]`} />
+                <select className={`${input} flex-1 min-w-[160px]`} value={c.categoryId || ''} onChange={(e) => updateCampeonato(i, { categoryId: e.target.value || null })}>
+                  <option value="">— Categoría general —</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => setCampeonatos((list) => list.filter((_, idx) => idx !== i))} className="text-[10px] font-bold uppercase text-rose-400 hover:underline">
+                  Quitar
+                </button>
+              </div>
+              <div className="flex gap-1.5">
+                {COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => updateCampeonato(i, { color })}
+                    title={color}
+                    className={`h-6 w-6 rounded-lg border transition-transform ${c.color === color ? 'scale-110 border-white ring-2 ring-[#4ea1ff]' : 'border-white/20'}`}
+                    style={{ backgroundColor: COLOR_SWATCH[color] }}
+                  />
                 ))}
-              </select>
-              <button type="button" onClick={() => setCampeonatos((list) => list.filter((_, idx) => idx !== i))} className="text-[10px] font-bold uppercase text-rose-400 hover:underline">
-                Quitar
-              </button>
+              </div>
             </div>
           ))}
           <button
             type="button"
-            onClick={() => setCampeonatos((list) => [...list, { id: `c-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '', categoryId: null }])}
+            onClick={() => setCampeonatos((list) => [...list, { id: `c-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '', categoryId: null, color: 'blue' }])}
             className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold uppercase text-slate-300 hover:bg-white/5"
           >
             + Añadir campeonato
@@ -350,7 +367,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
       </form>
 
       <div className="xl:sticky xl:top-4">
-        <PanelPreview title={form.panelTitle} description={form.panelDescription} color={form.embedColor} panelStyle={form.panelStyle} types={types} />
+        <PanelPreview title={form.panelTitle} description={form.panelDescription} color={form.embedColor} panelStyle={form.panelStyle} types={types} campeonatos={campeonatos} />
       </div>
     </div>
   )
