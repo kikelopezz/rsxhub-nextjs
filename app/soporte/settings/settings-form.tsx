@@ -6,6 +6,7 @@ import type { ButtonColor, Campeonato, GuildConfigDTO, TicketType } from '@/lib/
 import type { CreatedChannel } from '@/lib/support-bot-client'
 import { CreateChannelInline } from './create-channel-inline'
 import { PanelPreview } from './panel-preview'
+import { TicketPreview } from './ticket-preview'
 import { saveTicketSettingsAction, publishTicketPanelAction } from '../actions'
 
 const card = 'rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4'
@@ -366,8 +367,9 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
         </div>
       </form>
 
-      <div className="xl:sticky xl:top-4">
+      <div className="space-y-4 xl:sticky xl:top-4">
         <PanelPreview title={form.panelTitle} description={form.panelDescription} color={form.embedColor} panelStyle={form.panelStyle} types={types} campeonatos={campeonatos} />
+        <TicketPreview color={form.embedColor} welcomeMessage={form.welcomeMessage} types={types} campeonatos={campeonatos} />
       </div>
     </div>
   )
