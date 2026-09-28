@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
-import { getHubEntries, type HubEntry } from '@/lib/hub-entries'
+import { flattenHubEntries, getHubEntries, type FlatHubEntry, type HubEntry } from '@/lib/hub-entries'
 import { findEntry, loadLeagueEntries, type LeagueEntry } from '@/lib/league-entries'
+import { getClassTagFromModel } from '@/lib/live-timing'
 
 /**
  * Detección y revisión del coche que ha quedado en cada posición de unos resultados.
@@ -78,8 +79,11 @@ export function detectCar(args: {
   storedDorsal: string | null
   hub: HubEntry[] | undefined
   registration: LeagueEntry | null
+  /** Todas las entradas de Equipos aplanadas (no solo las del Steam ID de esta fila) — para
+   * poder buscar por equipo+número cuando el Steam ID no está vinculado todavía. */
+  hubFlat?: FlatHubEntry[]
 }): CarDetection {
-  const { steamId, classTag, storedTeam, storedDorsal, hub, registration } = args
+  const { steamId, classTag, storedTeam, storedDorsal, hub, registration, hubFlat } = args
   const flags: ReviewFlag[] = []
   const entries = hub || []
   const withCar = entries.filter((e) => e.dorsal)
@@ -100,13 +104,30 @@ export function detectCar(args: {
     flags.push('no-car')
     detection = { teamName: entries[0].teamName, dorsal: registration?.dorsal ?? storedDorsal, carModel: null, source: 'team-member' }
   } else {
-    flags.push(steamId ? 'not-found' : 'no-steam')
-    if (registration && (registration.teamName || registration.dorsal)) {
-      detection = { teamName: registration.teamName, dorsal: registration.dorsal, carModel: null, source: 'registration' }
-    } else if (storedTeam || storedDorsal) {
-      detection = { teamName: storedTeam, dorsal: storedDorsal, carModel: null, source: 'file' }
+    // Nada por Steam ID. Si el archivo trae equipo y número, se busca ese mismo equipo+número en
+    // Equipos por si el piloto todavía no tiene su Steam ID vinculado ahí — mejor que asumir que
+    // no hay coche cuando sí lo hay, solo que vinculado a otro Steam ID o sin vincular.
+    const byTeamNumber = (storedTeam && storedDorsal
+      ? (hubFlat || []).find(
+          (e) =>
+            e.dorsal === storedDorsal &&
+            e.teamName.trim().toLowerCase() === storedTeam.trim().toLowerCase() &&
+            sameCategory(e.category, classTag)
+        )
+      : undefined)
+
+    if (byTeamNumber) {
+      flags.push(steamId ? 'not-found' : 'no-steam')
+      detection = { teamName: byTeamNumber.teamName, dorsal: byTeamNumber.dorsal, carModel: byTeamNumber.carModel, source: 'team-car' }
     } else {
-      detection = { teamName: null, dorsal: null, carModel: null, source: 'none' }
+      flags.push(steamId ? 'not-found' : 'no-steam')
+      if (registration && (registration.teamName || registration.dorsal)) {
+        detection = { teamName: registration.teamName, dorsal: registration.dorsal, carModel: null, source: 'registration' }
+      } else if (storedTeam || storedDorsal) {
+        detection = { teamName: storedTeam, dorsal: storedDorsal, carModel: null, source: 'file' }
+      } else {
+        detection = { teamName: null, dorsal: null, carModel: null, source: 'none' }
+      }
     }
   }
 
@@ -121,6 +142,7 @@ export function detectCar(args: {
 /** Datos necesarios para vincular filas de resultados con equipos y coches (se cargan una vez por sesión). */
 export type CorrelationContext = {
   hub: Record<string, HubEntry[]>
+  hubFlat: FlatHubEntry[]
   entries: LeagueEntry[]
   reviews: ReviewMap
 }
@@ -139,7 +161,7 @@ export async function loadCorrelationContext(leagueId: string, eventId: string, 
     safely(() => loadLeagueEntries(leagueId), [] as LeagueEntry[]),
     safely(() => readReviews(eventId, sessionType), {} as ReviewMap),
   ])
-  return { hub, entries, reviews }
+  return { hub, hubFlat: flattenHubEntries(hub), entries, reviews }
 }
 
 export type CorrelatedRow = {
@@ -166,9 +188,13 @@ export function correlateRow(
     classTag?: string | null
     teamName?: string | null
     dorsal?: string | null
+    /** Modelo de coche que traía el archivo de resultados (folder de Assetto Corsa), si lo trae. */
+    carModel?: string | null
   }
 ): CorrelatedRow {
-  const classTag = (row.classTag || 'GT3').trim().toUpperCase()
+  // Prioridad: categoría explícita del archivo > categoría deducida del coche que trae el archivo
+  // (el mismo mapeo coche→categoría que usa el live timing) > último recurso, GT3.
+  const classTag = (row.classTag || (row.carModel ? getClassTagFromModel(row.carModel) : null) || 'GT3').trim().toUpperCase()
   const steamId = row.steamId || ''
   const driverName = row.driverName || ''
   const registration = findEntry(ctx.entries, { userId: row.userId, steamId, driverName }, classTag)
@@ -179,6 +205,7 @@ export function correlateRow(
     storedDorsal: row.dorsal ?? null,
     hub: ctx.hub[steamId],
     registration,
+    hubFlat: ctx.hubFlat,
   })
 
   const reviewKey = reviewRowKey(steamId, driverName, classTag)
@@ -190,5 +217,5 @@ export function correlateRow(
     if (review.teamName) teamName = review.teamName
     if (review.dorsal) dorsal = review.dorsal
   }
-  return { classTag, teamName, dorsal, carModel: detection.carModel, detection, reviewKey, review }
+  return { classTag, teamName, dorsal, carModel: detection.carModel || row.carModel || null, detection, reviewKey, review }
 }

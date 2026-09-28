@@ -129,6 +129,54 @@ describe('importar resultados por categoría', () => {
   })
 })
 
+describe('categoría deducida del coche cuando el archivo no trae la categoría', () => {
+  beforeEach(() => {
+    store.results = []
+    store.nextId = 1
+    store.drivers = []
+  })
+
+  it('usa el coche del archivo (folder de Assetto Corsa) para deducir la categoría', async () => {
+    const steamId = '76561198000000001'
+    store.drivers.push({ userId: 'u1', steamId, classTag: 'GT3' })
+    const payload = {
+      eventId: 'ev1',
+      sessionType: 'qualifying',
+      results: [{ DriverGuid: steamId, position: 1, driverName: 'Piloto 1', carNumber: '7', Model: 'acf_oreca_07' }],
+    }
+    const form = new FormData()
+    form.append('leagueId', 'lg1')
+    form.append('eventId', 'ev1')
+    form.append('sessionType', 'qualifying')
+    form.append('replaceExisting', 'on')
+    form.append('resultsJsonText', JSON.stringify(payload))
+    const res = await POST(new Request('http://localhost/api/admin/import-results', { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: form }))
+    const out = await res.json()
+    expect(out).toMatchObject({ ok: true, imported: 1, classTags: ['LMP2'] })
+    expect(store.results[0]).toMatchObject({ classTag: 'LMP2', dorsal: '7' })
+  })
+
+  it('si el archivo ya trae categoría explícita, esa manda sobre el coche', async () => {
+    const steamId = '76561198000000002'
+    store.drivers.push({ userId: 'u2', steamId, classTag: 'GT3' })
+    const payload = {
+      eventId: 'ev1',
+      sessionType: 'qualifying',
+      // Coche de LMP2 pero categoría GT3 forzada en el archivo — se respeta lo explícito
+      results: [{ DriverGuid: steamId, position: 1, driverName: 'Piloto 1', carNumber: '7', Model: 'acf_oreca_07', classTag: 'GT3' }],
+    }
+    const form = new FormData()
+    form.append('leagueId', 'lg1')
+    form.append('eventId', 'ev1')
+    form.append('sessionType', 'qualifying')
+    form.append('replaceExisting', 'on')
+    form.append('resultsJsonText', JSON.stringify(payload))
+    const res = await POST(new Request('http://localhost/api/admin/import-results', { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: form }))
+    const out = await res.json()
+    expect(out).toMatchObject({ ok: true, classTags: ['GT3'] })
+  })
+})
+
 describe('vinculación de dorsal y equipo por Steam ID', () => {
   beforeEach(() => {
     store.results = []

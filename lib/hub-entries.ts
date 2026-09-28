@@ -63,6 +63,18 @@ export function getHubEntries() {
   return fetchWithTTLCache('live_timing_hub_entries', loadEntries, 60)
 }
 
+export type FlatHubEntry = HubEntry & { steamId: string }
+
+/** Las mismas entradas de Equipos, aplanadas, para poder buscarlas por equipo+dorsal en vez de
+ * por Steam ID — útil cuando el resultado trae un Steam ID que aún no está vinculado en Equipos. */
+export function flattenHubEntries(hub: Record<string, HubEntry[]>): FlatHubEntry[] {
+  const out: FlatHubEntry[] = []
+  for (const [steamId, entries] of Object.entries(hub)) {
+    for (const entry of entries) out.push({ ...entry, steamId })
+  }
+  return out
+}
+
 /**
  * Elige la entrada de un piloto que corresponde a una categoría: la de su coche en esa categoría si la hay; si no,
  * la primera con dorsal; y como último recurso la primera (solo equipo).

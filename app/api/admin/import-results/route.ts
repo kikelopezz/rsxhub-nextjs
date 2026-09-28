@@ -6,6 +6,7 @@ import { invalidateCache } from '@/lib/ttl-cache'
 import { redirectTo } from '@/lib/redirect'
 import { findEntry } from '@/lib/league-entries'
 import { correlateRow, loadCorrelationContext } from '@/lib/result-review'
+import { getClassTagFromModel } from '@/lib/live-timing'
 
 type ImportedResultRow = {
   userId?: string
@@ -18,6 +19,9 @@ type ImportedResultRow = {
   dorsal?: string
   lapTime?: string
   raceTime?: string
+  /** Coche (folder de Assetto Corsa) que trae el archivo, si lo trae — de ahí se deduce la
+   * categoría cuando el archivo no dice directamente la categoría de la fila. */
+  carModel?: string
 }
 
 function cleanText(value: unknown) {
@@ -78,14 +82,20 @@ function toImportedRow(item: unknown, index: number): ImportedResultRow | null {
   const pointsNum = pointsRaw == null || pointsRaw === '' ? null : Number(pointsRaw)
   const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(steamOrUser)
   const points = Number.isFinite(pointsNum as number) ? (pointsNum as number) : null
-  // Datos extra que manda el gestor de ronda (categoría, nombres, dorsal, tiempos)
+  // Datos extra que manda el gestor de ronda (categoría, nombres, dorsal, tiempos, coche)
+  const carModel = cleanText(row.carModel ?? row.CarModel ?? row.Model ?? row.model ?? row.car ?? row.Car)
+  // Si el archivo no trae la categoría directamente pero sí el coche, se deduce de ahí ya en este
+  // punto (mismo mapeo coche→categoría que el live timing) — así también cuenta para agrupar por
+  // categoría más abajo (p. ej. al limitar cuántos coches se guardan por categoría).
+  const classTag = cleanText(row.classTag ?? row.ClassTag)?.toUpperCase() ?? (carModel ? getClassTagFromModel(carModel).toUpperCase() : undefined)
   const extra = {
-    classTag: cleanText(row.classTag ?? row.ClassTag)?.toUpperCase(),
+    classTag,
     driverName: cleanText(row.driverName ?? row.DriverName),
     teamName: cleanText(row.teamName ?? row.TeamName),
     dorsal: cleanText(row.carNumber ?? row.CarNumber ?? row.dorsal),
     lapTime: cleanText(row.lapTime ?? row.BestLap ?? row.bestLap),
     raceTime: cleanText(row.raceTime ?? row.TotalTime ?? row.totalTime),
+    carModel,
   }
   return looksLikeUuid ? { userId: steamOrUser, position, points, ...extra } : { steamId: steamOrUser, position, points, ...extra }
 }
@@ -103,7 +113,12 @@ function parseResultsJson(raw: string): { eventId?: string; results: ImportedRes
   if (rows.length === 0) {
     const cars = Array.isArray(parsed.Cars) ? parsed.Cars : Array.isArray(parsed.cars) ? parsed.cars : []
     rows = cars.flatMap((item, index) => {
-      const row = item as { Driver?: { Guid?: unknown; GuidsList?: unknown[]; GuidList?: unknown[] }; DriverGuid?: unknown }
+      const row = item as {
+        Driver?: { Guid?: unknown; GuidsList?: unknown[]; GuidList?: unknown[] }
+        DriverGuid?: unknown
+        Model?: unknown
+        CarModel?: unknown
+      }
       const guids = Array.from(
         new Set(
           [
@@ -114,7 +129,8 @@ function parseResultsJson(raw: string): { eventId?: string; results: ImportedRes
           ].filter(Boolean),
         ),
       )
-      return guids.map((guid) => ({ DriverGuid: guid, position: index + 1 }))
+      const carModel = String(row.Model || row.CarModel || '').trim() || undefined
+      return guids.map((guid) => ({ DriverGuid: guid, position: index + 1, CarModel: carModel }))
     })
   }
 
@@ -247,11 +263,21 @@ export async function POST(req: Request) {
     const filtered = resolved.filter((row) => registeredUserIds.has(String(row.userId)))
     const notRegisteredCount = resolved.length - filtered.length
 
-    // Categoría de cada fila: la que manda el gestor de ronda o, si no, la de la inscripción del piloto
-    // El equipo y el dorsal salen del apartado de Equipos vinculado por Steam ID (luego la inscripción y, por último, el archivo)
+    // Categoría de cada fila: la que manda el gestor de ronda, o la deducida del coche (ya
+    // resuelta en toImportedRow); si tampoco hay ninguna de las dos, la de la inscripción del
+    // piloto. El equipo y el dorsal salen del apartado de Equipos vinculado por Steam ID (luego
+    // equipo+número, luego la inscripción y, por último, el archivo).
     const rowsToSave = filtered.map((row) => {
       const classTag = row.classTag || regClassByUser.get(String(row.userId))
-      const c = correlateRow(correlation, { userId: row.userId, steamId: row.steamId, driverName: row.driverName, classTag, teamName: row.teamName, dorsal: row.dorsal })
+      const c = correlateRow(correlation, {
+        userId: row.userId,
+        steamId: row.steamId,
+        driverName: row.driverName,
+        classTag,
+        teamName: row.teamName,
+        dorsal: row.dorsal,
+        carModel: row.carModel,
+      })
       return { ...row, classTag, dorsal: c.dorsal ?? undefined, teamName: c.teamName ?? undefined }
     })
     const uploadedTags = Array.from(new Set(rowsToSave.map((row) => row.classTag).filter(Boolean))) as string[]

@@ -45,4 +45,29 @@ describe('detección del coche por Steam ID', () => {
     const d = detectCar({ ...base, hub: [car(), car({ dorsal: '77' })] })
     expect(d.flags).toContain('multiple-cars')
   })
+
+  it('si el Steam ID no está vinculado, lo busca por equipo+número en el resto de Equipos', () => {
+    // El archivo trae el mismo equipo+número que un coche de Equipos, pero un Steam ID distinto
+    // (todavía sin vincular) — debe encontrarlo igualmente por equipo+número.
+    const d = detectCar({
+      ...base,
+      storedTeam: 'SpeedHackTeam',
+      storedDorsal: '14',
+      hub: undefined,
+      hubFlat: [{ ...car(), steamId: '76561198999999999' }],
+    })
+    expect(d).toMatchObject({ teamName: 'SpeedHackTeam', dorsal: '14', carModel: 'Ferrari 499P', source: 'team-car' })
+    expect(d.flags).toContain('not-found')
+  })
+
+  it('no usa equipo+número si el equipo o el número no coinciden', () => {
+    const d = detectCar({
+      ...base,
+      storedTeam: 'SpeedHackTeam',
+      storedDorsal: '14',
+      hub: undefined,
+      hubFlat: [{ ...car({ dorsal: '99' }), steamId: '76561198999999999' }],
+    })
+    expect(d.source).toBe('file')
+  })
 })
