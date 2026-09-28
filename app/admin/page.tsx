@@ -15,7 +15,7 @@ import { DeleteLeagueButton } from '@/components/delete-league-button'
 import { DeleteTeamButtonDouble } from '@/components/delete-team-button-double'
 import { DeleteUserButtonDouble } from '@/components/delete-user-button-double'
 import { AdminGallery } from '@/components/admin-gallery'
-import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive, GitMerge, Palette, Ticket } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive, GitMerge, Palette, Ticket, Gavel } from 'lucide-react'
 import {
   adminDeleteMarketListing,
   quickUpdateLeagueStatusAction,
@@ -36,6 +36,7 @@ import { AdminNewsTab } from './components/admin-news-tab'
 import { AdminSkinsTab } from './components/admin-skins-tab'
 import { AdminUserMergeTab } from './components/admin-user-merge-tab'
 import { AdminSupportTab } from './components/admin-support-tab'
+import { AdminSanctionsTab } from './components/admin-sanctions-tab'
 import { getNewsPosts } from '@/lib/news-data'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
@@ -130,7 +131,7 @@ export default async function AdminPage({
   // Load all baseline data in parallel — these reads are independent of each other
   const fixedAdminSteamIds = getConfiguredAdminSteamIds()
 
-  const [leagues, events, registrations, { teams }, drivers, listings, grants, newsPosts, unseenLineupChangeTeamIds, recentLineupChanges, skinReviews] = await Promise.all([
+  const [leagues, events, registrations, { teams }, drivers, listings, grants, newsPosts, unseenLineupChangeTeamIds, recentLineupChanges, skinReviews, sanctionRecords, sanctionTeams] = await Promise.all([
     getLeagues(),
     getLeagueEvents(),
     getRegistrations(),
@@ -142,6 +143,12 @@ export default async function AdminPage({
     getUnseenLineupChangeTeamIds(session.userId),
     getRecentLineupChanges(),
     getSkinReviewQueue(),
+    db.sanctionRecord.findMany({
+      include: { event: { select: { title: true, circuitName: true } }, league: { select: { title: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    }),
+    db.team.findMany({ select: { id: true, name: true, leagueId: true }, orderBy: { name: 'asc' } }),
   ])
   const pendingSkinCount = skinReviews.filter((r) => r.status === 'pending').length
   const hasUnseenLineupChanges = unseenLineupChangeTeamIds.size > 0
@@ -353,6 +360,17 @@ export default async function AdminPage({
         >
           <Ticket className="h-3.5 w-3.5 text-cyan-400" />
           Soporte
+        </Link>
+        <Link
+          href="/admin?tab=sanciones"
+          className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
+            activeTab === 'sanciones'
+              ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Gavel className="h-3.5 w-3.5 text-cyan-400" />
+          Sanciones ({sanctionRecords.length})
         </Link>
         <Link
           href="/admin?tab=system"
@@ -668,6 +686,16 @@ export default async function AdminPage({
 
       {/* TAB CONTENT: SUPPORT ACCESS */}
       {activeTab === 'soporte' && <AdminSupportTab feedback={params.soporte} />}
+
+      {/* TAB CONTENT: SANCTIONS */}
+      {activeTab === 'sanciones' && (
+        <AdminSanctionsTab
+          records={sanctionRecords}
+          leagues={visibleLeagues}
+          events={visibleEvents}
+          teams={sanctionTeams}
+        />
+      )}
 
       {/* TAB CONTENT: DUPLICATE PROFILE MERGE */}
       {activeTab === 'merge' && <AdminUserMergeTab />}
