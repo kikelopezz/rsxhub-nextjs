@@ -135,6 +135,25 @@ export async function createDiscordChannelAction(
   }
 }
 
+// ---------------------------------------------------------------- Chat en vivo del ticket
+
+export async function getTicketMessagesAction(guildId: string, ticketId: string, afterId?: string) {
+  await guardTicketAccess()
+  if (!GUILD_ID.test(guildId)) return []
+  return bot.getTicketMessages(guildId, ticketId, afterId)
+}
+
+export async function sendTicketMessageAction(guildId: string, ticketId: string, content: string): Promise<ActionResult> {
+  const { session } = await guardTicketAccess()
+  if (!GUILD_ID.test(guildId)) return { ok: false, message: 'Servidor no válido.' }
+  try {
+    await bot.sendTicketMessage(guildId, ticketId, staffName(session), content)
+    return { ok: true, message: 'Enviado.' }
+  } catch (e) {
+    return { ok: false, message: errorMessage(e, 'No se pudo enviar el mensaje.') }
+  }
+}
+
 // ---------------------------------------------------------------- CRM (notas por Discord ID)
 
 export async function addCrmNoteAction(formData: FormData) {

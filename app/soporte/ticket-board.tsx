@@ -2,11 +2,43 @@ import { ExternalLink } from 'lucide-react'
 import type { SupportTicket } from '@prisma/client'
 import { StatusSteps } from './status-steps'
 
-const COLUMNS: Array<{ key: SupportTicket['status']; label: string; dot: string; text: string }> = [
-  { key: 'open', label: 'Abierto', dot: 'bg-emerald-400', text: 'text-emerald-300' },
-  { key: 'claimed', label: 'Reclamado', dot: 'bg-amber-400', text: 'text-amber-300' },
-  { key: 'closed', label: 'Cerrado', dot: 'bg-slate-300', text: 'text-slate-300' },
-  { key: 'merged', label: 'Fusionado', dot: 'bg-[#4ea1ff]', text: 'text-[#4ea1ff]' },
+const COLUMNS: Array<{ key: SupportTicket['status']; label: string; dot: string; text: string; border: string; bg: string; glow: string }> = [
+  {
+    key: 'open',
+    label: 'Abierto',
+    dot: 'bg-emerald-400',
+    text: 'text-emerald-300',
+    border: 'border-emerald-400/30',
+    bg: 'bg-emerald-500/[0.06]',
+    glow: 'shadow-[0_0_28px_-6px_rgba(52,211,153,0.45)]',
+  },
+  {
+    key: 'claimed',
+    label: 'Reclamado',
+    dot: 'bg-amber-400',
+    text: 'text-amber-300',
+    border: 'border-amber-400/30',
+    bg: 'bg-amber-500/[0.06]',
+    glow: 'shadow-[0_0_28px_-6px_rgba(251,191,36,0.45)]',
+  },
+  {
+    key: 'closed',
+    label: 'Cerrado',
+    dot: 'bg-violet-400',
+    text: 'text-violet-300',
+    border: 'border-violet-400/30',
+    bg: 'bg-violet-500/[0.06]',
+    glow: 'shadow-[0_0_28px_-6px_rgba(167,139,250,0.45)]',
+  },
+  {
+    key: 'merged',
+    label: 'Fusionado',
+    dot: 'bg-[#4ea1ff]',
+    text: 'text-[#4ea1ff]',
+    border: 'border-[#4ea1ff]/30',
+    bg: 'bg-[#4ea1ff]/[0.06]',
+    glow: 'shadow-[0_0_28px_-6px_rgba(78,161,255,0.45)]',
+  },
 ]
 
 function formatDate(date: Date) {
@@ -20,7 +52,7 @@ export function TicketBoard({ tickets, guildId }: { tickets: SupportTicket[]; gu
       {COLUMNS.map((col) => {
         const items = tickets.filter((t) => t.status === col.key)
         return (
-          <div key={col.key} className="flex flex-col gap-2.5 rounded-2xl border border-white/10 bg-[#0f1013] p-3.5">
+          <div key={col.key} className={`flex flex-col gap-2.5 rounded-2xl border p-3.5 ${col.border} ${col.bg} ${col.glow}`}>
             <div className="flex items-center gap-2">
               <span className={`h-2 w-2 rounded-full ${col.dot}`} />
               <span className={`font-display-condensed text-xs font-bold uppercase tracking-wide ${col.text}`}>{col.label}</span>
@@ -31,7 +63,7 @@ export function TicketBoard({ tickets, guildId }: { tickets: SupportTicket[]; gu
               <p className="py-4 text-center text-[11px] text-slate-600">Sin tickets</p>
             ) : (
               items.map((t) => (
-                <div key={t.id} className="space-y-1.5 rounded-xl border border-white/10 bg-[#151619] p-3">
+                <div key={t.id} className={`space-y-1.5 rounded-xl border bg-[#151619] p-3 ${col.border}`}>
                   <div className="flex flex-wrap items-center gap-1.5">
                     {t.campeonatoLabel && (
                       <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">

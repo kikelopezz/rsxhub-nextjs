@@ -6,6 +6,7 @@ import { TicketActions } from './ticket-actions'
 import { StatusSteps } from './status-steps'
 import { TicketBoard } from './ticket-board'
 import { DiscordChannelLink } from './discord-channel-link'
+import { TicketChat } from './ticket-chat'
 import type { SupportTicketStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -177,6 +178,7 @@ export default async function SoportePage({
               <div className="border-t border-white/10 bg-black/10 px-4 py-4">
                 <StatusSteps ticket={ticket} mode="full" />
               </div>
+              <TicketChat guildId={guildId} ticketId={ticket.id} />
               <TicketActions
                 ticket={{ id: ticket.id, status: ticket.status, internalNotes: ticket.internalNotes }}
                 guildId={guildId}

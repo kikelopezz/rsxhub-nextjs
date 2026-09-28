@@ -104,3 +104,29 @@ export function mergeTicket(guildId: string, ticketId: string, targetTicketId: s
 export function deleteTicket(guildId: string, ticketId: string) {
   return call(`/tickets/${ticketId}`, { method: 'DELETE', body: JSON.stringify({ guildId }) })
 }
+
+export type ChatMessage = {
+  id: string
+  authorId: string
+  authorTag: string
+  authorAvatarUrl: string | null
+  isBot: boolean
+  content: string
+  createdAt: string
+}
+
+/** Nunca lanza: el chat sondea cada pocos segundos, no tiene sentido romper la página por un fallo pasajero. */
+export async function getTicketMessages(guildId: string, ticketId: string, afterId?: string): Promise<ChatMessage[]> {
+  try {
+    const qs = new URLSearchParams({ guildId, ...(afterId ? { after: afterId } : {}) })
+    const res = await call<{ messages: ChatMessage[] }>(`/tickets/${ticketId}/messages?${qs.toString()}`)
+    return res.messages
+  } catch {
+    return []
+  }
+}
+
+export async function sendTicketMessage(guildId: string, ticketId: string, staffName: string, content: string): Promise<ChatMessage> {
+  const res = await call<{ message: ChatMessage }>(`/tickets/${ticketId}/messages`, { method: 'POST', body: JSON.stringify({ guildId, staffName, content }) })
+  return res.message
+}
