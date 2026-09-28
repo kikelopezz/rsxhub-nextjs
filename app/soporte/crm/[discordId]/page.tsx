@@ -3,16 +3,10 @@ import { ArrowLeft, Trash2 } from 'lucide-react'
 import { db } from '@/lib/db'
 import { getBotStatus } from '@/lib/support-bot-client'
 import { SubmitButton } from '@/components/submit-button'
+import { StatusSteps } from '../../status-steps'
 import { addCrmNoteAction, deleteCrmNoteAction } from '../../actions'
 
 export const dynamic = 'force-dynamic'
-
-const STATUS_STYLE: Record<string, string> = {
-  open: 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300',
-  claimed: 'border-amber-400/40 bg-amber-500/10 text-amber-300',
-  closed: 'border-white/15 bg-white/5 text-slate-400',
-  merged: 'border-[#4ea1ff]/40 bg-[#4ea1ff]/10 text-[#4ea1ff]',
-}
 
 export default async function CrmProfilePage({
   params,
@@ -62,9 +56,12 @@ export default async function CrmProfilePage({
             <div className="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0c]">
               {tickets.map((t) => (
                 <div key={t.id} className="flex flex-wrap items-center gap-2 p-3">
-                  <span className={`rounded border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${STATUS_STYLE[t.status]}`}>{t.status}</span>
-                  <span className="font-bold text-white">{t.code}</span>
+                  <span className="font-bold text-white">
+                    {t.status === 'closed' ? '✅ ' : ''}
+                    {t.code}
+                  </span>
                   {t.campeonatoLabel && <span className="text-xs text-slate-400">{t.campeonatoLabel}</span>}
+                  <StatusSteps ticket={t} mode="compact" />
                   <span className="ml-auto text-[10px] text-slate-500">
                     {new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(t.createdAt)}
                   </span>

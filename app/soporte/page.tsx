@@ -1,8 +1,10 @@
 import Link from 'next/link'
-import { ChevronDown, ExternalLink, Ticket as TicketIcon } from 'lucide-react'
+import { ChevronDown, ExternalLink, LayoutGrid, List, Ticket as TicketIcon } from 'lucide-react'
 import { db } from '@/lib/db'
 import { getBotStatus } from '@/lib/support-bot-client'
 import { TicketActions } from './ticket-actions'
+import { StatusSteps } from './status-steps'
+import { TicketBoard } from './ticket-board'
 import type { SupportTicketStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -15,13 +17,6 @@ const STATUS_TABS: Array<{ key: SupportTicketStatus | 'all'; label: string }> = 
   { key: 'merged', label: 'Fusionados' },
 ]
 
-const STATUS_STYLE: Record<string, string> = {
-  open: 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300',
-  claimed: 'border-amber-400/40 bg-amber-500/10 text-amber-300',
-  closed: 'border-white/15 bg-white/5 text-slate-400',
-  merged: 'border-[#4ea1ff]/40 bg-[#4ea1ff]/10 text-[#4ea1ff]',
-}
-
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date)
 }
@@ -29,9 +24,10 @@ function formatDate(date: Date) {
 export default async function SoportePage({
   searchParams,
 }: {
-  searchParams: Promise<{ guild?: string; status?: string; ok?: string; error?: string }>
+  searchParams: Promise<{ guild?: string; status?: string; ok?: string; error?: string; view?: string }>
 }) {
   const params = await searchParams
+  const view = params.view === 'board' ? 'board' : 'list'
 
   const status = await getBotStatus()
   if (!status.ready) {
@@ -68,7 +64,7 @@ export default async function SoportePage({
   const guilds = status.guilds
 
   const [tickets, counts] = await Promise.all([
-    db.supportTicket.findMany({ where: { guildId, ...(statusFilter ? { status: statusFilter } : {}) }, orderBy: { createdAt: 'desc' }, take: 200 }),
+    db.supportTicket.findMany({ where: { guildId, ...(view === 'list' && statusFilter ? { status: statusFilter } : {}) }, orderBy: { createdAt: 'desc' }, take: 200 }),
     db.supportTicket.groupBy({ by: ['status'], where: { guildId }, _count: { _all: true } }),
   ])
 
@@ -76,8 +72,12 @@ export default async function SoportePage({
   const total = counts.reduce((sum, c) => sum + c._count._all, 0)
   const openTickets = tickets.filter((t) => t.status === 'open' || t.status === 'claimed')
 
-  const buildUrl = (next: Partial<{ guild: string; status: string }>) => {
-    const qs = new URLSearchParams({ guild: next.guild ?? guildId, ...(next.status && next.status !== 'all' ? { status: next.status } : {}) })
+  const buildUrl = (next: Partial<{ guild: string; status: string; view: string }>) => {
+    const qs = new URLSearchParams({
+      guild: next.guild ?? guildId,
+      ...(next.status && next.status !== 'all' ? { status: next.status } : {}),
+      ...((next.view ?? view) !== 'list' ? { view: next.view ?? view } : {}),
+    })
     return `/soporte?${qs.toString()}`
   }
 
@@ -104,26 +104,50 @@ export default async function SoportePage({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1.5 border-b border-white/10 pb-3">
-        {STATUS_TABS.map((tab) => {
-          const active = (params.status || 'all') === tab.key
-          const count = tab.key === 'all' ? total : countByStatus[tab.key] || 0
-          return (
-            <Link
-              key={tab.key}
-              href={buildUrl({ status: tab.key })}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
-                active ? 'border-[#4ea1ff] bg-[#4ea1ff]/10 text-[#4ea1ff]' : 'border-white/10 text-slate-400 hover:text-white'
-              }`}
-            >
-              {tab.label}
-              <span className="font-mono-data text-[10px] text-slate-500">{count}</span>
-            </Link>
-          )
-        })}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-white/10 pb-3">
+        {view === 'list' &&
+          STATUS_TABS.map((tab) => {
+            const active = (params.status || 'all') === tab.key
+            const count = tab.key === 'all' ? total : countByStatus[tab.key] || 0
+            return (
+              <Link
+                key={tab.key}
+                href={buildUrl({ status: tab.key })}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                  active ? 'border-[#4ea1ff] bg-[#4ea1ff]/10 text-[#4ea1ff]' : 'border-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                {tab.label}
+                <span className="font-mono-data text-[10px] text-slate-500">{count}</span>
+              </Link>
+            )
+          })}
+
+        <div className="ml-auto flex gap-1 rounded-lg border border-white/10 p-0.5">
+          <Link
+            href={buildUrl({ view: 'list' })}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+              view === 'list' ? 'bg-[#4ea1ff]/10 text-[#4ea1ff]' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <List className="h-3.5 w-3.5" />
+            Lista
+          </Link>
+          <Link
+            href={buildUrl({ view: 'board' })}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+              view === 'board' ? 'bg-[#4ea1ff]/10 text-[#4ea1ff]' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Tablero
+          </Link>
+        </div>
       </div>
 
-      {tickets.length === 0 ? (
+      {view === 'board' ? (
+        <TicketBoard tickets={tickets} guildId={guildId} />
+      ) : tickets.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 p-14 text-center text-sm text-slate-500">
           <TicketIcon className="mx-auto mb-2 h-8 w-8 opacity-40" />
           No hay tickets con este filtro.
@@ -134,13 +158,16 @@ export default async function SoportePage({
             <details key={ticket.id} className="group">
               <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 px-4 py-3 hover:bg-white/[0.03]">
                 <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
-                <span className={`rounded border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${STATUS_STYLE[ticket.status]}`}>
-                  {ticket.status}
+                <span className="font-bold text-white">
+                  {ticket.status === 'closed' ? '✅ ' : ''}
+                  {ticket.code}
                 </span>
-                <span className="font-bold text-white">{ticket.code}</span>
                 {ticket.campeonatoLabel && <span className="text-xs text-slate-400">{ticket.campeonatoLabel}</span>}
                 <span className="text-xs text-slate-500">{ticket.openerTag || ticket.openerId}</span>
-                {ticket.claimedByTag && <span className="text-[10px] uppercase text-amber-400">Reclamado por {ticket.claimedByTag}</span>}
+                {ticket.claimedByTag && ticket.status === 'claimed' && (
+                  <span className="text-[10px] uppercase text-amber-400">Reclamado por {ticket.claimedByTag}</span>
+                )}
+                <StatusSteps ticket={ticket} mode="compact" />
                 <span className="ml-auto flex items-center gap-3 text-[10px] text-slate-500">
                   {formatDate(ticket.createdAt)}
                   <a
@@ -153,6 +180,9 @@ export default async function SoportePage({
                   </a>
                 </span>
               </summary>
+              <div className="border-t border-white/10 bg-black/10 px-4 py-4">
+                <StatusSteps ticket={ticket} mode="full" />
+              </div>
               <TicketActions
                 ticket={{ id: ticket.id, status: ticket.status, internalNotes: ticket.internalNotes }}
                 guildId={guildId}
