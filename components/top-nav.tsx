@@ -14,6 +14,7 @@ interface TopNavProps {
   signedIn: boolean
   showAdmin: boolean
   showSupport?: boolean
+  showSanciones?: boolean
   displayName?: string
   avatarUrl?: string
   notifications?: NotificationItem[]
@@ -44,7 +45,7 @@ function SteamIcon() {
   )
 }
 
-export function TopNav({ signedIn, showAdmin, showSupport = false, displayName, avatarUrl, notifications, marketBadgeCount = 0 }: TopNavProps) {
+export function TopNav({ signedIn, showAdmin, showSupport = false, showSanciones = false, displayName, avatarUrl, notifications, marketBadgeCount = 0 }: TopNavProps) {
   const pathname = usePathname()
   const dict = useDictionary()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -78,6 +79,7 @@ export function TopNav({ signedIn, showAdmin, showSupport = false, displayName, 
     ...baseLinks,
     ...(showAdmin ? [{ href: '/admin', label: dict.nav.admin }] : []),
     ...(showSupport ? [{ href: '/soporte', label: 'Soporte' }] : []),
+    ...(showSanciones ? [{ href: '/admin?tab=sanciones', label: 'Sanciones' }] : []),
   ]
 
   // Close the mobile menu on route change
