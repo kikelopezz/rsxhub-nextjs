@@ -6,14 +6,13 @@ import Image from 'next/image'
 import { History } from 'lucide-react'
 import { DeleteTeamButtonDouble } from '@/components/delete-team-button-double'
 import type { LineupChangeLogEntry } from '@/lib/admin-lineup-log'
+import { TEAM_SANCTION_TAGS } from '@/lib/team-sanctions'
 
 function statusBadgeClass(status: string) {
   if (status === 'approved') return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
   if (status === 'rejected') return 'border-rose-500/40 bg-rose-500/10 text-rose-300'
   return 'border-amber-500/40 bg-amber-500/10 text-amber-300'
 }
-
-const SANCTION_TAGS = ['race_ban', 'season_ban', 'disqualified'] as const
 
 function sanctionBadgeClass(tag: string) {
   if (tag === 'season_ban') return 'border-red-900/60 bg-red-950/50 text-red-300'
@@ -181,7 +180,7 @@ export function AdminTeamsTable({
                           </div>
                         )}
                         <div className="flex flex-wrap gap-1">
-                          {SANCTION_TAGS.map((tag) => {
+                          {TEAM_SANCTION_TAGS.map((tag) => {
                             const active = (team.sanctionTags || []).includes(tag)
                             return (
                               <form action={toggleSanctionAction} key={tag}>

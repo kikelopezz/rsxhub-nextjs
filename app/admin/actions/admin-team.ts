@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { markLineupChangeNotificationsSeen } from '@/lib/admin-lineup-log'
 import { guardPlatformAdmin } from './admin-league'
+import { TEAM_SANCTION_TAGS, type TeamSanctionTag } from '@/lib/team-sanctions'
 
 export async function markLineupChangeNotificationsSeenAction() {
   const session = await guardPlatformAdmin()
@@ -13,9 +14,6 @@ export async function markLineupChangeNotificationsSeenAction() {
   invalidateCache([`user_notifications_${session.userId}`])
   revalidatePath('/admin')
 }
-
-export const TEAM_SANCTION_TAGS = ['race_ban', 'season_ban', 'disqualified'] as const
-export type TeamSanctionTag = (typeof TEAM_SANCTION_TAGS)[number]
 
 /** Activa o desactiva una sanción sobre un equipo (Race Ban / Season Ban / Descalificado). Un
  * equipo puede tener varias a la vez. Solo visible en el panel de admin. */
