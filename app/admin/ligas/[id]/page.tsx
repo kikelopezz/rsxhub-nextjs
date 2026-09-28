@@ -138,6 +138,9 @@ export default async function AdminLeaguePage({
               </a>
             ) : null}
             <Link href={`/admin/ligas/${league.id}/miembros`} className="border border-shell-line bg-white/5 px-3 py-2 text-xs font-semibold text-white rounded-lg">{t.members}</Link>
+            {canReview ? (
+              <Link href={`/admin/ligas/${league.id}/sanciones`} className="border border-shell-line bg-white/5 px-3 py-2 text-xs font-semibold text-white rounded-lg">{t.sanctions}</Link>
+            ) : null}
             <Link href="/admin" className="border border-shell-line bg-white/5 px-3 py-2 text-xs font-semibold text-white rounded-lg">{t.back}</Link>
           </div>
         </div>

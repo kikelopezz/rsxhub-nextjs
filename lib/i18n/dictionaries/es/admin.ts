@@ -151,6 +151,7 @@ const admin = {
     manageSubtitle: 'Configuración de campeonato, calendario y operaciones de inscripción.',
     exportIni: 'Exportar INI',
     members: 'Miembros',
+    sanctions: 'Sanciones',
     back: 'Volver',
     eventCreated: 'Evento creado.',
     roundUpdated: 'Ronda actualizada.',

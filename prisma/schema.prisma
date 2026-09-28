@@ -297,6 +297,7 @@ model League {
   leagueCars         LeagueCar[]
   teams              Team[]
   marketListings     MarketListing[]
+  sanctionRecords    SanctionRecord[]
 
   @@map("leagues")
 }
@@ -371,8 +372,9 @@ model LeagueEvent {
   circuit       Circuit?                  @relation(fields: [circuitId], references: [id], onDelete: SetNull)
   classLimits   LeagueClassLimit[]
   confirmations LeagueEventConfirmation[]
-  results       LeagueResult[]
-  resultImports LeagueResultImport[]
+  results         LeagueResult[]
+  resultImports   LeagueResultImport[]
+  sanctionRecords SanctionRecord[]
 
   @@index([leagueId, startsAt])
   @@map("league_events")
@@ -683,8 +685,44 @@ model Team {
   carPhotos          LeagueCarPhoto[]
   marketListings     MarketListing[]
   marketApplications MarketApplication[]
+  sanctionRecords    SanctionRecord[]
 
   @@map("teams")
+}
+
+enum SanctionType {
+  warning
+  time_penalty
+  points_deduction
+  grid_drop
+  disqualification
+  race_ban
+  season_ban
+  other
+}
+
+// Historial de sanciones que anotan los comisarios (race directors) de un campeonato, con
+// exportación a Excel. Independiente de Team.sanctionTags (que es el estado actual del equipo
+// visible en Admin → Equipos) — esto es el registro histórico de cada incidente por separado.
+model SanctionRecord {
+  id               String       @id @default(cuid())
+  leagueId         String       @map("league_id")
+  eventId          String?      @map("event_id")
+  teamId           String?      @map("team_id")
+  driverName       String?      @map("driver_name")
+  teamNameSnapshot String?      @map("team_name_snapshot")
+  sanctionType     SanctionType @map("sanction_type")
+  reason           String
+  createdByUserId  String       @map("created_by_user_id")
+  createdByName    String       @map("created_by_name")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  league League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  event  LeagueEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  team   Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([leagueId, createdAt])
+  @@map("sanction_records")
 }
 
 model TeamCar {

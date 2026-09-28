@@ -153,6 +153,7 @@ const admin: typeof es = {
     manageSubtitle: 'League setup, schedule and registration operations.',
     exportIni: 'Export INI',
     members: 'Members',
+    sanctions: 'Sanctions',
     back: 'Back',
     eventCreated: 'Event created.',
     roundUpdated: 'Round updated.',
