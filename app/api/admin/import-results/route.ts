@@ -260,8 +260,13 @@ export async function POST(req: Request) {
     const registeredUserIds = new Set(regs.map((r) => r.userId))
     const regClassByUser = new Map(regs.map((r) => [r.userId, r.classTag ? String(r.classTag).toUpperCase() : undefined]))
 
-    const filtered = resolved.filter((row) => registeredUserIds.has(String(row.userId)))
-    const notRegisteredCount = resolved.length - filtered.length
+    // No estar inscrito en la liga ya no descarta el resultado (antes desaparecía sin aviso,
+    // p. ej. el ganador de una carrera si su Steam ID no estaba inscrito formalmente aunque sí
+    // tuviera cuenta vinculada en el Hub). Se guarda igual — al mostrarlo se usa el nombre de
+    // Steam si lo hay, y si no el que traiga el propio archivo. notRegisteredCount se mantiene
+    // solo como dato informativo para el admin.
+    const filtered = resolved
+    const notRegisteredCount = resolved.filter((row) => !registeredUserIds.has(String(row.userId))).length
 
     // Categoría de cada fila: la que manda el gestor de ronda, o la deducida del coche (ya
     // resuelta en toImportedRow); si tampoco hay ninguna de las dos, la de la inscripción del

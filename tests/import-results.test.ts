@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Base de datos de mentira en memoria: solo lo que usa la ruta de importar resultados
 type Result = { id: number; leagueId: string; eventId: string; sessionType: string; userId: string; position: number; classTag: string | null; [k: string]: unknown }
-const store = vi.hoisted(() => ({ results: [] as Result[], nextId: 1, drivers: [] as { userId: string; steamId: string; classTag: string; teamId?: string; assignedNumber?: number }[] }))
+const store = vi.hoisted(() => ({
+  results: [] as Result[],
+  nextId: 1,
+  drivers: [] as { userId: string; steamId: string; classTag: string; teamId?: string; assignedNumber?: number }[],
+  steamAccounts: [] as { userId: string; steamId: string; steamDisplayName: string }[],
+}))
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/lib/ttl-cache', () => ({ invalidateCache: vi.fn() }))
@@ -31,7 +36,7 @@ vi.mock('@/lib/db', () => {
         findUnique: async () => ({ id: 'ev1', leagueId: 'lg1' }),
         update: async () => ({}),
       },
-      steamAccount: { findMany: async () => [] },
+      steamAccount: { findMany: async (args: any) => store.steamAccounts.filter((s) => args.where.steamId.in.includes(s.steamId)) },
       team: { findMany: async () => [{ id: 't1', name: 'Equipo Real' }] },
       user: { findMany: async () => [] },
       leagueRegistration: {
@@ -88,6 +93,7 @@ describe('importar resultados por categoría', () => {
     store.results = []
     store.nextId = 1
     store.drivers = []
+    store.steamAccounts = []
   })
 
   it('guarda los 18 coches de GT3 (no solo 10) con su categoría', async () => {
@@ -134,6 +140,7 @@ describe('categoría deducida del coche cuando el archivo no trae la categoría'
     store.results = []
     store.nextId = 1
     store.drivers = []
+    store.steamAccounts = []
   })
 
   it('usa el coche del archivo (folder de Assetto Corsa) para deducir la categoría', async () => {
@@ -182,6 +189,7 @@ describe('vinculación de dorsal y equipo por Steam ID', () => {
     store.results = []
     store.nextId = 1
     store.drivers = []
+    store.steamAccounts = []
   })
 
   it('usa el dorsal y el equipo de la inscripción en vez de lo que traiga el JSON', async () => {
@@ -192,5 +200,24 @@ describe('vinculación de dorsal y equipo por Steam ID', () => {
     const saved = store.results[0]
     expect(saved.dorsal).toBe('77')
     expect(saved.teamName).toBe('Equipo Real')
+  })
+})
+
+describe('piloto con cuenta de Steam pero sin inscripción en la liga', () => {
+  beforeEach(() => {
+    store.results = []
+    store.nextId = 1
+    store.drivers = []
+    store.steamAccounts = []
+  })
+
+  it('ya no se descarta el resultado: se guarda con el nombre de Steam', async () => {
+    const steamId = '76561198000000009'
+    // Tiene cuenta de Steam vinculada al Hub, pero no aparece en store.drivers (sin inscripción)
+    store.steamAccounts.push({ userId: 'u9', steamId, steamDisplayName: 'PilotoSinInscribir' })
+    const out = await upload([steamId], 'GT3')
+    expect(out).toMatchObject({ ok: true, imported: 1, notRegistered: 1 })
+    expect(store.results).toHaveLength(1)
+    expect(store.results[0].userId).toBe('u9')
   })
 })
