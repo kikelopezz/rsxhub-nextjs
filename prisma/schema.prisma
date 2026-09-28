@@ -665,6 +665,9 @@ model Team {
   ownerUserId    String     @map("owner_user_id")
   maxSlots       Int?       @map("max_slots")
   status         TeamStatus @default(pending)
+  /// Sanciones puestas a mano por un admin: 'race_ban' | 'season_ban' | 'disqualified'. Solo
+  /// visibles en el panel de admin, no en la página pública del equipo.
+  sanctionTags   String[]   @default([]) @map("sanction_tags")
   createdAt      DateTime   @default(now()) @map("created_at")
 
   league             League?                   @relation(fields: [leagueId], references: [id], onDelete: SetNull)

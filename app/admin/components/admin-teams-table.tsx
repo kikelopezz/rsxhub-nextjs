@@ -13,6 +13,14 @@ function statusBadgeClass(status: string) {
   return 'border-amber-500/40 bg-amber-500/10 text-amber-300'
 }
 
+const SANCTION_TAGS = ['race_ban', 'season_ban', 'disqualified'] as const
+
+function sanctionBadgeClass(tag: string) {
+  if (tag === 'season_ban') return 'border-red-900/60 bg-red-950/50 text-red-300'
+  if (tag === 'disqualified') return 'border-orange-500/40 bg-orange-500/10 text-orange-300'
+  return 'border-rose-600/50 bg-rose-600/10 text-rose-300'
+}
+
 type Team = any
 type League = { id: string; title: string }
 
@@ -25,6 +33,7 @@ type Props = {
   deleteAction: (teamId: string) => Promise<void>
   updateStatusAction: (formData: FormData) => void | Promise<void>
   markSeenAction: () => Promise<void>
+  toggleSanctionAction: (formData: FormData) => void | Promise<void>
 }
 
 export function AdminTeamsTable({
@@ -36,6 +45,7 @@ export function AdminTeamsTable({
   deleteAction,
   updateStatusAction,
   markSeenAction,
+  toggleSanctionAction,
 }: Props) {
   const [leagueFilter, setLeagueFilter] = useState('all')
   const unseenSet = useMemo(() => new Set(unseenLineupChangeTeamIds), [unseenLineupChangeTeamIds])
@@ -101,13 +111,14 @@ export function AdminTeamsTable({
               <th className="p-3 text-center">{t.colDrivers}</th>
               <th className="p-3">{t.colCategories}</th>
               <th className="p-3">{t.colStatus}</th>
+              <th className="p-3">{t.colSanctions}</th>
               <th className="p-3 text-right">{t.colActions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 text-xs text-slate-300">
             {filteredTeams.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-slate-500 italic">{t.noTeams}</td>
+                <td colSpan={8} className="p-8 text-center text-slate-500 italic">{t.noTeams}</td>
               </tr>
             ) : (
               filteredTeams.map((team) => {
@@ -157,6 +168,40 @@ export function AdminTeamsTable({
                       <span className={`inline-block px-2 py-0.5 border text-[9px] font-extrabold uppercase tracking-wider ${statusBadgeClass(status)}`}>
                         {statusLabel}
                       </span>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-col gap-1.5">
+                        {(team.sanctionTags || []).length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {(team.sanctionTags || []).map((tag: string) => (
+                              <span key={tag} className={`inline-block px-1.5 py-0.5 border text-[9px] font-extrabold uppercase tracking-wider ${sanctionBadgeClass(tag)}`}>
+                                {t.sanctionLabels[tag] || tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-1">
+                          {SANCTION_TAGS.map((tag) => {
+                            const active = (team.sanctionTags || []).includes(tag)
+                            return (
+                              <form action={toggleSanctionAction} key={tag}>
+                                <input type="hidden" name="teamId" value={team.id} />
+                                <input type="hidden" name="tag" value={tag} />
+                                <button
+                                  className={`px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
+                                    active
+                                      ? `${sanctionBadgeClass(tag)} opacity-100`
+                                      : 'border-white/10 bg-white/[0.02] text-slate-500 hover:text-slate-300 hover:border-white/20'
+                                  }`}
+                                  title={active ? t.sanctionRemove : t.sanctionAdd}
+                                >
+                                  {t.sanctionLabels[tag] || tag}
+                                </button>
+                              </form>
+                            )
+                          })}
+                        </div>
+                      </div>
                     </td>
                     <td className="p-3 text-right">
                       <div className="flex items-center gap-2 justify-end">

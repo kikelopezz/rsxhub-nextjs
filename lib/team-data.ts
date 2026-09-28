@@ -148,6 +148,7 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
           maxSlots: t.maxSlots,
           createdAt: t.createdAt.toISOString(),
           status: t.status,
+          sanctionTags: t.sanctionTags,
           members,
           invites,
           occupiedSlots: members.filter((m) => m.role === 'driver' || m.role === 'manager' || m.role === 'owner').length,

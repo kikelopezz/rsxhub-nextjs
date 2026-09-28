@@ -150,6 +150,8 @@ export interface Team {
   maxSlots?: number | null
   createdAt: string
   status?: 'pending' | 'approved' | 'rejected'
+  /** Sanciones puestas a mano por un admin. Solo se usan en el panel de admin. */
+  sanctionTags?: string[]
   accentColor?: string | null
   slogan?: string | null
   discordUrl?: string | null

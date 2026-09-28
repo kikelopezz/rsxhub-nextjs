@@ -1,5 +1,5 @@
 import { deleteTeamAction } from '@/app/equipos/actions'
-import { updateTeamStatusAction, markLineupChangeNotificationsSeenAction } from '../actions/admin-team'
+import { updateTeamStatusAction, markLineupChangeNotificationsSeenAction, toggleTeamSanctionAction } from '../actions/admin-team'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 import { AdminTeamsTable } from './admin-teams-table'
@@ -30,6 +30,7 @@ export async function AdminTeamsTab({ teams, leagues, unseenLineupChangeTeamIds,
         deleteAction={deleteTeamAction}
         updateStatusAction={updateTeamStatusAction}
         markSeenAction={markLineupChangeNotificationsSeenAction}
+        toggleSanctionAction={toggleTeamSanctionAction}
       />
     </section>
   )

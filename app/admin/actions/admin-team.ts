@@ -14,6 +14,37 @@ export async function markLineupChangeNotificationsSeenAction() {
   revalidatePath('/admin')
 }
 
+export const TEAM_SANCTION_TAGS = ['race_ban', 'season_ban', 'disqualified'] as const
+export type TeamSanctionTag = (typeof TEAM_SANCTION_TAGS)[number]
+
+/** Activa o desactiva una sanción sobre un equipo (Race Ban / Season Ban / Descalificado). Un
+ * equipo puede tener varias a la vez. Solo visible en el panel de admin. */
+export async function toggleTeamSanctionAction(formData: FormData) {
+  await guardPlatformAdmin()
+
+  const teamId = String(formData.get('teamId') || '')
+  const tag = String(formData.get('tag') || '')
+  if (!teamId || !TEAM_SANCTION_TAGS.includes(tag as TeamSanctionTag)) {
+    redirect('/admin?tab=teams&error=1')
+  }
+
+  const team = await db.team.findUnique({ where: { id: teamId }, select: { sanctionTags: true } })
+  if (!team) redirect('/admin?tab=teams&error=1')
+
+  try {
+    const current = team.sanctionTags || []
+    const next = current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]
+    await db.team.update({ where: { id: teamId }, data: { sanctionTags: next } })
+  } catch (error) {
+    console.error('Failed to toggle team sanction:', error)
+    redirect('/admin?tab=teams&error=action-failed')
+  }
+
+  invalidateCache(['teams_dashboard'])
+  revalidatePath('/admin')
+  redirect('/admin?tab=teams&updated=1')
+}
+
 export async function updateTeamStatusAction(formData: FormData) {
   await guardPlatformAdmin()
 

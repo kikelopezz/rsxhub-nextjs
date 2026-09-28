@@ -110,6 +110,14 @@ const admin = {
     allLeagues: 'Todos los campeonatos',
     noHomeLeague: 'Sin campeonato asignado',
     recentLineupChange: 'Alineación modificada recientemente',
+    colSanctions: 'Sanciones',
+    sanctionAdd: 'Poner esta sanción al equipo',
+    sanctionRemove: 'Quitar esta sanción al equipo',
+    sanctionLabels: {
+      race_ban: 'Race Ban',
+      season_ban: 'Season Ban',
+      disqualified: 'Descalificado',
+    },
   },
   adminsTab: {
     title: 'Administradores de la plataforma',

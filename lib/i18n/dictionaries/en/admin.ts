@@ -112,6 +112,14 @@ const admin: typeof es = {
     allLeagues: 'All championships',
     noHomeLeague: 'No championship assigned',
     recentLineupChange: 'Lineup changed recently',
+    colSanctions: 'Sanctions',
+    sanctionAdd: 'Apply this sanction to the team',
+    sanctionRemove: 'Remove this sanction from the team',
+    sanctionLabels: {
+      race_ban: 'Race Ban',
+      season_ban: 'Season Ban',
+      disqualified: 'Disqualified',
+    },
   },
   adminsTab: {
     title: 'Platform administrators',
