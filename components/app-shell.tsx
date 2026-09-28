@@ -53,7 +53,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               signedIn={Boolean(user)}
               showAdmin={access.canAccessPlatformAdmin}
               showSupport={ticketAccess.canAccess}
-              showSanciones={access.canAccessPlatformAdmin}
+              showSanciones={access.canAccessAnyLeagueAdmin}
               displayName={displayName}
               avatarUrl={avatarUrl}
               notifications={notifications}

@@ -26,18 +26,19 @@ type Props = {
   leagues: League[]
   events: EventOption[]
   teams: TeamOption[]
+  initialLeagueId?: string
   createAction: (formData: FormData) => void | Promise<void>
   deleteAction: (formData: FormData) => void | Promise<void>
 }
 
-export function AdminSanctionsTable({ records, leagues, events, teams, createAction, deleteAction }: Props) {
-  const [leagueFilter, setLeagueFilter] = useState('all')
+export function SanctionsTable({ records, leagues, events, teams, initialLeagueId, createAction, deleteAction }: Props) {
+  const [leagueFilter, setLeagueFilter] = useState(initialLeagueId && leagues.some((l) => l.id === initialLeagueId) ? initialLeagueId : 'all')
 
   const filteredRecords = leagueFilter === 'all' ? records : records.filter((r) => r.leagueId === leagueFilter)
   const leagueEvents = useMemo(() => events.filter((e) => e.leagueId === leagueFilter), [events, leagueFilter])
   const leagueTeams = useMemo(() => teams.filter((t) => t.leagueId === leagueFilter), [teams, leagueFilter])
 
-  const exportHref = leagueFilter === 'all' ? '/admin/sanciones/export' : `/admin/sanciones/export?leagueId=${leagueFilter}`
+  const exportHref = leagueFilter === 'all' ? '/sanciones/export' : `/sanciones/export?leagueId=${leagueFilter}`
 
   return (
     <div className="space-y-4">
@@ -49,7 +50,7 @@ export function AdminSanctionsTable({ records, leagues, events, teams, createAct
             onChange={(e) => setLeagueFilter(e.target.value)}
             className="rounded-lg border border-shell-line bg-black/45 px-2.5 py-1.5 text-xs font-bold text-slate-200 outline-none cursor-pointer focus:border-white/30"
           >
-            <option value="all">Todos los campeonatos</option>
+            <option value="all">Todos tus campeonatos</option>
             {leagues.map((league) => (
               <option key={league.id} value={league.id}>{league.title}</option>
             ))}

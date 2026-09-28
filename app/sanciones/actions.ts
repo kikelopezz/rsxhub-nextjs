@@ -11,14 +11,14 @@ async function requireLeagueSteward(leagueId: string) {
   if (!session) redirect('/perfil')
   const access = await getAdminAccessContext(session.userId)
   if (!access.canAccessPlatformAdmin && !access.managedLeagueIds.includes(leagueId)) {
-    redirect('/admin')
+    redirect('/sanciones')
   }
   return session
 }
 
 export async function createSanctionAction(formData: FormData) {
   const leagueId = String(formData.get('leagueId') || '')
-  if (!leagueId) redirect('/admin')
+  if (!leagueId) redirect('/sanciones')
   const session = await requireLeagueSteward(leagueId)
 
   const eventId = String(formData.get('eventId') || '').trim() || null
@@ -29,10 +29,10 @@ export async function createSanctionAction(formData: FormData) {
   const reason = String(formData.get('reason') || '').trim()
 
   if (!SANCTION_TYPES.includes(sanctionType as (typeof SANCTION_TYPES)[number]) || !reason) {
-    redirect(`/admin/ligas/${leagueId}/sanciones?error=1`)
+    redirect(`/sanciones?leagueId=${leagueId}&error=1`)
   }
   if (!driverName && !teamNameSnapshot && !teamId) {
-    redirect(`/admin/ligas/${leagueId}/sanciones?error=missing-target`)
+    redirect(`/sanciones?leagueId=${leagueId}&error=missing-target`)
   }
 
   // Si se eligió un equipo del desplegable pero no se escribió nombre a mano, se guarda el
@@ -59,17 +59,17 @@ export async function createSanctionAction(formData: FormData) {
     })
   } catch (error) {
     console.error('Failed to create sanction record:', error)
-    redirect(`/admin/ligas/${leagueId}/sanciones?error=save-failed`)
+    redirect(`/sanciones?leagueId=${leagueId}&error=save-failed`)
   }
 
-  revalidatePath(`/admin/ligas/${leagueId}/sanciones`)
-  redirect(`/admin/ligas/${leagueId}/sanciones?created=1`)
+  revalidatePath('/sanciones')
+  redirect(`/sanciones?leagueId=${leagueId}&created=1`)
 }
 
 export async function deleteSanctionAction(formData: FormData) {
   const leagueId = String(formData.get('leagueId') || '')
   const id = String(formData.get('id') || '')
-  if (!leagueId || !id) redirect('/admin')
+  if (!leagueId || !id) redirect('/sanciones')
   await requireLeagueSteward(leagueId)
 
   try {
@@ -78,6 +78,6 @@ export async function deleteSanctionAction(formData: FormData) {
     console.error('Failed to delete sanction record:', error)
   }
 
-  revalidatePath(`/admin/ligas/${leagueId}/sanciones`)
-  redirect(`/admin/ligas/${leagueId}/sanciones`)
+  revalidatePath('/sanciones')
+  redirect(`/sanciones?leagueId=${leagueId}`)
 }

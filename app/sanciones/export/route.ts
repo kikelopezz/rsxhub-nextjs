@@ -1,26 +1,34 @@
 import ExcelJS from 'exceljs'
 import { NextResponse } from 'next/server'
-import { canAccessPlatformAdmin, canStewardLeague, getCurrentUser, getLeagueRole, getPlatformRole } from '@/lib/auth'
+import { getAdminAccessContext, getCurrentUser } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { redirectTo } from '@/lib/redirect'
 import { SANCTION_TYPE_LABELS, type SanctionType } from '@/lib/sanctions'
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const { id: leagueId } = await context.params
+export async function GET(request: Request) {
   const session = await getCurrentUser()
   if (!session) return redirectTo('/perfil')
 
-  const [platformRole, leagueRole] = await Promise.all([getPlatformRole(session.userId), getLeagueRole(leagueId, session.userId)])
-  if (!(canAccessPlatformAdmin(platformRole) || canStewardLeague(leagueRole))) {
-    return redirectTo('/admin')
+  const access = await getAdminAccessContext(session.userId)
+  if (!access.canAccessAnyLeagueAdmin) return redirectTo('/perfil')
+
+  const { searchParams } = new URL(request.url)
+  const requestedLeagueId = searchParams.get('leagueId') || undefined
+
+  // Un comisario solo puede exportar sus propios campeonatos, nunca todos ni los de otro.
+  if (requestedLeagueId && !access.canAccessPlatformAdmin && !access.managedLeagueIds.includes(requestedLeagueId)) {
+    return new NextResponse('Forbidden', { status: 403 })
   }
 
-  const league = await db.league.findUnique({ where: { id: leagueId }, select: { title: true } })
-  if (!league) return new NextResponse('League not found', { status: 404 })
+  const where = requestedLeagueId
+    ? { leagueId: requestedLeagueId }
+    : access.canAccessPlatformAdmin
+      ? undefined
+      : { leagueId: { in: access.managedLeagueIds } }
 
   const records = await db.sanctionRecord.findMany({
-    where: { leagueId },
-    include: { event: { select: { title: true, circuitName: true, startsAt: true } } },
+    where,
+    include: { event: { select: { title: true, circuitName: true } }, league: { select: { title: true } } },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -31,6 +39,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const sheet = workbook.addWorksheet('Sanciones', { views: [{ state: 'frozen', ySplit: 1 }] })
   sheet.columns = [
     { header: 'Fecha', key: 'date', width: 18 },
+    { header: 'Campeonato', key: 'league', width: 26 },
     { header: 'Piloto', key: 'driver', width: 24 },
     { header: 'Equipo', key: 'team', width: 24 },
     { header: 'Carrera', key: 'event', width: 28 },
@@ -44,6 +53,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const eventLabel = r.event ? `${r.event.title || r.event.circuitName}` : ''
     sheet.addRow({
       date: r.createdAt.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }),
+      league: r.league.title,
       driver: r.driverName || '',
       team: r.teamNameSnapshot || '',
       event: eventLabel,
@@ -53,10 +63,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     })
   }
 
-  sheet.autoFilter = { from: 'A1', to: 'G1' }
+  sheet.autoFilter = { from: 'A1', to: 'H1' }
 
   const buffer = Buffer.from(await workbook.xlsx.writeBuffer())
-  const filename = `sanciones-${(league.title || 'campeonato').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.xlsx`
+  const filename = requestedLeagueId ? `sanciones-${requestedLeagueId}.xlsx` : 'sanciones.xlsx'
 
   return new NextResponse(buffer, {
     headers: {

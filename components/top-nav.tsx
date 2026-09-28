@@ -79,7 +79,7 @@ export function TopNav({ signedIn, showAdmin, showSupport = false, showSanciones
     ...baseLinks,
     ...(showAdmin ? [{ href: '/admin', label: dict.nav.admin }] : []),
     ...(showSupport ? [{ href: '/soporte', label: 'Soporte' }] : []),
-    ...(showSanciones ? [{ href: '/admin?tab=sanciones', label: 'Sanciones' }] : []),
+    ...(showSanciones ? [{ href: '/sanciones', label: 'Sanciones' }] : []),
   ]
 
   // Close the mobile menu on route change
