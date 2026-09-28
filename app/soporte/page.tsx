@@ -1,10 +1,11 @@
 import Link from 'next/link'
-import { ChevronDown, ExternalLink, LayoutGrid, List, Ticket as TicketIcon } from 'lucide-react'
+import { ChevronDown, LayoutGrid, List, Ticket as TicketIcon } from 'lucide-react'
 import { db } from '@/lib/db'
 import { getBotStatus } from '@/lib/support-bot-client'
 import { TicketActions } from './ticket-actions'
 import { StatusSteps } from './status-steps'
 import { TicketBoard } from './ticket-board'
+import { DiscordChannelLink } from './discord-channel-link'
 import type { SupportTicketStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -170,14 +171,7 @@ export default async function SoportePage({
                 <StatusSteps ticket={ticket} mode="compact" />
                 <span className="ml-auto flex items-center gap-3 text-[10px] text-slate-500">
                   {formatDate(ticket.createdAt)}
-                  <a
-                    href={`discord://discord.com/channels/${guildId}/${ticket.channelId}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1 text-slate-500 hover:text-[#4ea1ff]"
-                    title="Abrir el canal en Discord"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <DiscordChannelLink guildId={guildId} channelId={ticket.channelId} />
                 </span>
               </summary>
               <div className="border-t border-white/10 bg-black/10 px-4 py-4">
