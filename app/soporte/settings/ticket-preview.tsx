@@ -1,14 +1,14 @@
 'use client'
 
-import { Lock, RotateCcw, ScrollText, Shuffle, Wrench } from 'lucide-react'
+import { Lock, ScrollText, Wrench } from 'lucide-react'
 import type { Campeonato, TicketType } from '@/lib/support-config'
 
+// Reclamar y Dejar de reclamar son el mismo botón: cambia solo según el estado del ticket
+// (se enseña "Reclamar" aquí, el que se ve nada más abrirse).
 const CTL_BUTTONS = [
   { label: 'Reclamar', icon: Wrench, cls: 'bg-[#248046] text-white' },
-  { label: 'Dejar de reclamar', icon: RotateCcw, cls: 'bg-[#4e5058] text-white' },
   { label: 'Cerrar', icon: Lock, cls: 'bg-[#da373c] text-white' },
   { label: 'Transcribir', icon: ScrollText, cls: 'bg-[#4e5058] text-white' },
-  { label: 'Fusionar', icon: Shuffle, cls: 'bg-[#4e5058] text-white' },
 ]
 
 /** Vista previa del mensaje de bienvenida del ticket (Components V2: título + info + avatar a la derecha + botones de staff). */
