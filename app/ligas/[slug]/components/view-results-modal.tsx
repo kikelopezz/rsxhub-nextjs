@@ -104,7 +104,7 @@ export function ViewResultsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/85 p-4 backdrop-blur-sm sm:items-center md:p-6">
-      <div className="relative my-auto flex w-full max-w-4xl flex-col rounded-2xl border border-white/10 bg-[#0a0f18] p-5 text-white shadow-[0_0_60px_rgba(0,0,0,0.8)] md:p-6">
+      <div className="relative my-auto flex w-full max-w-6xl flex-col rounded-2xl border border-white/10 bg-[#0a0f18] p-5 text-white shadow-[0_0_60px_rgba(0,0,0,0.8)] md:p-6">
         <button
           type="button"
           onClick={onClose}
