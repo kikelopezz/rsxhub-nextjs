@@ -20,8 +20,9 @@ import {
   sameDriverSet,
 } from '@/lib/lineup-rules'
 
-/** Turns per-car driver diffs into a readable admin notification, e.g.
- * "SpeedHackTeam ha modificado la alineación. GT3 #13 (ERC Next Gen): DarkAngelRX → Ricardo Nevirkovets" */
+/** Turns per-car driver diffs into a readable admin notification: nombre del equipo en su
+ * propia línea, y cada cambio en la suya, p. ej.
+ * "SpeedHackTeam\nGT3 #13 (ERC Next Gen): DarkAngelRX → Ricardo Nevirkovets" */
 async function buildLineupChangeMessage(
   teamName: string,
   teamId: string,
@@ -59,7 +60,7 @@ async function buildLineupChangeMessage(
     return parts.length > 0 ? `${label}: ${parts.join(', ')}` : label
   })
 
-  return `${teamName} ha modificado la alineación. ${lines.join(' | ')}`
+  return [teamName, ...lines].join('\n')
 }
 
 // Team abbreviation shown on cards/banners instead of the auto-generated initials.

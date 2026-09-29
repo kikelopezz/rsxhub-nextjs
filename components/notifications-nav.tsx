@@ -195,7 +195,7 @@ export function NotificationsNav({
                         {formatRelativeTime(item.createdAt)}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                    <p className="text-[11px] text-slate-300 mt-1 leading-relaxed whitespace-pre-line">
                       {item.message}
                     </p>
                     {item.link && (
