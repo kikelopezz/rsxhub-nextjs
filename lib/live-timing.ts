@@ -106,11 +106,19 @@ const CAR_FOLDER_CLASS: Record<string, string> = {
   acf_oreca_07: 'LMP2',
 }
 
-/** Maps a raw simulator car model string to one of the site's established class tags. */
-export function getClassTagFromModel(carModel?: string): string {
+/**
+ * Maps a raw simulator car model string to one of the site's established class tags.
+ * `learnedMap` (model name/folder, lowercased → category) comes from the cars teams have already
+ * registered in the Hub (see `lib/result-review.ts: loadCarModelCategoryMap`) — it catches any car
+ * that isn't in the fixed 25-car pack below, without needing this file to touch the database.
+ */
+export function getClassTagFromModel(carModel?: string, learnedMap?: Record<string, string>): string {
   const raw = (carModel || '').trim()
   const known = CAR_FOLDER_CLASS[raw] || CAR_FOLDER_CLASS[raw.toLowerCase()]
   if (known) return known
+
+  const learned = learnedMap?.[raw.toLowerCase()]
+  if (learned) return learned
 
   // Fallback heuristic for any car outside the known 25-car pack (e.g. GT4, or a folder
   // added to the server later that this table hasn't been updated for yet).

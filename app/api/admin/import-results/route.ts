@@ -268,22 +268,20 @@ export async function POST(req: Request) {
     const filtered = resolved
     const notRegisteredCount = resolved.filter((row) => !registeredUserIds.has(String(row.userId))).length
 
-    // Categoría de cada fila: la que manda el gestor de ronda, o la deducida del coche (ya
-    // resuelta en toImportedRow); si tampoco hay ninguna de las dos, la de la inscripción del
-    // piloto. El equipo y el dorsal salen del apartado de Equipos vinculado por Steam ID (luego
-    // equipo+número, luego la inscripción y, por último, el archivo).
+    // Categoría, equipo y dorsal de cada fila: los decide correlateRow a partir del coche que el
+    // piloto tiene en Equipos por su Steam ID (manda sobre lo que traiga el archivo o la inscripción
+    // de la liga, que aquí solo sirven de pista de partida cuando el equipo no lo deja claro).
     const rowsToSave = filtered.map((row) => {
-      const classTag = row.classTag || regClassByUser.get(String(row.userId))
       const c = correlateRow(correlation, {
         userId: row.userId,
         steamId: row.steamId,
         driverName: row.driverName,
-        classTag,
+        classTag: row.classTag || regClassByUser.get(String(row.userId)),
         teamName: row.teamName,
         dorsal: row.dorsal,
         carModel: row.carModel,
       })
-      return { ...row, classTag, dorsal: c.dorsal ?? undefined, teamName: c.teamName ?? undefined }
+      return { ...row, classTag: c.classTag, dorsal: c.dorsal ?? undefined, teamName: c.teamName ?? undefined }
     })
     const uploadedTags = Array.from(new Set(rowsToSave.map((row) => row.classTag).filter(Boolean))) as string[]
 
