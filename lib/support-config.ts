@@ -18,6 +18,7 @@ export type TicketType = {
   label: string
   description: string
   welcome: string
+  imageUrl: string | null
   color: ButtonColor
   pingRoleId: string | null
 }
@@ -38,6 +39,7 @@ export type GuildConfigDTO = Omit<SupportGuildConfig, 'ticketTypes' | 'campeonat
 const text = (value: unknown, max: number) => String(value ?? '').trim().slice(0, max)
 const isSnowflake = (v: unknown): v is string => typeof v === 'string' && /^\d{5,25}$/.test(v)
 const snowflakeOrNull = (v: unknown): string | null => (isSnowflake(v) ? v : null)
+const httpUrlOrNull = (v: unknown): string | null => (typeof v === 'string' && /^https?:\/\/\S+$/.test(v.trim()) ? v.trim().slice(0, 500) : null)
 
 function sanitizeTicketTypes(types: unknown): TicketType[] {
   if (!Array.isArray(types)) return []
@@ -50,7 +52,8 @@ function sanitizeTicketTypes(types: unknown): TicketType[] {
         emoji: text(raw?.emoji, 8),
         label: text(raw?.label, 60),
         description: text(raw?.description, 100),
-        welcome: text(raw?.welcome, 500),
+        welcome: text(raw?.welcome, 3500),
+        imageUrl: httpUrlOrNull(raw?.imageUrl),
         color: (BUTTON_COLORS as readonly string[]).includes(raw?.color as string) ? (raw!.color as ButtonColor) : 'blue',
         pingRoleId: snowflakeOrNull(raw?.pingRoleId),
       }

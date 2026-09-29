@@ -45,6 +45,11 @@ export function TicketPreview({ color, welcomeMessage, types, campeonatos }: { c
           <div className="h-16 w-16 shrink-0 rounded-lg bg-gradient-to-br from-[#4e5058] to-[#2b2d31]" title="Foto de perfil de quien abre el ticket" />
         </div>
 
+        {sampleType?.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- vista previa de una imagen externa arbitraria, no de /public
+          <img src={sampleType.imageUrl} alt="" className="max-h-64 w-full object-contain px-3 pb-2" />
+        )}
+
         <div className="border-t border-black/20 p-3">
           <div className="flex flex-wrap gap-1.5">
             {CTL_BUTTONS.map((b) => (
