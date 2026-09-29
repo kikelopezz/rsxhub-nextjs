@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import JSZip from 'jszip'
 import { Calendar, Clock, Plus, Edit2, Trash2, Users, CheckCircle2, Trophy, Eye, Copy, Check, X, FolderDown } from 'lucide-react'
@@ -54,36 +54,13 @@ export function LeagueSchedule({
   const [localConfirmations, setLocalConfirmations] = useState<EventConfirmation[]>(confirmations)
   const [viewingEntryListEvent, setViewingEntryListEvent] = useState<LeagueEvent | null>(null)
 
-  const [showExpiredRounds, setShowExpiredRounds] = useState(false)
   const accent = league.accentColor || '#1274de'
 
   useEffect(() => {
     setLocalConfirmations(confirmations)
   }, [confirmations])
 
-  const { activeEvents, expiredCount } = useMemo(() => {
-    const now = Date.now()
-    const fortyEightHoursMs = 48 * 60 * 60 * 1000
-
-    let expired = 0
-    const active = events.filter((ev) => {
-      const isCompleted = (ev as any).status === 'completed'
-      if (!isCompleted) return true
-
-      const finishTime = (ev as any).completedAt
-        ? new Date((ev as any).completedAt).getTime()
-        : new Date(ev.endsAt || ev.startsAt).getTime()
-
-      const isExpired = (now - finishTime) > fortyEightHoursMs
-      if (isExpired) {
-        expired++
-        return showExpiredRounds
-      }
-      return true
-    })
-
-    return { activeEvents: active, expiredCount: expired }
-  }, [events, showExpiredRounds])
+  const activeEvents = events
 
   return (
     <div className="space-y-4 rounded-2xl border border-white/10 bg-[#0d1420] p-4 md:p-5">
@@ -506,20 +483,6 @@ export function LeagueSchedule({
                 )
               })}
             </div>
-          </div>
-        )}
-
-        {expiredCount > 0 && (
-          <div className="pt-3 text-center">
-            <button
-              type="button"
-              onClick={() => setShowExpiredRounds((prev) => !prev)}
-              className="text-xs font-semibold text-slate-400 hover:text-cyan-400 underline underline-offset-4 cursor-pointer transition-colors"
-            >
-              {showExpiredRounds
-                ? tr.hideRounds.replace('{n}', String(expiredCount))
-                : tr.showRounds.replace('{n}', String(expiredCount))}
-            </button>
           </div>
         )}
       </div>
