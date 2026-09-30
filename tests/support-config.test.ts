@@ -47,4 +47,23 @@ describe('saneado de los ajustes de soporte', () => {
     expect(result.campeonatos.find((c) => c.id === 'erc')?.color).toBe('red')
     expect(result.campeonatos.find((c) => c.id === 'erc-ng')?.color).toBe('blue')
   })
+
+  it('imageUrl de una categoría: solo http(s) válido, si no null', () => {
+    const result = sanitizeSettings({
+      ticketTypes: [
+        { id: 't-1', label: 'Incidentes', imageUrl: 'https://example.com/img.png' },
+        { id: 't-2', label: 'Duda', imageUrl: 'no-es-una-url' },
+        { id: 't-3', label: 'Ayuda' },
+      ],
+    })
+    expect(result.ticketTypes.find((t) => t.id === 't-1')?.imageUrl).toBe('https://example.com/img.png')
+    expect(result.ticketTypes.find((t) => t.id === 't-2')?.imageUrl).toBeNull()
+    expect(result.ticketTypes.find((t) => t.id === 't-3')?.imageUrl).toBeNull()
+  })
+
+  it('el mensaje de bienvenida de una categoría admite textos largos (hasta 3500)', () => {
+    const long = 'a'.repeat(4000)
+    const result = sanitizeSettings({ ticketTypes: [{ id: 't-1', label: 'Incidentes', welcome: long }] })
+    expect(result.ticketTypes[0].welcome).toHaveLength(3500)
+  })
 })

@@ -139,16 +139,38 @@ export function detectCar(args: {
 
 /* ------------------------------------------------------------- correlación */
 
+/**
+ * Categoría de cada modelo de coche que algún equipo ya tiene registrado (modelName/modelFolder, en
+ * minúsculas → category). Complementa la lista fija de `live-timing.ts` con los coches que los propios
+ * equipos han dado de alta, para poder clasificar por categoría a un piloto sin equipo asignado con solo
+ * el modelo que trae el archivo de resultados.
+ */
+export async function loadCarModelCategoryMap(): Promise<Record<string, string>> {
+  const cars = await db.teamCar.findMany({
+    where: { OR: [{ modelName: { not: null } }, { modelFolder: { not: null } }] },
+    select: { modelName: true, modelFolder: true, category: true },
+  })
+  const map: Record<string, string> = {}
+  for (const c of cars) {
+    const cat = c.category.trim().toUpperCase()
+    if (!cat) continue
+    if (c.modelFolder) map[c.modelFolder.trim().toLowerCase()] ||= cat
+    if (c.modelName) map[c.modelName.trim().toLowerCase()] ||= cat
+  }
+  return map
+}
+
 /** Datos necesarios para vincular filas de resultados con equipos y coches (se cargan una vez por sesión). */
 export type CorrelationContext = {
   hub: Record<string, HubEntry[]>
   hubFlat: FlatHubEntry[]
   entries: LeagueEntry[]
   reviews: ReviewMap
+  carModelCategory: Record<string, string>
 }
 
 export async function loadCorrelationContext(leagueId: string, eventId: string, sessionType: string): Promise<CorrelationContext> {
-  // Si alguna de las tres fuentes falla, esa parte se salta: los resultados se siguen mostrando con lo que haya
+  // Si alguna de las fuentes falla, esa parte se salta: los resultados se siguen mostrando con lo que haya
   const safely = async <T,>(load: () => Promise<T>, fallback: T): Promise<T> => {
     try {
       return await load()
@@ -156,12 +178,13 @@ export async function loadCorrelationContext(leagueId: string, eventId: string, 
       return fallback
     }
   }
-  const [hub, entries, reviews] = await Promise.all([
+  const [hub, entries, reviews, carModelCategory] = await Promise.all([
     safely(() => getHubEntries(), {} as Record<string, HubEntry[]>),
     safely(() => loadLeagueEntries(leagueId), [] as LeagueEntry[]),
     safely(() => readReviews(eventId, sessionType), {} as ReviewMap),
+    safely(() => loadCarModelCategoryMap(), {} as Record<string, string>),
   ])
-  return { hub, hubFlat: flattenHubEntries(hub), entries, reviews }
+  return { hub, hubFlat: flattenHubEntries(hub), entries, reviews, carModelCategory }
 }
 
 export type CorrelatedRow = {
@@ -175,9 +198,19 @@ export type CorrelatedRow = {
 }
 
 /**
- * Vincula una fila de resultados con su equipo, número y modelo de coche a través del Steam ID del piloto. Es la única
- * regla que usan todas las pantallas y APIs que muestran resultados: coche de Equipos → equipo → inscripción en la liga
- * → lo que traía el archivo, y por encima de todo lo que un admin haya corregido a mano.
+ * Vincula una fila de resultados con su equipo, número, modelo de coche y CATEGORÍA a través del Steam ID del
+ * piloto. Es la única regla que usan todas las pantallas y APIs que muestran resultados.
+ *
+ * Prioridad para decidir la categoría (GT3, LMP2...) de la fila:
+ *  1. El coche que el piloto tiene asignado en Equipos para ese Steam ID — si solo tiene coche en una
+ *     categoría, esa manda sobre lo que traiga el archivo (el archivo a menudo no trae categoría, o la trae mal).
+ *  2. Si el piloto tiene coches en Equipos de VARIAS categorías (caso raro), se usa la categoría del coche que
+ *     trae el archivo (explícita o deducida de su modelo) para desempatar cuál de esos coches es el de esta fila.
+ *  3. Si el piloto no tiene ningún equipo/coche asignado, se usa el coche que trae el archivo: categoría
+ *     explícita o, si no, la deducida de su modelo (p. ej. "Oreca 07" → LMP2), con la lista fija de
+ *     `live-timing.ts` y con los modelos que los equipos ya tienen registrados (`ctx.carModelCategory`).
+ *  4. Sin nada de lo anterior, GT3 por defecto.
+ * Por encima de todo esto manda lo que un admin haya corregido a mano (revisión guardada).
  */
 export function correlateRow(
   ctx: CorrelationContext,
@@ -192,11 +225,32 @@ export function correlateRow(
     carModel?: string | null
   }
 ): CorrelatedRow {
-  // Prioridad: categoría explícita del archivo > categoría deducida del coche que trae el archivo
-  // (el mismo mapeo coche→categoría que usa el live timing) > último recurso, GT3.
-  const classTag = (row.classTag || (row.carModel ? getClassTagFromModel(row.carModel) : null) || 'GT3').trim().toUpperCase()
   const steamId = row.steamId || ''
   const driverName = row.driverName || ''
+
+  const fileGuess = (
+    row.classTag ||
+    (row.carModel ? getClassTagFromModel(row.carModel, ctx.carModelCategory) : null) ||
+    ''
+  )
+    .trim()
+    .toUpperCase() || null
+
+  const hubForSteam = ctx.hub[steamId] || []
+  const teamCategories = Array.from(new Set(hubForSteam.filter((e) => e.dorsal && e.category).map((e) => e.category as string)))
+
+  let classTag: string
+  if (teamCategories.length === 1) {
+    // El equipo deja claro en qué categoría corre este piloto: manda sobre el archivo.
+    classTag = teamCategories[0]
+  } else if (teamCategories.length > 1 && fileGuess && teamCategories.includes(fileGuess)) {
+    // Varios coches posibles en Equipos: el coche que trae el archivo desempata cuál es.
+    classTag = fileGuess
+  } else {
+    // Sin coche claro en Equipos: el coche del archivo (o su modelo) decide, y si no hay nada, GT3.
+    classTag = fileGuess || teamCategories[0] || 'GT3'
+  }
+
   const registration = findEntry(ctx.entries, { userId: row.userId, steamId, driverName }, classTag)
   const detection = detectCar({
     steamId,

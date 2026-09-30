@@ -5,6 +5,7 @@ import { X, Upload, FileText, BarChart3, CheckCircle2, AlertCircle, RefreshCw, E
 import { ClassBadge, getCategoryStyles } from '@/components/class-badge'
 import type { LeagueEvent } from '../hooks/use-league-state'
 import { useDictionary } from '@/lib/i18n/locale-provider'
+import { getClassTagFromModel } from '@/lib/live-timing'
 
 interface FinishRoundModalProps {
   event: LeagueEvent
@@ -34,6 +35,8 @@ export type ParsedRow = {
   points: number
   lapTime?: string
   raceTime?: string
+  /** Modelo de coche que traía el archivo (folder de Assetto Corsa), si lo trae. */
+  carModel?: string
   /** true cuando el piloto se ha vinculado por Steam ID con su inscripción (equipo y dorsal reales) */
   linked?: boolean
 }
@@ -71,9 +74,10 @@ export function FinishRoundModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Categoría a la que va TODO el JSON que se sube ('AUTO' = la que traiga cada coche en el archivo)
+  // Categoría a la que va TODO el JSON que se sube ('AUTO' = la de cada piloto según su coche en Equipos
+  // o, si no tiene, el modelo de coche del archivo — por defecto, así no hay que acordarse de elegirla).
   const defaultCategory = classTags[0] || 'GT3'
-  const [uploadCategory, setUploadCategory] = useState<string>(defaultCategory)
+  const [uploadCategory, setUploadCategory] = useState<string>('AUTO')
   const [infoMsg, setInfoMsg] = useState('')
   const [truncatedNotes, setTruncatedNotes] = useState<string[]>([])
   const [savedUploads, setSavedUploads] = useState<{ label: string; count: number }[]>([])
@@ -82,8 +86,9 @@ export function FinishRoundModal({
   // ronda no tiene uno propio) — no algo que se elija aquí cada vez que se sube un archivo.
   const maxForClass = (tag: string) => classLimits[tag.trim().toUpperCase()] ?? DEFAULT_MAX_CARS
 
-  // Vincula cada piloto del archivo con su inscripción (por Steam ID; si no, por nombre) para poner
-  // el equipo y el dorsal reales en la vista previa.
+  // Vincula cada piloto del archivo con su equipo, coche y CATEGORÍA reales: Steam ID → coche en
+  // Equipos → categoría (o, sin equipo, el modelo de coche del archivo) — la misma regla que se usa
+  // al guardar de verdad, para que la vista previa ya salga agrupada por categoría correctamente.
   const linkRowsToEntries = async (rows: ParsedRow[]) => {
     try {
       const res = await fetch('/api/admin/resolve-entries', {
@@ -91,12 +96,22 @@ export function FinishRoundModal({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           leagueId,
-          rows: rows.map((r) => ({ steamId: r.steamId, driverName: r.driverName, classTag: r.classTag })),
+          eventId: event.id,
+          sessionType,
+          rows: rows.map((r) => ({
+            userId: r.userId,
+            steamId: r.steamId,
+            driverName: r.driverName,
+            classTag: uploadCategory === 'AUTO' ? null : r.classTag,
+            teamName: r.teamName,
+            dorsal: r.dorsal,
+            carModel: r.carModel,
+          })),
         }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok || !data?.ok || !Array.isArray(data.matches)) return
-      const byId = new Map<string, { userId: string; teamName: string | null; dorsal: string | null } | null>()
+      const byId = new Map<string, { userId?: string; teamName: string | null; dorsal: string | null; classTag: string } | null>()
       rows.forEach((r, i) => byId.set(r.id, data.matches[i] ?? null))
       setParsedRows((prev) =>
         prev.map((row) => {
@@ -107,6 +122,7 @@ export function FinishRoundModal({
             userId: row.userId || match.userId,
             teamName: match.teamName || row.teamName,
             dorsal: match.dorsal ?? row.dorsal,
+            classTag: uploadCategory === 'AUTO' ? match.classTag || row.classTag : row.classTag,
             linked: true,
           }
         })
@@ -163,13 +179,16 @@ export function FinishRoundModal({
         const rawDorsal = item.carNumber ?? item.CarNumber ?? item.Driver?.CarNumber
         const dorsalDisplay = rawDorsal != null ? String(rawDorsal).trim() : ''
 
-        // Categoría: la que ha elegido el gestor para todo el archivo o, en modo automático, la que traiga el coche
+        const carModel = String(item.carModel || item.CarModel || item.Model || item.model || item.car || item.Car || '').trim() || undefined
+
+        // Categoría: la que ha elegido el gestor para todo el archivo o, en modo automático, la
+        // explícita del archivo o la deducida del coche que condujo (p. ej. "Oreca 07" → LMP2). Esto
+        // es solo la estimación inicial: en cuanto responda /api/admin/resolve-entries se sustituye
+        // por la real (coche que el piloto tiene asignado en Equipos, si lo tiene).
         let classTag = uploadCategory
         if (uploadCategory === 'AUTO') {
-          const fromJson = String(item.classTag || item.ClassTag || item.CarModel || item.carModel || '')
-            .trim()
-            .toUpperCase()
-          classTag = classTags.find((c) => c.toUpperCase() === fromJson) || defaultCategory
+          const explicit = String(item.classTag || item.ClassTag || '').trim().toUpperCase()
+          classTag = classTags.find((c) => c.toUpperCase() === explicit) || getClassTagFromModel(carModel)
         }
 
         // Posición dentro de la categoría: orden de llegada en el archivo
@@ -199,6 +218,7 @@ export function FinishRoundModal({
           points,
           lapTime,
           raceTime,
+          carModel,
         }
       })
 
@@ -312,6 +332,7 @@ export function FinishRoundModal({
           classTag: r.classTag,
           lapTime: r.lapTime,
           raceTime: r.raceTime,
+          carModel: r.carModel,
         })),
       }
 
@@ -380,12 +401,18 @@ export function FinishRoundModal({
     }
   }
 
-  // Filter & Group rows by Category Tag
+  // Filter & Group rows by Category Tag — el orden es siempre el oficial de la liga (classTags),
+  // nunca el orden en que vienen las filas en el archivo: así queda agrupado por categoría de forma
+  // obligatoria y consistente en cada subida.
   const availableCategories = Array.from(new Set(parsedRows.map((r) => r.classTag)))
+  const orderedCategories = [
+    ...classTags.filter((c) => availableCategories.includes(c)),
+    ...availableCategories.filter((c) => !classTags.includes(c)),
+  ]
   const displayCategories =
     selectedCategoryFilter === 'ALL'
-      ? availableCategories.length > 0
-        ? availableCategories
+      ? orderedCategories.length > 0
+        ? orderedCategories
         : classTags
       : [selectedCategoryFilter]
 

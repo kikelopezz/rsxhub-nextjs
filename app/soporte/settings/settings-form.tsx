@@ -188,9 +188,15 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
               <textarea
                 value={t.welcome}
                 onChange={(e) => updateType(i, { welcome: e.target.value })}
-                placeholder="Mensaje de bienvenida propio de esta categoría (si lo dejas vacío se usa el general)"
-                rows={2}
-                maxLength={500}
+                placeholder="Mensaje de bienvenida propio de esta categoría (si lo dejas vacío se usa el general). Puede ser tan largo como haga falta, p. ej. el reglamento de reclamaciones."
+                rows={4}
+                maxLength={3500}
+                className={input}
+              />
+              <input
+                value={t.imageUrl || ''}
+                onChange={(e) => updateType(i, { imageUrl: e.target.value || null })}
+                placeholder="URL de una imagen (opcional) — se muestra debajo del mensaje de bienvenida"
                 className={input}
               />
               <div className="flex flex-wrap items-center gap-3">
@@ -222,7 +228,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
           {types.length === 0 && <p className={hint}>Sin categorías: el panel mostrará solo el título y la descripción, sin opciones.</p>}
           <button
             type="button"
-            onClick={() => setTypes((list) => [...list, { id: `t-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '', description: '', welcome: '', color: 'blue', pingRoleId: null }])}
+            onClick={() => setTypes((list) => [...list, { id: `t-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '', description: '', welcome: '', imageUrl: null, color: 'blue', pingRoleId: null }])}
             className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold uppercase text-slate-300 hover:bg-white/5"
           >
             + Añadir categoría
