@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { logAudit } from '@/lib/audit-log'
 import { guardPlatformAdmin } from './admin-league'
 
 const STEAM_ID_PATTERN = /^\d{10,20}$/
@@ -26,6 +27,7 @@ export async function grantAdminAction(formData: FormData) {
       create: { steamId, grantedByUserId: session.userId, grantedByName },
       update: { grantedByUserId: session.userId, grantedByName },
     })
+    await logAudit({ actor: session, action: 'admin.grant', entityType: 'steam_id', entityId: steamId })
   } catch (error) {
     console.error('Failed to grant admin access:', error)
     redirect('/admin?tab=admins&error=grant-failed')
@@ -48,6 +50,7 @@ export async function revokeAdminAction(formData: FormData) {
 
   try {
     await db.adminGrant.delete({ where: { steamId } })
+    await logAudit({ actor: session, action: 'admin.revoke', entityType: 'steam_id', entityId: steamId })
   } catch (error) {
     console.error('Failed to revoke admin access:', error)
     redirect('/admin?tab=admins&error=action-failed')

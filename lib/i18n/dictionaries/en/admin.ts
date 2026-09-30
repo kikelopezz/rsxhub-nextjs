@@ -59,7 +59,7 @@ const admin: typeof es = {
       'All created Teams and members',
       'All Driver Market listings',
     ],
-    safetyNote: 'Safety Note: Your admin account and linked profile will remain intact.',
+    safetyNote: 'Safety Note: Your admin account and linked profile will remain intact. A backup of everything affected is created automatically right before the wipe; if that backup fails, nothing is deleted.',
     confirmCleanup: 'Are you sure you want to run full data cleanup? This action cannot be undone.',
     confirmCleanupStep1: 'Are you sure? Click again to continue',
     confirmCleanupPhrase: 'DELETE EVERYTHING',

@@ -57,7 +57,7 @@ const admin = {
       'Todos los equipos creados y sus miembros',
       'Todas las publicaciones del mercado de pilotos',
     ],
-    safetyNote: 'Nota de seguridad: tu cuenta de administrador y perfil vinculado permanecerán intactos.',
+    safetyNote: 'Nota de seguridad: tu cuenta de administrador y perfil vinculado permanecerán intactos. Justo antes de borrar se genera automáticamente una copia de seguridad de todo lo afectado; si esa copia falla, no se borra nada.',
     confirmCleanup: '¿Seguro que quieres ejecutar la limpieza completa de datos? Esta acción no se puede deshacer.',
     confirmCleanupStep1: '¿Seguro? Pulsa de nuevo para continuar',
     confirmCleanupPhrase: 'BORRAR TODO',

@@ -14,7 +14,7 @@ export function DeleteTeamButton({ teamId, teamName, deleteAction }: DeleteTeamB
 
   const handleDelete = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (confirm(`Are you sure you want to delete the team "${teamName}" and all its members entirely?`)) {
+    if (confirm(`Move the team "${teamName}" to the trash? Nothing is deleted yet — a platform admin can still restore it.`)) {
       startTransition(async () => {
         try {
           await deleteAction(teamId)

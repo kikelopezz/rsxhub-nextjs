@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { safeRedirectPath } from '@/lib/safe-redirect'
 import { userBelongsToTeam } from '@/lib/team-data'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { logAudit } from '@/lib/audit-log'
 import { cleanupDriverMarketDataOnTeamJoin } from '@/lib/market-cleanup'
 import { guardSession, canManageTeam, cleanPilotName, parseSkinProfilesJson } from './team-parsers'
 import { leaguesOverlap, MAX_CARS_PER_CATEGORY } from '@/components/team-cars-editor/car-validation'
@@ -510,14 +511,10 @@ export async function deleteTeamAction(teamId: string) {
   if (!isAllowed) redirect('/equipos?error=forbidden')
 
   try {
-    await db.$transaction([
-      db.leagueRegistration.deleteMany({ where: { teamId } }),
-      db.marketListing.deleteMany({ where: { teamId } }),
-      db.marketApplication.deleteMany({ where: { teamId } }),
-    ])
-    // Everything else (cars, members, invites, team registrations, skin
-    // assignments, team points) cascades from the team via FK.
-    await db.team.delete({ where: { id: teamId } })
+    // Soft delete: nothing under the team is touched, it just stops showing up in the normal
+    // dashboard (see getTeamsDashboard()) — so restoring later brings everything back as-is.
+    await db.team.update({ where: { id: teamId }, data: { deletedAt: new Date() } })
+    await logAudit({ actor: session, action: 'team.delete', entityType: 'team', entityId: teamId, entityLabel: team.name })
   } catch (error) {
     console.error('Failed to delete team:', error)
     redirect('/equipos?error=delete-failed')

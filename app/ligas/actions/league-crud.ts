@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser, getAdminAccessContext, getLeagueRole, canManageLeague } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { logAudit } from '@/lib/audit-log'
 
 const CREATE_STATUSES = ['open', 'ongoing', 'closed']
 const FORMATS = ['sprint', 'endurance', 'gt3', 'prototype', 'formula', 'multiclass', 'time_attack']
@@ -154,9 +155,10 @@ export async function deleteLeagueAction(leagueId: string, slug?: string) {
   const access = await getAdminAccessContext(session.userId)
   if (!access.canAccessPlatformAdmin) throw new Error('Forbidden')
 
-  // Every child table has ON DELETE CASCADE back to leagues, so a single
-  // delete removes members, events, registrations, results, cars, etc.
-  await db.league.delete({ where: { id: leagueId } })
+  // Soft delete: the league just stops showing up in normal listings (see getLeagues()).
+  // Nothing under it is actually touched, so restoring later brings everything back as-is.
+  const league = await db.league.update({ where: { id: leagueId }, data: { deletedAt: new Date() } })
+  await logAudit({ actor: session, action: 'league.delete', entityType: 'league', entityId: leagueId, entityLabel: league.title })
 
   invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
   revalidatePath('/ligas')

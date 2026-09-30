@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { canAccessPlatformAdmin } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { logAudit } from '@/lib/audit-log'
 import type { LeagueRole } from '@/types'
 import { guardPlatformAdmin, guardLeaguePermission } from './admin-league'
 
@@ -41,6 +42,14 @@ export async function assignLeagueRole(formData: FormData) {
       create: { leagueId, userId: targetUserId, role },
       update: { role },
     })
+    await logAudit({
+      actor: session,
+      action: 'league_role.update',
+      entityType: 'league_member',
+      entityId: targetUserId,
+      entityLabel: steamId,
+      metadata: { leagueId, role },
+    })
   } catch (error) {
     console.error('Failed to assign league role:', error)
     redirect(`/admin/ligas/${leagueId}/miembros?error=user-not-found`)
@@ -65,7 +74,7 @@ export async function adminDeleteMarketListing(listingId: string) {
 }
 
 export async function updateUserRoleAction(formData: FormData) {
-  await guardPlatformAdmin()
+  const session = await guardPlatformAdmin()
 
   const targetUserId = String(formData.get('targetUserId') || '')
   const newRole = String(formData.get('role') || 'user') as 'user' | 'steward' | 'platform_admin'
@@ -83,6 +92,7 @@ export async function updateUserRoleAction(formData: FormData) {
     } else {
       await db.platformRole.deleteMany({ where: { userId: targetUserId } })
     }
+    await logAudit({ actor: session, action: 'platform_role.update', entityType: 'user', entityId: targetUserId, metadata: { role: newRole } })
   } catch (err) {
     console.error('Failed to update user role:', err)
   }

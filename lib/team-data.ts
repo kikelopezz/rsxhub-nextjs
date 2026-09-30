@@ -19,6 +19,9 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
   const { teams } = await fetchWithTTLCache('teams_dashboard_base', async () => {
     try {
       const teamRows = await db.team.findMany({
+        // Soft-deleted teams (admin "papelera") never show up in the normal dashboard — see
+        // getTrashedTeams() for the admin-only view that reads them back.
+        where: { deletedAt: null },
         include: {
           cars: { include: { drivers: true } },
           skinAssignments: true,
@@ -176,6 +179,24 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
  * Cheap "does this user already belong to a team?" check. Actions used to load the whole
  * platform-wide teams dashboard (every team, car, driver, member and invite) just to answer this.
  */
+export type TrashedTeam = { id: string; name: string; deletedAt: string }
+
+// Admin-only "papelera" view — deliberately not cached/TTL'd like getTeamsDashboard() above,
+// so a restore/purge is reflected immediately without waiting out the cache window.
+export async function getTrashedTeams(): Promise<TrashedTeam[]> {
+  try {
+    const rows = await db.team.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+      select: { id: true, name: true, deletedAt: true },
+    })
+    return rows.map((r) => ({ id: r.id, name: r.name, deletedAt: (r.deletedAt as Date).toISOString() }))
+  } catch (error) {
+    console.error('Failed to get trashed teams:', error)
+    return []
+  }
+}
+
 export async function userBelongsToTeam(userId: string): Promise<boolean> {
   const team = await db.team.findFirst({
     where: { OR: [{ ownerUserId: userId }, { members: { some: { userId } } }] },

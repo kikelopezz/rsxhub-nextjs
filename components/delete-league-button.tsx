@@ -14,7 +14,7 @@ export function DeleteLeagueButton({ leagueId, leagueTitle, deleteAction }: Dele
 
   const handleDelete = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (confirm(`¿Estás seguro de que deseas eliminar el campeonato "${leagueTitle}" y todos sus eventos/resultados asociados?`)) {
+    if (confirm(`¿Mover el campeonato "${leagueTitle}" a la papelera? No se borra nada todavía — podrás restaurarlo después desde Admin → Papelera.`)) {
       startTransition(async () => {
         try {
           const formData = new FormData()
