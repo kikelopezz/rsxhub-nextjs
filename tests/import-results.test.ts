@@ -84,7 +84,7 @@ async function upload(ids: string[], classTag: string, sessionType = 'qualifying
   form.append('replaceExisting', 'on')
   form.append('resultsJsonText', JSON.stringify(payload))
   for (const [k, v] of Object.entries(extra)) form.append(k, v)
-  const res = await POST(new Request('http://localhost/api/admin/import-results', { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: form }))
+  const res = await POST(new Request('http://localhost/api/admin/import-results', { method: 'POST', headers: { 'x-requested-with': 'fetch', origin: 'http://localhost:3000' }, body: form }))
   return res.json()
 }
 
@@ -157,7 +157,7 @@ describe('categoría deducida del coche cuando el archivo no trae la categoría'
     form.append('sessionType', 'qualifying')
     form.append('replaceExisting', 'on')
     form.append('resultsJsonText', JSON.stringify(payload))
-    const res = await POST(new Request('http://localhost/api/admin/import-results', { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: form }))
+    const res = await POST(new Request('http://localhost/api/admin/import-results', { method: 'POST', headers: { 'x-requested-with': 'fetch', origin: 'http://localhost:3000' }, body: form }))
     const out = await res.json()
     expect(out).toMatchObject({ ok: true, imported: 1, classTags: ['LMP2'] })
     expect(store.results[0]).toMatchObject({ classTag: 'LMP2', dorsal: '7' })
@@ -178,7 +178,7 @@ describe('categoría deducida del coche cuando el archivo no trae la categoría'
     form.append('sessionType', 'qualifying')
     form.append('replaceExisting', 'on')
     form.append('resultsJsonText', JSON.stringify(payload))
-    const res = await POST(new Request('http://localhost/api/admin/import-results', { method: 'POST', headers: { 'x-requested-with': 'fetch' }, body: form }))
+    const res = await POST(new Request('http://localhost/api/admin/import-results', { method: 'POST', headers: { 'x-requested-with': 'fetch', origin: 'http://localhost:3000' }, body: form }))
     const out = await res.json()
     expect(out).toMatchObject({ ok: true, classTags: ['GT3'] })
   })

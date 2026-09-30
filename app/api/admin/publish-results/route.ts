@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { canAccessPlatformAdmin, canStewardLeague, getCurrentUser, getLeagueRole, getPlatformRole } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { recalculateSeasonPoints } from '@/lib/season-points'
+import { isTrustedRequestOrigin } from '@/lib/csrf'
 
 /**
  * Publica los resultados ya guardados de una sesión: los hace oficiales (parrilla de
@@ -13,6 +15,8 @@ import { invalidateCache } from '@/lib/ttl-cache'
  * se pulsa "Publicar".
  */
 export async function POST(req: Request) {
+  if (!isTrustedRequestOrigin(req)) return NextResponse.json({ ok: false, code: 'forbidden' }, { status: 403 })
+
   const body = await req.json().catch(() => ({}))
   const leagueId = String(body?.leagueId || '')
   const eventId = String(body?.eventId || '')
@@ -39,6 +43,9 @@ export async function POST(req: Request) {
       await db.leagueEvent.update({ where: { id: eventId }, data: { qualyCompleted: true } })
     } else {
       await db.leagueEvent.update({ where: { id: eventId }, data: { status: 'completed', completedAt: new Date() } })
+      // La clasificación de coches (LeagueTeamPoints) se recalcula sola al publicar una carrera:
+      // la clasificación nunca puntúa en qualy, así que no hace falta tocarla en ese caso.
+      await recalculateSeasonPoints(leagueId, session.userId)
     }
 
     invalidateCache([`event_results_${eventId}_qualifying`, `event_results_${eventId}_race`])

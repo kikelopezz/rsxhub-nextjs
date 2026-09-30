@@ -4,6 +4,7 @@ import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { hasR2, createPresignedUploadUrl, getR2PublicUrl } from '@/lib/r2'
 import { rateLimit } from '@/lib/rate-limit'
 import { ARCHIVE_NAME_PATTERN, MAX_PRESIGNED_ARCHIVE_BYTES, archiveContentType } from '@/lib/upload-validation'
+import { isTrustedRequestOrigin } from '@/lib/csrf'
 
 // coches/ and circuitos/ are the admin content catalog (platform_admin only). skins/ (flat,
 // or skins/<category>/<league-slug> once a car's category+league are known) is where team
@@ -21,6 +22,8 @@ function resolveFolder(rawFolder: unknown): string | null {
 
 export async function POST(req: Request) {
   try {
+    if (!isTrustedRequestOrigin(req)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     const currentUser = await getCurrentUser()
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized: You must be logged in to upload files' }, { status: 401 })

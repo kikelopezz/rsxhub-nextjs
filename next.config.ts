@@ -79,7 +79,7 @@ const nextConfig: NextConfig = {
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
-          { key: 'Strict-Transport-Security', value: 'max-age=15552000' },
+          { key: 'Strict-Transport-Security', value: 'max-age=15552000; includeSubDomains' },
           { key: 'Content-Security-Policy', value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'" },
         ],
       },

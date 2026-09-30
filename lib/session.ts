@@ -5,6 +5,11 @@ const COOKIE_NAME = 'simleague_session'
 if (!process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET must be set — no insecure default is provided.')
 }
+if (process.env.SESSION_SECRET.length < 32) {
+  // A short/weak secret makes the HS256 signature brute-forceable — 32 chars is the same floor
+  // most JWT libraries (e.g. NextAuth) recommend for a symmetric secret.
+  throw new Error('SESSION_SECRET must be at least 32 characters long.')
+}
 const encodedSecret = new TextEncoder().encode(process.env.SESSION_SECRET)
 
 function getSecret() {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { getUserNotifications, markNotificationAsRead, clearAllNotifications } from '@/lib/notifications-data'
+import { isTrustedRequestOrigin } from '@/lib/csrf'
 
 export async function GET() {
   try {
@@ -19,6 +20,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    if (!isTrustedRequestOrigin(req)) return NextResponse.json({ success: false }, { status: 403 })
+
     const session = await getCurrentUser()
     if (!session?.userId) {
       return NextResponse.json({ success: false }, { status: 401 })
@@ -40,8 +43,10 @@ export async function POST(req: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(req: Request) {
   try {
+    if (!isTrustedRequestOrigin(req)) return NextResponse.json({ success: false }, { status: 403 })
+
     const session = await getCurrentUser()
     if (!session?.userId) {
       return NextResponse.json({ success: false }, { status: 401 })

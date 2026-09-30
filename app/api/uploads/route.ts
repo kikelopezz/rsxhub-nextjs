@@ -6,6 +6,7 @@ import { canManageTeam } from '@/app/equipos/actions/team-parsers'
 import { db } from '@/lib/db'
 import { hasR2, uploadBufferToR2, deleteFromR2, listR2Objects, getR2KeyFromUrl } from '@/lib/r2'
 import { rateLimit } from '@/lib/rate-limit'
+import { isTrustedRequestOrigin } from '@/lib/csrf'
 import {
   ARCHIVE_NAME_PATTERN,
   MAX_IMAGE_BYTES,
@@ -129,6 +130,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    if (!isTrustedRequestOrigin(req)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     // Security check: Any logged-in user can upload files (e.g. for team logos)
     const currentUser = await getCurrentUser()
     if (!currentUser) {
@@ -311,6 +314,8 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    if (!isTrustedRequestOrigin(req)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     // Platform admins can delete any uploaded asset. Everyone else can only delete images in the
     // user-uploads area that they uploaded themselves, or the active logo/banner of a team or
     // league they manage. Branding assets, skins and the catalog are admin-only (checked below).
