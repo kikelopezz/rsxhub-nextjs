@@ -27,7 +27,7 @@ export function CatalogUploader({ folder }: { folder: 'coches' | 'circuitos' }) 
         const data = await presignRes.json().catch(() => ({}))
         throw new Error(data.error || 'No se pudo iniciar la subida.')
       }
-      const { uploadUrl, contentType } = await presignRes.json()
+      const { uploadUrl, publicUrl, contentType } = await presignRes.json()
 
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',
@@ -35,6 +35,18 @@ export function CatalogUploader({ folder }: { folder: 'coches' | 'circuitos' }) 
         body: file,
       })
       if (!putRes.ok) throw new Error('Fallo al subir el archivo.')
+
+      // The PUT went straight to R2, so the server hasn't checked the actual bytes yet —
+      // confirm re-reads just the file header and deletes it if it isn't really an archive.
+      const confirmRes = await fetch('/api/uploads/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicUrl }),
+      })
+      if (!confirmRes.ok) {
+        const data = await confirmRes.json().catch(() => ({}))
+        throw new Error(data.error || 'El archivo no es un comprimido válido.')
+      }
 
       router.refresh()
     } catch (err: any) {

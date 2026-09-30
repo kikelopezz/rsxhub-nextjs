@@ -36,7 +36,16 @@ export async function uploadSkinFile(file: File, folder?: string): Promise<strin
         body: file,
       })
       if (putRes.ok) {
-        finalSkinUrl = publicUrl
+        // The PUT went straight to R2, so the server hasn't checked the actual bytes yet —
+        // confirm re-reads just the file header and deletes it if it isn't really an archive.
+        const confirmRes = await fetch('/api/uploads/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicUrl }),
+        })
+        if (confirmRes.ok) {
+          finalSkinUrl = publicUrl
+        }
       }
     }
   } catch (r2Err) {

@@ -58,12 +58,26 @@ export const getCurrentUser = cache(async () => {
 // nobody able to reach the admin panel. Once ADMIN_STEAM_IDS is set, the environment alone decides.
 const BOOTSTRAP_ADMIN_STEAM_IDS = ['76561198341588341']
 
+// Logged once per process (not once per request) so an accidental empty ADMIN_STEAM_IDS in
+// production shows up loudly in the logs instead of silently handing super_admin to the
+// hardcoded account above.
+let bootstrapFallbackWarningLogged = false
+
 export function getConfiguredAdminSteamIds() {
   const envAdmins = (process.env.ADMIN_STEAM_IDS || '')
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
-  return envAdmins.length > 0 ? Array.from(new Set(envAdmins)) : BOOTSTRAP_ADMIN_STEAM_IDS
+  if (envAdmins.length > 0) return Array.from(new Set(envAdmins))
+
+  if (!bootstrapFallbackWarningLogged) {
+    bootstrapFallbackWarningLogged = true
+    console.error(
+      '[SECURITY] ADMIN_STEAM_IDS is empty — falling back to the hardcoded bootstrap admin Steam ID ' +
+        `(${BOOTSTRAP_ADMIN_STEAM_IDS.join(', ')}). Set ADMIN_STEAM_IDS in the environment to stop relying on this fallback.`
+    )
+  }
+  return BOOTSTRAP_ADMIN_STEAM_IDS
 }
 
 export async function getGrantedAdminSteamIds(): Promise<string[]> {
