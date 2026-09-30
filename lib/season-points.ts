@@ -7,33 +7,46 @@ import { db } from '@/lib/db'
  * a publicar (o re-subir) una ronda ya oficial nunca duplica puntos, y una corrección se refleja
  * sola la próxima vez que se recalcula.
  *
- * La clasificación (qualy nunca da puntos) se calcula por coche: (categoría, equipo, dorsal). El
- * equipo se resuelve por la inscripción del piloto en la liga (misma fuente que el resto de
- * pantallas); si el piloto no está inscrito se usa el nombre de equipo ya guardado en el resultado.
+ * IMPORTANTE: el "coche" se identifica EXACTAMENTE igual que en la ficha de la liga (ver
+ * `use-league-state.ts`) — por la inscripción del piloto (equipo + número ASIGNADO en la
+ * inscripción), nunca por el dorsal que traiga el resultado de la carrera. Son cosas distintas: el
+ * dorsal de carrera puede no estar registrado o no coincidir con el número asignado al inscribirse.
+ * Si se usara el dorsal de carrera como clave, los puntos se guardarían en una fila que la
+ * clasificación nunca lee (parece que "se borran" los puntos de ese coche).
  */
 export async function recalculateSeasonPoints(leagueId: string, updatedBy: string): Promise<void> {
-  const [results, registrations, teams] = await Promise.all([
+  const [results, registrations] = await Promise.all([
     db.leagueResult.findMany({
       where: { leagueId, sessionType: 'race', event: { status: 'completed' } },
-      select: { userId: true, teamName: true, dorsal: true, classTag: true, points: true },
+      select: { userId: true, classTag: true, points: true },
     }),
-    db.leagueRegistration.findMany({ where: { leagueId }, select: { userId: true, teamId: true } }),
-    db.team.findMany({ select: { id: true, name: true } }),
+    db.leagueRegistration.findMany({
+      where: { leagueId, teamId: { not: null } },
+      select: { userId: true, teamId: true, classTag: true, assignedNumber: true },
+    }),
   ])
 
-  const teamIdByUser = new Map<string, string>()
-  for (const r of registrations) if (r.teamId) teamIdByUser.set(r.userId, r.teamId)
-  const teamIdByName = new Map(teams.map((t) => [t.name.trim().toLowerCase(), t.id]))
+  const regsByUser = new Map<string, typeof registrations>()
+  for (const r of registrations) regsByUser.set(r.userId, [...(regsByUser.get(r.userId) || []), r])
+
+  // Un piloto normalmente solo tiene una inscripción; si tuviera varias (una por categoría), se
+  // prefiere la de la categoría en la que corrió esa carrera.
+  const findRegistration = (userId: string, classTag: string | null) => {
+    const list = regsByUser.get(userId)
+    if (!list || list.length === 0) return null
+    const wanted = (classTag || '').trim().toUpperCase()
+    return list.find((r) => (r.classTag || '').trim().toUpperCase() === wanted) || list[0]
+  }
 
   type Total = { classTag: string; teamId: string; carNumber: string; points: number }
   const totals = new Map<string, Total>()
   for (const row of results) {
-    const teamId = teamIdByUser.get(row.userId) || (row.teamName ? teamIdByName.get(row.teamName.trim().toLowerCase()) : undefined)
-    if (!teamId) continue // sin equipo identificable no se le puede atribuir el coche a nadie
-    const classTag = (row.classTag || 'GT3').trim().toUpperCase()
-    const carNumber = row.dorsal || ''
-    const key = `${classTag}|${teamId}|${carNumber}`
-    const entry = totals.get(key) || { classTag, teamId, carNumber, points: 0 }
+    const reg = findRegistration(row.userId, row.classTag)
+    if (!reg?.teamId) continue // sin inscripción con equipo, ese coche no sale en la clasificación
+    const classTag = (reg.classTag || row.classTag || 'GT3').trim().toUpperCase()
+    const carNumber = reg.assignedNumber != null ? String(reg.assignedNumber) : ''
+    const key = `${classTag}|${reg.teamId}|${carNumber}`
+    const entry = totals.get(key) || { classTag, teamId: reg.teamId, carNumber, points: 0 }
     entry.points += row.points || 0
     totals.set(key, entry)
   }

@@ -21,8 +21,11 @@ datasource db {
 // único de SteamAccount.steamId + una transacción real lo resuelve sin tabla aparte.
 
 model User {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now()) @map("created_at")
+  // Sube cada vez que hay que invalidar las sesiones ya emitidas de este usuario (p. ej. al
+  // revocarle un rol de admin) — ver lib/session-version.ts.
+  sessionVersion Int      @default(0) @map("session_version")
 
   steamAccount  SteamAccount?
   profile       Profile?
@@ -101,10 +104,13 @@ model PlatformRole {
 }
 
 model AdminGrant {
-  steamId         String   @id @map("steam_id")
-  grantedByUserId String   @map("granted_by_user_id")
-  grantedByName   String   @map("granted_by_name")
-  createdAt       DateTime @default(now()) @map("created_at")
+  steamId         String    @id @map("steam_id")
+  grantedByUserId String    @map("granted_by_user_id")
+  grantedByName   String    @map("granted_by_name")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  // Opcional: pasada esta fecha, el acceso deja de contar aunque la fila siga existiendo (no hace
+  // falta que nadie la borre a mano). null = sin caducidad, como hasta ahora.
+  expiresAt       DateTime? @map("expires_at")
 
   @@map("admin_grants")
 }
@@ -112,12 +118,29 @@ model AdminGrant {
 // Personas (por Steam ID) a las que un super admin da acceso a la seccion de Tickets del
 // admin, sean o no admins de la plataforma.
 model TicketAccessGrant {
-  steamId         String   @id @map("steam_id")
-  grantedByUserId String   @map("granted_by_user_id")
-  grantedByName   String   @map("granted_by_name")
-  createdAt       DateTime @default(now()) @map("created_at")
+  steamId         String    @id @map("steam_id")
+  grantedByUserId String    @map("granted_by_user_id")
+  grantedByName   String    @map("granted_by_name")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  expiresAt       DateTime? @map("expires_at")
 
   @@map("ticket_access_grants")
+}
+
+// Registro de auditoría de acciones de administración de alto impacto (conceder/revocar admin,
+// resetear la base de datos, etc.) — quién, qué y cuándo. Nunca se borra desde la propia app.
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String   @map("actor_user_id")
+  actorName   String   @map("actor_name")
+  action      String
+  targetId    String?  @map("target_id")
+  detail      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([actorUserId])
+  @@map("admin_audit_log")
 }
 
 // ============================================================

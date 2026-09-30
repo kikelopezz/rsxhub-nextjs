@@ -10,10 +10,14 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { userBelongsToTeam } from '@/lib/team-data'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function createMarketListing(formData: FormData) {
   const session = await getCurrentUser()
   if (!session) throw new Error('Unauthorized')
+  if (!rateLimit(`market-listing:${session.userId}`, 10, 60 * 60_000)) {
+    throw new Error('Demasiadas publicaciones seguidas. Espera un poco antes de publicar otra.')
+  }
 
   const type = String(formData.get('type') || 'team_seeking_driver') as 'team_seeking_driver' | 'driver_seeking_team'
   const title = String(formData.get('title') || '').trim()

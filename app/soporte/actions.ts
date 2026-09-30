@@ -8,6 +8,8 @@ import { guardPlatformAdmin } from '@/app/admin/actions/admin-league'
 import { updateGuildConfig, type SettingsInput } from '@/lib/support-config'
 import * as bot from '@/lib/support-bot-client'
 import type { CreatedChannel } from '@/lib/support-bot-client'
+import { rateLimit } from '@/lib/rate-limit'
+import { logAdminAction } from '@/lib/audit-log'
 
 const GUILD_ID = /^\d{5,25}$/
 const STEAM_ID = /^\d{10,20}$/
@@ -146,6 +148,9 @@ export async function getTicketMessagesAction(guildId: string, ticketId: string,
 export async function sendTicketMessageAction(guildId: string, ticketId: string, content: string): Promise<ActionResult> {
   const { session } = await guardTicketAccess()
   if (!GUILD_ID.test(guildId)) return { ok: false, message: 'Servidor no válido.' }
+  if (!rateLimit(`ticket-message:${session.userId}`, 30, 60_000)) {
+    return { ok: false, message: 'Demasiados mensajes seguidos. Espera un momento.' }
+  }
   try {
     await bot.sendTicketMessage(guildId, ticketId, staffName(session), content)
     return { ok: true, message: 'Enviado.' }
@@ -191,14 +196,18 @@ export async function grantTicketAccessAction(formData: FormData) {
     create: { steamId, grantedByUserId: session.userId, grantedByName: session.steamDisplayName },
     update: { grantedByUserId: session.userId, grantedByName: session.steamDisplayName },
   })
+  await logAdminAction({ actorUserId: session.userId, actorName: session.steamDisplayName, action: 'grant_ticket_access', targetId: steamId })
   revalidatePath('/admin')
   redirect('/admin?tab=soporte&granted=1')
 }
 
 export async function revokeTicketAccessAction(formData: FormData) {
-  await guardPlatformAdmin()
+  const session = await guardPlatformAdmin()
   const steamId = String(formData.get('steamId') || '').trim()
-  if (steamId) await db.ticketAccessGrant.delete({ where: { steamId } }).catch(() => {})
+  if (steamId) {
+    await db.ticketAccessGrant.delete({ where: { steamId } }).catch(() => {})
+    await logAdminAction({ actorUserId: session.userId, actorName: session.steamDisplayName, action: 'revoke_ticket_access', targetId: steamId })
+  }
   revalidatePath('/admin')
   redirect('/admin?tab=soporte&revoked=1')
 }

@@ -93,6 +93,8 @@ export interface SessionUser {
   steamId: string
   steamDisplayName: string
   avatarUrl?: string
+  /** sessionVersion de User en el momento de iniciar sesión — ver lib/session-version.ts. */
+  sessionVersion?: number
 }
 
 export interface LeagueRegistration {

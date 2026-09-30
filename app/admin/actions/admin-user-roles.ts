@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { canAccessPlatformAdmin } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { logAdminAction } from '@/lib/audit-log'
 import type { LeagueRole } from '@/types'
 import { guardPlatformAdmin, guardLeaguePermission } from './admin-league'
 
@@ -65,7 +66,7 @@ export async function adminDeleteMarketListing(listingId: string) {
 }
 
 export async function updateUserRoleAction(formData: FormData) {
-  await guardPlatformAdmin()
+  const session = await guardPlatformAdmin()
 
   const targetUserId = String(formData.get('targetUserId') || '')
   const newRole = String(formData.get('role') || 'user') as 'user' | 'steward' | 'platform_admin'
@@ -73,8 +74,9 @@ export async function updateUserRoleAction(formData: FormData) {
   if (!targetUserId) return
 
   try {
+    const existing = await db.platformRole.findFirst({ where: { userId: targetUserId } })
+    const wasElevated = existing?.role === 'platform_admin' || existing?.role === 'steward'
     if (newRole === 'platform_admin' || newRole === 'steward') {
-      const existing = await db.platformRole.findFirst({ where: { userId: targetUserId } })
       if (existing) {
         await db.platformRole.update({ where: { id: existing.id }, data: { role: newRole } })
       } else {
@@ -82,7 +84,17 @@ export async function updateUserRoleAction(formData: FormData) {
       }
     } else {
       await db.platformRole.deleteMany({ where: { userId: targetUserId } })
+      // Quitar un rol elevado invalida al instante cualquier sesión ya abierta de esa persona con
+      // ese rol — si no, seguiría teniendo acceso de admin/steward hasta que su JWT caducase solo (7 días).
+      if (wasElevated) await db.user.update({ where: { id: targetUserId }, data: { sessionVersion: { increment: 1 } } })
     }
+    await logAdminAction({
+      actorUserId: session.userId,
+      actorName: session.steamDisplayName,
+      action: 'update_user_role',
+      targetId: targetUserId,
+      detail: `${existing?.role ?? 'user'} -> ${newRole}`,
+    })
   } catch (err) {
     console.error('Failed to update user role:', err)
   }
@@ -139,6 +151,7 @@ export async function deleteUserAccountAction(targetUserId: string) {
     throw err
   }
 
+  await logAdminAction({ actorUserId: session.userId, actorName: session.steamDisplayName, action: 'delete_user_account', targetId: targetUserId })
   invalidateCache()
   revalidatePath('/admin')
 }

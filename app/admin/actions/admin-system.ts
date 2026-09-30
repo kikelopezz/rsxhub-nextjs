@@ -4,10 +4,14 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { logAdminAction } from '@/lib/audit-log'
 import { guardPlatformAdmin } from './admin-league'
 
 export async function resetDatabaseAction() {
-  await guardPlatformAdmin()
+  const session = await guardPlatformAdmin()
+  // Se registra ANTES de borrar: db.user.deleteMany() se lleva por delante la propia fila del
+  // actor, pero el registro de auditoría (actorUserId/actorName como texto plano, no FK) sobrevive.
+  await logAdminAction({ actorUserId: session.userId, actorName: session.steamDisplayName, action: 'reset_database' })
 
   try {
     // Leagues/teams/users cascade to nearly everything else via FK; the

@@ -71,6 +71,7 @@ type AdminGrant = {
   steamId: string
   grantedByName: string
   createdAt: string
+  expiresAt: string | null
   displayName: string | null
   avatarUrl: string | null
 }
@@ -89,6 +90,7 @@ async function fetchAdminGrants(): Promise<AdminGrant[]> {
           steamId: g.steamId,
           grantedByName: g.grantedByName || 'Admin',
           createdAt: g.createdAt.toISOString(),
+          expiresAt: g.expiresAt ? g.expiresAt.toISOString() : null,
           displayName: steam?.steamDisplayName || null,
           avatarUrl: steam?.steamAvatarUrl || null,
         }

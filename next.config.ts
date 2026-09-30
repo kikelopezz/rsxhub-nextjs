@@ -64,13 +64,31 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Baseline security headers for every response. The CSP is deliberately limited to directives
-  // that can't break the app (no script-src/img-src: Next inlines scripts and images come from
-  // several CDNs) — it still stops clickjacking, <object>/<base> injection.
+  // Baseline security headers for every response.
   //
   // Las transcripciones de tickets ahora se sirven directamente desde R2 (URL pública), no desde
   // una ruta de este Next — por eso ya no hay una entrada aparte de CSP para ellas aquí.
+  //
+  // script-src/style-src necesitan 'unsafe-inline' (Next inlina el script de hidratación y el
+  // JSON-LD de app/layout.tsx; hay bastante `style={{...}}` inline en la app) — no hay un
+  // middleware que reparta un nonce por petición, así que esto no frena un XSS ya inyectado, pero
+  // sí default-src/connect-src/img-src acotados: frenan que ese XSS cargue un script de otro
+  // origen o exfiltre datos a un dominio que no sea el propio Hub o Cloudflare R2.
   async headers() {
+    const isDev = process.env.NODE_ENV !== 'production'
+    const imgHosts = 'https://*.steamstatic.com https://steamcdn-a.akamaihd.net https://images.unsplash.com https://*.supabase.co https://placehold.co https://api.dicebear.com https://*.r2.dev'
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+      "style-src 'self' 'unsafe-inline'",
+      `img-src 'self' data: blob: ${imgHosts}`,
+      "font-src 'self' data:",
+      // r2.cloudflarestorage.com: subida directa desde el navegador con URL firmada (presign).
+      "connect-src 'self' https://*.r2.cloudflarestorage.com",
+      "frame-ancestors 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join('; ')
     return [
       {
         source: '/:path*',
@@ -80,7 +98,7 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=15552000' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'" },
+          { key: 'Content-Security-Policy', value: csp },
         ],
       },
     ]

@@ -5,6 +5,7 @@ import { fetchWithTTLCache } from '@/lib/ttl-cache'
 import { createSession, getSession } from '@/lib/session'
 import type { LeagueRole, PlatformRole, SessionUser } from '@/types'
 import { fetchSteamPlayerSummary } from '@/lib/steam'
+import { isSessionVersionValid } from '@/lib/session-version'
 
 const PLATFORM_ROLE_WEIGHT: Record<PlatformRole, number> = {
   user: 0,
@@ -30,6 +31,22 @@ export const getCurrentUser = cache(async () => {
       if (!steamAccount) return null
       session.userId = steamAccount.userId
     }
+    // Revocación de sesión: si en BD la sessionVersion subió desde que se emitió este JWT (p. ej.
+    // le quitaron el rol de admin), la sesión deja de ser válida aunque el JWT en sí siga vigente.
+    // Cacheado 30s para no añadir una consulta a cada petición — ver lib/session-version.ts.
+    const currentVersion = await fetchWithTTLCache(
+      `session_version_${session.userId}`,
+      async () => {
+        try {
+          return (await db.user.findUnique({ where: { id: session.userId }, select: { sessionVersion: true } }))?.sessionVersion ?? null
+        } catch (err) {
+          console.error('Failed to read sessionVersion (treating session as valid):', err)
+          return null
+        }
+      },
+      30
+    )
+    if (!isSessionVersionValid(session.sessionVersion, currentVersion)) return null
     // If we have a generic name or are missing the avatar, try to resolve it dynamically from
     // Steam. This hits an external, uncached API — without a TTL cache it would mean a live
     // network round-trip to Steam on every single page load for that user.
@@ -69,7 +86,11 @@ export function getConfiguredAdminSteamIds() {
 export async function getGrantedAdminSteamIds(): Promise<string[]> {
   return fetchWithTTLCache('admin_grants_steam_ids', async () => {
     try {
-      const grants = await db.adminGrant.findMany({ select: { steamId: true } })
+      // expiresAt: null = sin caducidad (como siempre); si tiene fecha, solo cuenta mientras no haya pasado.
+      const grants = await db.adminGrant.findMany({
+        where: { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        select: { steamId: true },
+      })
       return grants.map((g) => g.steamId)
     } catch (error) {
       console.error('Failed to fetch granted admin Steam IDs:', error)
@@ -215,7 +236,8 @@ export async function upsertUserFromSteam(user: SessionUser) {
             steamAvatarUrl: user.avatarUrl || null,
           },
         })
-        return { userId: existing.userId, isNew: false }
+        const existingUser = await tx.user.findUnique({ where: { id: existing.userId }, select: { sessionVersion: true } })
+        return { userId: existing.userId, isNew: false, sessionVersion: existingUser?.sessionVersion ?? 0 }
       }
 
       const newUser = await tx.user.create({ data: {} })
@@ -246,7 +268,7 @@ export async function upsertUserFromSteam(user: SessionUser) {
         data: { userId: newUser.id, role: 'user' },
       })
 
-      return { userId: newUser.id, isNew: true }
+      return { userId: newUser.id, isNew: true, sessionVersion: 0 }
     })
 
     let isNew = result.isNew
@@ -257,7 +279,7 @@ export async function upsertUserFromSteam(user: SessionUser) {
       }
     }
 
-    await createSession({ ...user, userId: result.userId })
+    await createSession({ ...user, userId: result.userId, sessionVersion: result.sessionVersion })
     return { ok: true, userId: result.userId, isNew }
   } catch (error) {
     // A unique-constraint race (two logins for the same brand-new Steam ID
@@ -265,8 +287,9 @@ export async function upsertUserFromSteam(user: SessionUser) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       const existing = await db.steamAccount.findUnique({ where: { steamId: user.steamId } })
       if (existing) {
+        const existingUser = await db.user.findUnique({ where: { id: existing.userId }, select: { sessionVersion: true } })
         const profile = await db.profile.findUnique({ where: { userId: existing.userId } })
-        await createSession({ ...user, userId: existing.userId })
+        await createSession({ ...user, userId: existing.userId, sessionVersion: existingUser?.sessionVersion ?? 0 })
         return { ok: true, userId: existing.userId, isNew: !profile?.onboarded }
       }
     }

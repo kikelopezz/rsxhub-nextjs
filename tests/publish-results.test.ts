@@ -4,8 +4,7 @@ const store = vi.hoisted(() => ({
   event: { id: 'ev1', leagueId: 'lg1', qualyCompleted: false, status: 'scheduled' as string, completedAt: null as Date | null },
   resultCount: 0,
   raceResults: [] as { userId: string; teamName: string | null; dorsal: string | null; classTag: string | null; points: number | null }[],
-  registrations: [] as { userId: string; teamId: string | null }[],
-  teams: [] as { id: string; name: string }[],
+  registrations: [] as { userId: string; teamId: string | null; classTag?: string | null; assignedNumber?: number | null }[],
   teamPointsUpserts: [] as any[],
 }))
 
@@ -33,7 +32,6 @@ vi.mock('@/lib/db', () => ({
       findMany: async () => (store.event.status === 'completed' ? store.raceResults : []),
     },
     leagueRegistration: { findMany: async () => store.registrations },
-    team: { findMany: async () => store.teams },
     leagueTeamPoints: {
       upsert: async (args: any) => {
         store.teamPointsUpserts.push(args)
@@ -56,7 +54,6 @@ describe('publicar resultados', () => {
     store.resultCount = 0
     store.raceResults = []
     store.registrations = []
-    store.teams = []
     store.teamPointsUpserts = []
   })
 
@@ -90,8 +87,8 @@ describe('publicar resultados', () => {
 
   it('publicar carrera suma los puntos de todas las rondas ya publicadas en la clasificación de coches', async () => {
     store.resultCount = 2
-    store.registrations = [{ userId: 'u1', teamId: 't1' }]
-    // Dos rondas ya oficiales del mismo coche (equipo t1, dorsal 7, GT3): 25 + 18 puntos
+    store.registrations = [{ userId: 'u1', teamId: 't1', classTag: 'GT3', assignedNumber: 7 }]
+    // Dos rondas ya oficiales del mismo coche (equipo t1, número inscrito 7, GT3): 25 + 18 puntos
     store.raceResults = [
       { userId: 'u1', teamName: 'SHT', dorsal: '7', classTag: 'GT3', points: 25 },
       { userId: 'u1', teamName: 'SHT', dorsal: '7', classTag: 'GT3', points: 18 },
@@ -102,9 +99,28 @@ describe('publicar resultados', () => {
     expect(store.teamPointsUpserts[0].update).toMatchObject({ points: 43 })
   })
 
+  it('usa el número INSCRITO del piloto, no el dorsal de la carrera, para no escribir en un coche que la clasificación no lee', async () => {
+    store.resultCount = 1
+    // El piloto está inscrito con el #7, pero esta carrera la corrió con el #99 (coche/dorsal
+    // distinto ese día) — los puntos deben ir a la fila del #7, que es la que se ve en la ficha.
+    store.registrations = [{ userId: 'u1', teamId: 't1', classTag: 'GT3', assignedNumber: 7 }]
+    store.raceResults = [{ userId: 'u1', teamName: 'SHT', dorsal: '99', classTag: 'GT3', points: 25 }]
+    await request({ leagueId: 'lg1', eventId: 'ev1', sessionType: 'race' })
+    expect(store.teamPointsUpserts).toHaveLength(1)
+    expect(store.teamPointsUpserts[0].create).toMatchObject({ carNumber: '7', points: 25 })
+  })
+
+  it('sin inscripción con equipo, no se le puede atribuir el coche a nadie: no escribe nada', async () => {
+    store.resultCount = 1
+    store.registrations = []
+    store.raceResults = [{ userId: 'u-sin-equipo', teamName: null, dorsal: '5', classTag: 'GT3', points: 25 }]
+    await request({ leagueId: 'lg1', eventId: 'ev1', sessionType: 'race' })
+    expect(store.teamPointsUpserts).toHaveLength(0)
+  })
+
   it('publicar clasificación (qualy) no toca la clasificación de coches', async () => {
     store.resultCount = 10
-    store.registrations = [{ userId: 'u1', teamId: 't1' }]
+    store.registrations = [{ userId: 'u1', teamId: 't1', classTag: 'GT3', assignedNumber: 7 }]
     store.raceResults = [{ userId: 'u1', teamName: 'SHT', dorsal: '7', classTag: 'GT3', points: 25 }]
     await request({ leagueId: 'lg1', eventId: 'ev1', sessionType: 'qualifying' })
     expect(store.teamPointsUpserts).toHaveLength(0)

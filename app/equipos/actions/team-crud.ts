@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { safeRedirectPath } from '@/lib/safe-redirect'
 import { userBelongsToTeam } from '@/lib/team-data'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { rateLimit } from '@/lib/rate-limit'
 import { cleanupDriverMarketDataOnTeamJoin } from '@/lib/market-cleanup'
 import { guardSession, canManageTeam, cleanPilotName, parseSkinProfilesJson } from './team-parsers'
 import { leaguesOverlap, MAX_CARS_PER_CATEGORY } from '@/components/team-cars-editor/car-validation'
@@ -70,6 +71,10 @@ function cleanAbbreviation(value: FormDataEntryValue | null) {
 
 export async function createTeam(formData: FormData) {
   const session = await guardSession()
+
+  if (!rateLimit(`create-team:${session.userId}`, 5, 60 * 60_000)) {
+    redirect('/equipos?error=rate-limited')
+  }
 
   if (await userBelongsToTeam(session.userId)) {
     redirect('/equipos?error=already-in-a-team')

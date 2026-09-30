@@ -8,6 +8,7 @@ import { findEntry } from '@/lib/league-entries'
 import { correlateRow, loadCorrelationContext } from '@/lib/result-review'
 import { getClassTagFromModel } from '@/lib/live-timing'
 import { recalculateSeasonPoints } from '@/lib/season-points'
+import { rateLimit } from '@/lib/rate-limit'
 
 type ImportedResultRow = {
   userId?: string
@@ -186,6 +187,9 @@ export async function POST(req: Request) {
   const leagueRole = await getLeagueRole(leagueId, session.userId)
   if (!canAccessPlatformAdmin(platformRole) && !canStewardLeague(leagueRole)) {
     return wantsJson ? NextResponse.json({ ok: false, code: 'forbidden' }, { status: 403 }) : redirectTo('/admin')
+  }
+  if (!rateLimit(`import-results:${session.userId}`, 30, 10 * 60_000)) {
+    return fail('rate-limited', 429)
   }
 
   const uploadedRaw = formData.get('resultsFile')

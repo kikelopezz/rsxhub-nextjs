@@ -11,6 +11,7 @@ type AdminGrant = {
   steamId: string
   grantedByName: string
   createdAt: string
+  expiresAt: string | null
   displayName: string | null
   avatarUrl: string | null
 }
@@ -49,6 +50,18 @@ export async function AdminAdminsTab({ grants, fixedAdminSteamIds, currentUserSt
             />
             <p className="mt-1.5 text-[10px] text-slate-500">{t.steamIdHint}</p>
           </div>
+          <div className="sm:w-40">
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-300">{t.expiresInDaysLabel}</label>
+            <input
+              type="number"
+              name="expiresInDays"
+              min={0}
+              max={3650}
+              placeholder="0"
+              className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2.5 text-xs font-mono text-white outline-none focus:border-accent transition-colors"
+            />
+            <p className="mt-1.5 text-[10px] text-slate-500">{t.expiresInDaysHint}</p>
+          </div>
           <SubmitButton
             label={t.grantButton}
             pendingLabel={t.grantButton}
@@ -72,13 +85,14 @@ export async function AdminAdminsTab({ grants, fixedAdminSteamIds, currentUserSt
                 <th className="p-3">{t.colSteamId}</th>
                 <th className="p-3">{t.colGrantedBy}</th>
                 <th className="p-3">{t.colDate}</th>
+                <th className="p-3">{t.colExpires}</th>
                 <th className="p-3 text-right">{t.colActions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-xs text-slate-300">
               {grants.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-slate-500 italic">{t.noGrants}</td>
+                  <td colSpan={6} className="p-8 text-center text-slate-500 italic">{t.noGrants}</td>
                 </tr>
               ) : (
                 grants.map((grant) => (
@@ -103,6 +117,17 @@ export async function AdminAdminsTab({ grants, fixedAdminSteamIds, currentUserSt
                       {(() => {
                         try {
                           const d = new Date(grant.createdAt)
+                          return isNaN(d.getTime()) ? '—' : d.toLocaleDateString()
+                        } catch {
+                          return '—'
+                        }
+                      })()}
+                    </td>
+                    <td className="p-3 text-slate-400 font-mono text-[11px]">
+                      {(() => {
+                        if (!grant.expiresAt) return t.neverExpires
+                        try {
+                          const d = new Date(grant.expiresAt)
                           return isNaN(d.getTime()) ? '—' : d.toLocaleDateString()
                         } catch {
                           return '—'
