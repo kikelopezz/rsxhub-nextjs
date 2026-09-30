@@ -12,6 +12,7 @@ import {
 } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { logAudit } from '@/lib/audit-log'
 import type { LeagueRole } from '@/types'
 
 export async function guardPlatformAdmin() {
@@ -177,18 +178,60 @@ export async function quickToggleLeagueFeaturedAction(formData: FormData) {
 }
 
 export async function deleteLeagueAction(formData: FormData) {
-  await guardPlatformAdmin()
+  const session = await guardPlatformAdmin()
   const leagueId = String(formData.get('leagueId') || '')
 
   if (!leagueId) redirect('/admin?error=missing-fields')
 
-  // Every child table cascades from leagues via FK — one delete is enough.
-  await db.league.delete({ where: { id: leagueId } }).catch((error) => {
+  // Soft delete: the league just stops showing up in normal listings (see getLeagues()).
+  // Nothing under it is actually touched, so restoring later brings everything back as-is.
+  try {
+    const league = await db.league.update({ where: { id: leagueId }, data: { deletedAt: new Date() } })
+    await logAudit({ actor: session, action: 'league.delete', entityType: 'league', entityId: leagueId, entityLabel: league.title })
+  } catch (error) {
     console.error('Failed to delete league:', error)
-  })
+  }
 
   invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
   revalidatePath('/admin')
   revalidatePath('/ligas')
   redirect('/admin?tab=leagues&updated=1')
+}
+
+export async function restoreLeagueAction(formData: FormData) {
+  const session = await guardPlatformAdmin()
+  const leagueId = String(formData.get('leagueId') || '')
+  if (!leagueId) redirect('/admin?error=missing-fields')
+
+  try {
+    const league = await db.league.update({ where: { id: leagueId }, data: { deletedAt: null } })
+    await logAudit({ actor: session, action: 'league.restore', entityType: 'league', entityId: leagueId, entityLabel: league.title })
+  } catch (error) {
+    console.error('Failed to restore league:', error)
+  }
+
+  invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
+  revalidatePath('/admin')
+  revalidatePath('/ligas')
+  redirect('/admin?tab=papelera&restored=1')
+}
+
+// Actually deletes the league (and, via cascade, everything under it) — only ever reachable
+// from the papelera on a league that's already soft-deleted, as a deliberate second step.
+export async function permanentlyDeleteLeagueAction(formData: FormData) {
+  const session = await guardPlatformAdmin()
+  const leagueId = String(formData.get('leagueId') || '')
+  if (!leagueId) redirect('/admin?error=missing-fields')
+
+  try {
+    const league = await db.league.findUnique({ where: { id: leagueId }, select: { title: true } })
+    await db.league.delete({ where: { id: leagueId } })
+    await logAudit({ actor: session, action: 'league.purge', entityType: 'league', entityId: leagueId, entityLabel: league?.title })
+  } catch (error) {
+    console.error('Failed to permanently delete league:', error)
+  }
+
+  invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
+  revalidatePath('/admin')
+  redirect('/admin?tab=papelera&purged=1')
 }

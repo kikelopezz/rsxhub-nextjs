@@ -1,6 +1,7 @@
 import {
   S3Client,
   PutObjectCommand,
+  GetObjectCommand,
   DeleteObjectCommand,
   ListObjectsV2Command,
 } from '@aws-sdk/client-s3'
@@ -50,6 +51,28 @@ export async function uploadBufferToR2(key: string, buffer: Buffer, contentType:
     })
   )
   return getR2PublicUrl(key)
+}
+
+/**
+ * First `byteLength` bytes of an object — enough to check its magic bytes without downloading
+ * the whole thing (used to verify a file uploaded straight to R2 via a presigned URL, since the
+ * server never otherwise sees those bytes). Returns null if the object doesn't exist.
+ */
+export async function getR2ObjectPrefix(key: string, byteLength: number): Promise<Buffer | null> {
+  try {
+    const res = await getClient().send(
+      new GetObjectCommand({ Bucket: bucketName, Key: key, Range: `bytes=0-${byteLength - 1}` })
+    )
+    if (!res.Body) return null
+    const chunks: Buffer[] = []
+    for await (const chunk of res.Body as AsyncIterable<Buffer>) {
+      chunks.push(Buffer.from(chunk))
+    }
+    return Buffer.concat(chunks)
+  } catch (err: any) {
+    if (err?.name === 'NoSuchKey') return null
+    throw err
+  }
 }
 
 export async function deleteFromR2(key: string): Promise<void> {

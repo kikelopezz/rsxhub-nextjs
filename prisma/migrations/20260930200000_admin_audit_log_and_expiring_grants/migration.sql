@@ -1,11 +1,11 @@
--- Solo los cambios aditivos de esta migración. NOTA: `prisma migrate diff` contra la base de datos
--- real también detectó `DROP COLUMN leagues.deleted_at`, `DROP COLUMN teams.deleted_at` y
--- `DROP TABLE audit_logs` — objetos que existen en producción pero no en este schema.prisma y que
--- ningún código de este repo referencia. Se han dejado FUERA a propósito: no forman parte de lo que
--- se pidió y podrían pertenecer a otra cosa; bórralos aparte, de forma deliberada, si confirmas que
--- de verdad no hacen falta.
-
--- AlterTable
+-- Esto es exactamente lo que se ejecutó contra producción (marcado como aplicado en
+-- _prisma_migrations con este mismo nombre) — no se retoca después de aplicarlo.
+--
+-- NOTA: la tabla `admin_audit_log` de aquí abajo quedó huérfana casi de inmediato: una sesión en
+-- paralelo añadió su propio sistema de auditoría (modelo `AuditLog` / tabla `audit_logs`, más
+-- completo) y se adoptó ese en su lugar. La tabla existe en producción, vacía, sin ningún modelo
+-- de Prisma que la use — se puede borrar en una migración aparte y deliberada si se confirma que
+-- no hace falta, pero no se toca aquí para no encadenar otro DROP sin revisar.
 ALTER TABLE "admin_grants" ADD COLUMN "expires_at" TIMESTAMP(3);
 
 -- AlterTable

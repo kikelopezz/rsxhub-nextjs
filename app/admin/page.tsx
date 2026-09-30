@@ -2,8 +2,8 @@ import Link from 'next/link'
 import NextImage from 'next/image'
 import { redirect } from 'next/navigation'
 import { getAdminAccessContext, getCurrentUser, getConfiguredAdminSteamIds } from '@/lib/auth'
-import { getLeagueEvents, getLeagues, getRegistrations, getAllRegisteredDrivers } from '@/lib/platform-data'
-import { getTeamsDashboard, getSkinReviewQueue } from '@/lib/team-data'
+import { getLeagueEvents, getLeagues, getRegistrations, getAllRegisteredDrivers, getTrashedLeagues } from '@/lib/platform-data'
+import { getTeamsDashboard, getSkinReviewQueue, getTrashedTeams } from '@/lib/team-data'
 import { getUnseenLineupChangeTeamIds, getRecentLineupChanges } from '@/lib/admin-lineup-log'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
 import { db } from '@/lib/db'
@@ -15,12 +15,16 @@ import { DeleteLeagueButton } from '@/components/delete-league-button'
 import { DeleteTeamButtonDouble } from '@/components/delete-team-button-double'
 import { DeleteUserButtonDouble } from '@/components/delete-user-button-double'
 import { AdminGallery } from '@/components/admin-gallery'
-import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive, GitMerge, Palette, Ticket } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive, GitMerge, Palette, Ticket, ArchiveRestore } from 'lucide-react'
 import {
   adminDeleteMarketListing,
   quickUpdateLeagueStatusAction,
   quickToggleLeagueFeaturedAction,
   deleteLeagueAction,
+  restoreLeagueAction,
+  permanentlyDeleteLeagueAction,
+  restoreTeamAction,
+  permanentlyDeleteTeamAction,
   resetDatabaseAction,
   updateUserRoleAction,
   deleteUserAccountAction,
@@ -116,6 +120,8 @@ export default async function AdminPage({
     reset?: string
     granted?: string
     revoked?: string
+    restored?: string
+    purged?: string
     error?: string
     soporte?: string
   }>
@@ -132,7 +138,7 @@ export default async function AdminPage({
   // Load all baseline data in parallel — these reads are independent of each other
   const fixedAdminSteamIds = getConfiguredAdminSteamIds()
 
-  const [leagues, events, registrations, { teams }, drivers, listings, grants, newsPosts, unseenLineupChangeTeamIds, recentLineupChanges, skinReviews] = await Promise.all([
+  const [leagues, events, registrations, { teams }, drivers, listings, grants, newsPosts, unseenLineupChangeTeamIds, recentLineupChanges, skinReviews, trashedLeagues, trashedTeams] = await Promise.all([
     getLeagues(),
     getLeagueEvents(),
     getRegistrations(),
@@ -144,6 +150,8 @@ export default async function AdminPage({
     getUnseenLineupChangeTeamIds(session.userId),
     getRecentLineupChanges(),
     getSkinReviewQueue(),
+    getTrashedLeagues(),
+    getTrashedTeams(),
   ])
   const pendingSkinCount = skinReviews.filter((r) => r.status === 'pending').length
   const hasUnseenLineupChanges = unseenLineupChangeTeamIds.size > 0
@@ -205,6 +213,26 @@ export default async function AdminPage({
       {params.revoked === '1' && (
         <div className="rounded-lg border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 font-semibold">
           {dict.admin.adminsTab.revoked}
+        </div>
+      )}
+      {params.restored === '1' && (
+        <div className="rounded-lg border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 font-semibold">
+          Restaurado correctamente.
+        </div>
+      )}
+      {params.purged === '1' && (
+        <div className="rounded-lg border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 font-semibold">
+          Borrado definitivamente.
+        </div>
+      )}
+      {params.error === 'backup-required' && (
+        <div className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-100 font-semibold">
+          No se puede borrar todo sin poder hacer antes una copia de seguridad (R2 no está configurado).
+        </div>
+      )}
+      {params.error === 'backup-failed' && (
+        <div className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-100 font-semibold">
+          No se pudo generar la copia de seguridad previa. No se ha borrado nada.
         </div>
       )}
       {params.error === 'invalid-steamid' && (
@@ -355,6 +383,17 @@ export default async function AdminPage({
         >
           <Ticket className="h-3.5 w-3.5 text-cyan-400" />
           Soporte
+        </Link>
+        <Link
+          href="/admin?tab=papelera"
+          className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
+            activeTab === 'papelera'
+              ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <ArchiveRestore className="h-3.5 w-3.5 text-cyan-400" />
+          Papelera ({trashedLeagues.length + trashedTeams.length})
         </Link>
         <Link
           href="/admin?tab=system"
@@ -673,6 +712,88 @@ export default async function AdminPage({
 
       {/* TAB CONTENT: DUPLICATE PROFILE MERGE */}
       {activeTab === 'merge' && <AdminUserMergeTab />}
+
+      {/* TAB CONTENT: PAPELERA (soft-deleted leagues/teams) */}
+      {activeTab === 'papelera' && (
+        <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-6">
+          <div>
+            <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">Papelera</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Ligas y equipos borrados. No se destruye nada hasta que pulses "Eliminar definitivamente" — hasta entonces puedes restaurarlos tal cual estaban.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">Campeonatos ({trashedLeagues.length})</h3>
+            {trashedLeagues.length === 0 ? (
+              <p className="text-xs text-slate-500 italic">Nada en la papelera.</p>
+            ) : (
+              <div className="divide-y divide-white/5 border border-shell-line bg-black/10 rounded-lg">
+                {trashedLeagues.map((league) => (
+                  <div key={league.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
+                    <div>
+                      <p className="text-sm font-bold text-white">{league.title}</p>
+                      <p className="text-[10px] text-slate-500">Borrado el {new Date(league.deletedAt).toLocaleString('es-ES')}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <form action={restoreLeagueAction}>
+                        <input type="hidden" name="leagueId" value={league.id} />
+                        <button type="submit" className="border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-600 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200 hover:text-white transition-colors cursor-pointer rounded-lg">
+                          Restaurar
+                        </button>
+                      </form>
+                      <ConfirmForm
+                        action={permanentlyDeleteLeagueAction}
+                        confirmMessage={`¿Eliminar definitivamente "${league.title}"? Esto SÍ borra ya todos sus eventos, resultados e inscripciones. No se puede deshacer.`}
+                      >
+                        <input type="hidden" name="leagueId" value={league.id} />
+                        <button type="submit" className="border border-rose-500/30 bg-rose-500/5 hover:bg-rose-700 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-200 hover:text-white transition-colors cursor-pointer rounded-lg">
+                          Eliminar definitivamente
+                        </button>
+                      </ConfirmForm>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">Equipos ({trashedTeams.length})</h3>
+            {trashedTeams.length === 0 ? (
+              <p className="text-xs text-slate-500 italic">Nada en la papelera.</p>
+            ) : (
+              <div className="divide-y divide-white/5 border border-shell-line bg-black/10 rounded-lg">
+                {trashedTeams.map((team) => (
+                  <div key={team.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
+                    <div>
+                      <p className="text-sm font-bold text-white">{team.name}</p>
+                      <p className="text-[10px] text-slate-500">Borrado el {new Date(team.deletedAt).toLocaleString('es-ES')}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <form action={restoreTeamAction}>
+                        <input type="hidden" name="teamId" value={team.id} />
+                        <button type="submit" className="border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-600 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200 hover:text-white transition-colors cursor-pointer rounded-lg">
+                          Restaurar
+                        </button>
+                      </form>
+                      <ConfirmForm
+                        action={permanentlyDeleteTeamAction}
+                        confirmMessage={`¿Eliminar definitivamente "${team.name}"? Esto SÍ borra ya todos sus coches, miembros e invitaciones. No se puede deshacer.`}
+                      >
+                        <input type="hidden" name="teamId" value={team.id} />
+                        <button type="submit" className="border border-rose-500/30 bg-rose-500/5 hover:bg-rose-700 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-200 hover:text-white transition-colors cursor-pointer rounded-lg">
+                          Eliminar definitivamente
+                        </button>
+                      </ConfirmForm>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* TAB CONTENT: DATA CLEANUP */}
       {activeTab === 'system' && (

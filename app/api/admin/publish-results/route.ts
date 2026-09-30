@@ -4,6 +4,8 @@ import { canAccessPlatformAdmin, canStewardLeague, getCurrentUser, getLeagueRole
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { recalculateSeasonPoints } from '@/lib/season-points'
+import { isTrustedRequestOrigin } from '@/lib/csrf'
+import { rateLimit } from '@/lib/rate-limit'
 
 /**
  * Publica los resultados ya guardados de una sesión: los hace oficiales (parrilla de
@@ -14,6 +16,8 @@ import { recalculateSeasonPoints } from '@/lib/season-points'
  * se pulsa "Publicar".
  */
 export async function POST(req: Request) {
+  if (!isTrustedRequestOrigin(req)) return NextResponse.json({ ok: false, code: 'forbidden' }, { status: 403 })
+
   const body = await req.json().catch(() => ({}))
   const leagueId = String(body?.leagueId || '')
   const eventId = String(body?.eventId || '')
@@ -21,6 +25,9 @@ export async function POST(req: Request) {
 
   const session = await getCurrentUser()
   if (!session) return NextResponse.json({ ok: false, code: 'unauthorized' }, { status: 401 })
+  if (!rateLimit(`publish-results:${session.userId}`, 30, 10 * 60_000)) {
+    return NextResponse.json({ ok: false, code: 'rate-limited' }, { status: 429 })
+  }
   if (!leagueId || !eventId) return NextResponse.json({ ok: false, code: 'missing-params' }, { status: 400 })
 
   const platformRole = await getPlatformRole(session.userId)

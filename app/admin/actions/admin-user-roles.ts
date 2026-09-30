@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { canAccessPlatformAdmin } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
-import { logAdminAction } from '@/lib/audit-log'
+import { logAudit } from '@/lib/audit-log'
 import type { LeagueRole } from '@/types'
 import { guardPlatformAdmin, guardLeaguePermission } from './admin-league'
 
@@ -41,6 +41,14 @@ export async function assignLeagueRole(formData: FormData) {
       where: { leagueId_userId: { leagueId, userId: targetUserId } },
       create: { leagueId, userId: targetUserId, role },
       update: { role },
+    })
+    await logAudit({
+      actor: session,
+      action: 'league_role.update',
+      entityType: 'league_member',
+      entityId: targetUserId,
+      entityLabel: steamId,
+      metadata: { leagueId, role },
     })
   } catch (error) {
     console.error('Failed to assign league role:', error)
@@ -88,12 +96,12 @@ export async function updateUserRoleAction(formData: FormData) {
       // ese rol — si no, seguiría teniendo acceso de admin/steward hasta que su JWT caducase solo (7 días).
       if (wasElevated) await db.user.update({ where: { id: targetUserId }, data: { sessionVersion: { increment: 1 } } })
     }
-    await logAdminAction({
-      actorUserId: session.userId,
-      actorName: session.steamDisplayName,
-      action: 'update_user_role',
-      targetId: targetUserId,
-      detail: `${existing?.role ?? 'user'} -> ${newRole}`,
+    await logAudit({
+      actor: session,
+      action: 'platform_role.update',
+      entityType: 'user',
+      entityId: targetUserId,
+      metadata: { from: existing?.role ?? 'user', to: newRole },
     })
   } catch (err) {
     console.error('Failed to update user role:', err)
@@ -151,7 +159,7 @@ export async function deleteUserAccountAction(targetUserId: string) {
     throw err
   }
 
-  await logAdminAction({ actorUserId: session.userId, actorName: session.steamDisplayName, action: 'delete_user_account', targetId: targetUserId })
+  await logAudit({ actor: session, action: 'user.delete', entityType: 'user', entityId: targetUserId })
   invalidateCache()
   revalidatePath('/admin')
 }

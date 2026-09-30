@@ -45,7 +45,7 @@ vi.mock('@/lib/db', () => ({
 import { POST } from '@/app/api/admin/publish-results/route'
 
 function request(body: unknown) {
-  return POST(new Request('http://localhost/api/admin/publish-results', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }))
+  return POST(new Request('http://localhost/api/admin/publish-results', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' }, body: JSON.stringify(body) }))
 }
 
 describe('publicar resultados', () => {

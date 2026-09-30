@@ -15,7 +15,9 @@ export const getLeagues = cache(async (): Promise<League[]> => {
   return fetchWithTTLCache('platform_leagues', async () => {
     try {
       const [leagues, classLimits] = await Promise.all([
-        db.league.findMany({ orderBy: { startsAt: 'asc' } }),
+        // Soft-deleted leagues (admin "papelera") never show up in the normal listing — see
+        // getTrashedLeagues() for the admin-only view that reads them back.
+        db.league.findMany({ where: { deletedAt: null }, orderBy: { startsAt: 'asc' } }),
         db.leagueClassLimit.findMany({ where: { eventId: null } }),
       ])
 
@@ -84,6 +86,24 @@ export const getLeagueBySlug = cache(async (slug: string): Promise<League | null
     }) ?? null
   )
 })
+
+export type TrashedLeague = { id: string; title: string; slug: string; deletedAt: string }
+
+// Admin-only "papelera" view — deliberately not cached/TTL'd like getLeagues() above, so a
+// restore/purge is reflected immediately without waiting out the cache window.
+export async function getTrashedLeagues(): Promise<TrashedLeague[]> {
+  try {
+    const rows = await db.league.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+      select: { id: true, title: true, slug: true, deletedAt: true },
+    })
+    return rows.map((r) => ({ id: r.id, title: r.title, slug: r.slug, deletedAt: (r.deletedAt as Date).toISOString() }))
+  } catch (error) {
+    console.error('Failed to get trashed leagues:', error)
+    return []
+  }
+}
 
 export const getCircuits = cache(async (): Promise<Circuit[]> => {
   return fetchWithTTLCache('circuits', async () => {

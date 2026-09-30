@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { AppShell } from '@/components/app-shell'
 import { TopLoadingBar } from '@/components/top-loading-bar'
 
+import { headers } from 'next/headers'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 import { LocaleProvider } from '@/lib/i18n/locale-provider'
@@ -116,11 +117,14 @@ const structuredData = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const locale = await getLocale()
   const dictionary = getDictionary(locale)
+  // El middleware genera un nonce por petición y lo manda en esta cabecera — hace falta ponerlo a
+  // mano aquí porque este <script> no lo genera el propio Next.js (ese sí se marca solo con CSP).
+  const nonce = (await headers()).get('x-nonce') ?? undefined
 
   return (
     <html lang={locale}>
       <body className={`${roboto.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} ${anton.variable} font-body`}>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }} />
+        <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }} />
         <LocaleProvider locale={locale} dictionary={dictionary}>
           <TopLoadingBar />
           <Toaster theme="dark" position="top-right" richColors closeButton />

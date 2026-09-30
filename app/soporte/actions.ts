@@ -9,7 +9,7 @@ import { updateGuildConfig, type SettingsInput } from '@/lib/support-config'
 import * as bot from '@/lib/support-bot-client'
 import type { CreatedChannel } from '@/lib/support-bot-client'
 import { rateLimit } from '@/lib/rate-limit'
-import { logAdminAction } from '@/lib/audit-log'
+import { logAudit } from '@/lib/audit-log'
 
 const GUILD_ID = /^\d{5,25}$/
 const STEAM_ID = /^\d{10,20}$/
@@ -196,7 +196,7 @@ export async function grantTicketAccessAction(formData: FormData) {
     create: { steamId, grantedByUserId: session.userId, grantedByName: session.steamDisplayName },
     update: { grantedByUserId: session.userId, grantedByName: session.steamDisplayName },
   })
-  await logAdminAction({ actorUserId: session.userId, actorName: session.steamDisplayName, action: 'grant_ticket_access', targetId: steamId })
+  await logAudit({ actor: session, action: 'ticket_access.grant', entityType: 'steam_id', entityId: steamId })
   revalidatePath('/admin')
   redirect('/admin?tab=soporte&granted=1')
 }
@@ -206,7 +206,7 @@ export async function revokeTicketAccessAction(formData: FormData) {
   const steamId = String(formData.get('steamId') || '').trim()
   if (steamId) {
     await db.ticketAccessGrant.delete({ where: { steamId } }).catch(() => {})
-    await logAdminAction({ actorUserId: session.userId, actorName: session.steamDisplayName, action: 'revoke_ticket_access', targetId: steamId })
+    await logAudit({ actor: session, action: 'ticket_access.revoke', entityType: 'steam_id', entityId: steamId })
   }
   revalidatePath('/admin')
   redirect('/admin?tab=soporte&revoked=1')

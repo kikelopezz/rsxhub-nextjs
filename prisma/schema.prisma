@@ -129,20 +129,6 @@ model TicketAccessGrant {
 
 // Registro de auditoría de acciones de administración de alto impacto (conceder/revocar admin,
 // resetear la base de datos, etc.) — quién, qué y cuándo. Nunca se borra desde la propia app.
-model AdminAuditLog {
-  id          String   @id @default(cuid())
-  actorUserId String   @map("actor_user_id")
-  actorName   String   @map("actor_name")
-  action      String
-  targetId    String?  @map("target_id")
-  detail      String?
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  @@index([createdAt])
-  @@index([actorUserId])
-  @@map("admin_audit_log")
-}
-
 // ============================================================
 // Soporte (tickets de Discord) — bot integrado en el propio Hub, sin proceso ni base
 // de datos aparte. Un guild puede tener como mucho una fila de configuración.
@@ -306,6 +292,9 @@ model League {
   rulebookUrl      String?          @map("rulebook_url")
   driveUrl         String?          @map("drive_url")
   createdAt        DateTime         @default(now()) @map("created_at")
+  /// Papelera: distinto de null cuando un admin lo "borra" — se oculta de los listados
+  /// normales pero sigue en la base de datos hasta que se restaure o se borre definitivamente.
+  deletedAt        DateTime?        @map("deleted_at")
 
   classLimits        LeagueClassLimit[]
   events             LeagueEvent[]
@@ -694,6 +683,9 @@ model Team {
   /// visibles en el panel de admin, no en la página pública del equipo.
   sanctionTags   String[]   @default([]) @map("sanction_tags")
   createdAt      DateTime   @default(now()) @map("created_at")
+  /// Papelera: distinto de null cuando un admin (o el dueño) lo "borra" — se oculta de los
+  /// listados normales pero sigue en la base de datos hasta que se restaure o se borre definitivamente.
+  deletedAt      DateTime?  @map("deleted_at")
 
   league             League?                   @relation(fields: [leagueId], references: [id], onDelete: SetNull)
   cars               TeamCar[]
@@ -979,6 +971,28 @@ model UserNotification {
 
   @@index([userId, createdAt])
   @@map("user_notifications")
+}
+
+// Rastro de acciones administrativas sensibles (borrado de liga/equipo, cambios de rol de
+// admin, uso de "BORRAR TODO"...). Sin relaciones a User/League/Team a propósito: debe
+// sobrevivir aunque el actor o la entidad afectada se borren después (incluido un "BORRAR
+// TODO" que se borra a sí mismo del rastro si tuviera FK). actorLabel/entityLabel guardan
+// una foto del nombre en el momento de la acción, no una referencia viva.
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String?  @map("actor_user_id")
+  actorSteamId String?  @map("actor_steam_id")
+  actorLabel   String   @map("actor_label")
+  action       String
+  entityType   String?  @map("entity_type")
+  entityId     String?  @map("entity_id")
+  entityLabel  String?  @map("entity_label")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([action, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
 }
 
 // Reemplaza el uso de Firestore como KV store (settings/deleted_assets, settings/gallery_uploads).

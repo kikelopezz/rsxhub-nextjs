@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
-import { logAdminAction } from '@/lib/audit-log'
+import { logAudit } from '@/lib/audit-log'
 import { guardPlatformAdmin } from './admin-league'
 
 const STEAM_ID_PATTERN = /^\d{10,20}$/
@@ -30,12 +30,12 @@ export async function grantAdminAction(formData: FormData) {
       create: { steamId, grantedByUserId: session.userId, grantedByName, expiresAt },
       update: { grantedByUserId: session.userId, grantedByName, expiresAt },
     })
-    await logAdminAction({
-      actorUserId: session.userId,
-      actorName: session.steamDisplayName,
-      action: 'grant_admin',
-      targetId: steamId,
-      detail: expiresAt ? `hasta ${expiresAt.toISOString()}` : 'sin caducidad',
+    await logAudit({
+      actor: session,
+      action: 'admin.grant',
+      entityType: 'steam_id',
+      entityId: steamId,
+      metadata: { expiresAt: expiresAt ? expiresAt.toISOString() : null },
     })
   } catch (error) {
     console.error('Failed to grant admin access:', error)
@@ -62,7 +62,7 @@ export async function revokeAdminAction(formData: FormData) {
     // Sin esto, quien ya tenía la sesión abierta seguiría siendo admin hasta que su JWT caducase solo.
     const account = await db.steamAccount.findUnique({ where: { steamId } })
     if (account) await db.user.update({ where: { id: account.userId }, data: { sessionVersion: { increment: 1 } } })
-    await logAdminAction({ actorUserId: session.userId, actorName: session.steamDisplayName, action: 'revoke_admin', targetId: steamId })
+    await logAudit({ actor: session, action: 'admin.revoke', entityType: 'steam_id', entityId: steamId })
   } catch (error) {
     console.error('Failed to revoke admin access:', error)
     redirect('/admin?tab=admins&error=action-failed')

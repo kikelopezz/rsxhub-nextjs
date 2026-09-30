@@ -8,6 +8,7 @@ import { findEntry } from '@/lib/league-entries'
 import { correlateRow, loadCorrelationContext } from '@/lib/result-review'
 import { getClassTagFromModel } from '@/lib/live-timing'
 import { recalculateSeasonPoints } from '@/lib/season-points'
+import { isTrustedRequestOrigin } from '@/lib/csrf'
 import { rateLimit } from '@/lib/rate-limit'
 
 type ImportedResultRow = {
@@ -179,17 +180,17 @@ export async function POST(req: Request) {
       ? NextResponse.json({ ok: false, code }, { status })
       : redirectTo(toAdminLeagueUrl(leagueId, `resultsError=${code}`))
 
+  if (!isTrustedRequestOrigin(req)) return fail('forbidden', 403)
+
   const session = await getCurrentUser()
   if (!session) return wantsJson ? NextResponse.json({ ok: false, code: 'unauthorized' }, { status: 401 }) : redirectTo('/perfil')
+  if (!rateLimit(`import-results:${session.userId}`, 20, 10 * 60_000)) return fail('rate-limited', 429)
   if (!leagueId) return wantsJson ? NextResponse.json({ ok: false, code: 'league-required' }, { status: 400 }) : redirectTo('/admin')
 
   const platformRole = await getPlatformRole(session.userId)
   const leagueRole = await getLeagueRole(leagueId, session.userId)
   if (!canAccessPlatformAdmin(platformRole) && !canStewardLeague(leagueRole)) {
     return wantsJson ? NextResponse.json({ ok: false, code: 'forbidden' }, { status: 403 }) : redirectTo('/admin')
-  }
-  if (!rateLimit(`import-results:${session.userId}`, 30, 10 * 60_000)) {
-    return fail('rate-limited', 429)
   }
 
   const uploadedRaw = formData.get('resultsFile')
