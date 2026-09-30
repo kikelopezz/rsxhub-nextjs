@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { recalculateSeasonPoints } from '@/lib/season-points'
 import { isTrustedRequestOrigin } from '@/lib/csrf'
+import { rateLimit } from '@/lib/rate-limit'
 
 /**
  * Publica los resultados ya guardados de una sesión: los hace oficiales (parrilla de
@@ -24,6 +25,9 @@ export async function POST(req: Request) {
 
   const session = await getCurrentUser()
   if (!session) return NextResponse.json({ ok: false, code: 'unauthorized' }, { status: 401 })
+  if (!rateLimit(`publish-results:${session.userId}`, 30, 10 * 60_000)) {
+    return NextResponse.json({ ok: false, code: 'rate-limited' }, { status: 429 })
+  }
   if (!leagueId || !eventId) return NextResponse.json({ ok: false, code: 'missing-params' }, { status: 400 })
 
   const platformRole = await getPlatformRole(session.userId)

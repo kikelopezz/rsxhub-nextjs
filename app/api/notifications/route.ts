@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { getUserNotifications, markNotificationAsRead, clearAllNotifications } from '@/lib/notifications-data'
 import { isTrustedRequestOrigin } from '@/lib/csrf'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function GET() {
   try {
@@ -25,6 +26,9 @@ export async function POST(req: Request) {
     const session = await getCurrentUser()
     if (!session?.userId) {
       return NextResponse.json({ success: false }, { status: 401 })
+    }
+    if (!rateLimit(`notifications:${session.userId}`, 100, 5 * 60_000)) {
+      return NextResponse.json({ success: false }, { status: 429 })
     }
 
     const body = await req.json().catch(() => ({}))
@@ -50,6 +54,9 @@ export async function DELETE(req: Request) {
     const session = await getCurrentUser()
     if (!session?.userId) {
       return NextResponse.json({ success: false }, { status: 401 })
+    }
+    if (!rateLimit(`notifications:${session.userId}`, 100, 5 * 60_000)) {
+      return NextResponse.json({ success: false }, { status: 429 })
     }
 
     await clearAllNotifications(session.userId)

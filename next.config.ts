@@ -64,12 +64,9 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Baseline security headers for every response. The CSP is deliberately limited to directives
-  // that can't break the app (no script-src/img-src: Next inlines scripts and images come from
-  // several CDNs) — it still stops clickjacking, <object>/<base> injection.
-  //
-  // Las transcripciones de tickets ahora se sirven directamente desde R2 (URL pública), no desde
-  // una ruta de este Next — por eso ya no hay una entrada aparte de CSP para ellas aquí.
+  // Baseline security headers for every response. The Content-Security-Policy itself now comes
+  // from middleware.ts instead (it needs a fresh nonce per request for script-src, which a static
+  // header here can't do) — these are the ones that don't need to be dynamic.
   async headers() {
     return [
       {
@@ -80,7 +77,6 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=15552000; includeSubDomains' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'" },
         ],
       },
     ]

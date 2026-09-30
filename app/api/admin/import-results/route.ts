@@ -9,6 +9,7 @@ import { correlateRow, loadCorrelationContext } from '@/lib/result-review'
 import { getClassTagFromModel } from '@/lib/live-timing'
 import { recalculateSeasonPoints } from '@/lib/season-points'
 import { isTrustedRequestOrigin } from '@/lib/csrf'
+import { rateLimit } from '@/lib/rate-limit'
 
 type ImportedResultRow = {
   userId?: string
@@ -183,6 +184,7 @@ export async function POST(req: Request) {
 
   const session = await getCurrentUser()
   if (!session) return wantsJson ? NextResponse.json({ ok: false, code: 'unauthorized' }, { status: 401 }) : redirectTo('/perfil')
+  if (!rateLimit(`import-results:${session.userId}`, 20, 10 * 60_000)) return fail('rate-limited', 429)
   if (!leagueId) return wantsJson ? NextResponse.json({ ok: false, code: 'league-required' }, { status: 400 }) : redirectTo('/admin')
 
   const platformRole = await getPlatformRole(session.userId)

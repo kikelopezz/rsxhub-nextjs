@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { canAccessPlatformAdmin, canStewardLeague, getCurrentUser, getLeagueRole, getPlatformRole } from '@/lib/auth'
 import { correlateRow, loadCorrelationContext } from '@/lib/result-review'
 import { isTrustedRequestOrigin } from '@/lib/csrf'
+import { rateLimit } from '@/lib/rate-limit'
 
 type RowQuery = {
   userId?: string
@@ -25,6 +26,9 @@ export async function POST(req: Request) {
 
   const session = await getCurrentUser()
   if (!session) return NextResponse.json({ ok: false, code: 'unauthorized' }, { status: 401 })
+  if (!rateLimit(`resolve-entries:${session.userId}`, 60, 10 * 60_000)) {
+    return NextResponse.json({ ok: false, code: 'rate-limited' }, { status: 429 })
+  }
 
   const body = (await req.json().catch(() => null)) as
     | { leagueId?: string; eventId?: string; sessionType?: string; rows?: RowQuery[] }
