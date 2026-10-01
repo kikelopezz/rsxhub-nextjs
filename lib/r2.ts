@@ -6,6 +6,7 @@ import {
   ListObjectsV2Command,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { NodeHttpHandler } from '@smithy/node-http-handler'
 
 const accountId = process.env.R2_ACCOUNT_ID
 const accessKeyId = process.env.R2_ACCESS_KEY_ID
@@ -23,6 +24,13 @@ function getClient(): S3Client {
       region: 'auto',
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: { accessKeyId: accessKeyId!, secretAccessKey: secretAccessKey! },
+      // Sin esto, el SDK no tiene ningún límite de tiempo propio: si R2 tarda en aceptar la
+      // conexión o se queda a medias respondiendo, la petición del servidor se queda colgada
+      // indefinidamente — y con ella, el botón de "Subiendo..." en el navegador, que solo deja
+      // de girar cuando esta promesa se resuelve o falla. Con el timeout, falla en vez de colgarse,
+      // y el código que llama (uploadBufferToR2 en app/api/uploads/route.ts) ya cae al disco/base64
+      // como alternativa cuando R2 lanza un error.
+      requestHandler: new NodeHttpHandler({ connectionTimeout: 5_000, requestTimeout: 20_000 }),
     })
   }
   return client

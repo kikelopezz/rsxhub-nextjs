@@ -251,7 +251,10 @@ export function ImagePicker({ name, defaultValue = '', label = 'League Banner Im
     }
 
     try {
-      const res = await fetch('/api/uploads', { method: 'POST', body: formData })
+      // Sin esto, si la subida se queda colgada (servidor lento, R2 sin responder) el botón se
+      // queda en "Uploading..." para siempre — con el timeout, al menos falla con un aviso claro
+      // en vez de parecer roto indefinidamente.
+      const res = await fetch('/api/uploads', { method: 'POST', body: formData, signal: AbortSignal.timeout(30_000) })
       if (res.ok) {
         const data = await res.json()
         if (data.url) {
@@ -264,7 +267,7 @@ export function ImagePicker({ name, defaultValue = '', label = 'League Banner Im
       }
     } catch (err) {
       console.error('Upload error:', err)
-      alert('An error occurred while uploading the image')
+      alert(err instanceof DOMException && err.name === 'TimeoutError' ? 'La subida ha tardado demasiado. Inténtalo de nuevo.' : 'An error occurred while uploading the image')
     } finally {
       setUploading(false)
     }
