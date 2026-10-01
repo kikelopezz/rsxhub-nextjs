@@ -6,7 +6,7 @@ import { SANCTION_CODES, SANCTION_CODE_MEANINGS, SANCTION_RULEBOOK, formatSancti
 type League = { id: string; title: string }
 type EventOption = { id: string; leagueId: string; label: string }
 type TeamOption = { id: string; name: string; leagueId: string | null }
-type EntryOption = { leagueId: string; dorsal: number; driverName: string; classTag: string | null; teamId: string | null; teamName: string | null }
+type EntryOption = { leagueId: string; dorsal: string; driverName: string | null; category: string; teamId: string; teamName: string }
 type SanctionDTO = {
   id: string
   leagueId: string
@@ -48,9 +48,9 @@ export function SanctionsTable({ records, leagues, events, teams, entries, initi
   const [teamNameSnapshot, setTeamNameSnapshot] = useState('')
   const [driverName, setDriverName] = useState('')
   const dorsalMatches = useMemo(() => {
-    const n = parseInt(dorsalInput, 10)
-    if (!dorsalInput.trim() || Number.isNaN(n)) return []
-    return leagueEntries.filter((e) => e.dorsal === n)
+    const d = dorsalInput.trim()
+    if (!d) return []
+    return leagueEntries.filter((e) => e.dorsal === d)
   }, [dorsalInput, leagueEntries])
 
   // Infracción -> motivo + códigos de sanción sugeridos
@@ -74,8 +74,8 @@ export function SanctionsTable({ records, leagues, events, teams, entries, initi
   useEffect(() => {
     if (dorsalMatches.length !== 1) return
     const match = dorsalMatches[0]
-    setTeamId(match.teamId || '')
-    setTeamNameSnapshot(match.teamName || '')
+    setTeamId(match.teamId)
+    setTeamNameSnapshot(match.teamName)
     setDriverName(match.driverName || '')
   }, [dorsalMatches])
 
@@ -132,8 +132,8 @@ export function SanctionsTable({ records, leagues, events, teams, entries, initi
             <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Dorsal</label>
             <input
               name="dorsal"
-              type="number"
-              min={0}
+              type="text"
+              inputMode="numeric"
               value={dorsalInput}
               onChange={(e) => setDorsalInput(e.target.value)}
               placeholder="Nº de coche"
@@ -142,7 +142,7 @@ export function SanctionsTable({ records, leagues, events, teams, entries, initi
             {dorsalInput.trim() && (
               <p className={`mt-1 text-[11px] ${dorsalMatches.length > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
                 {dorsalMatches.length === 0 && 'No se encontró ningún coche con ese dorsal en este campeonato. Escribe el equipo a mano abajo.'}
-                {dorsalMatches.length === 1 && `✓ ${dorsalMatches[0].teamName || 'Sin equipo'} — ${dorsalMatches[0].driverName}${dorsalMatches[0].classTag ? ` (${dorsalMatches[0].classTag})` : ''}`}
+                {dorsalMatches.length === 1 && `✓ ${dorsalMatches[0].teamName} (${dorsalMatches[0].category})${dorsalMatches[0].driverName ? ` — ${dorsalMatches[0].driverName}` : ''}`}
                 {dorsalMatches.length > 1 && 'Ese dorsal aparece en varias categorías — ajusta el equipo y el piloto a mano abajo.'}
               </p>
             )}

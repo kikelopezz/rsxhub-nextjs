@@ -17,7 +17,7 @@ export default async function SanctionsPage({ searchParams }: { searchParams: Pr
   const visibleLeagueIds = visibleLeagues.map((l) => l.id)
   const visibleEvents = isPlatformAdmin ? allEvents : allEvents.filter((e) => visibleLeagueIds.includes(e.leagueId))
 
-  const [records, teams, registrations] = await Promise.all([
+  const [records, teams, teamCars, registrations] = await Promise.all([
     db.sanctionRecord.findMany({
       where: { leagueId: { in: visibleLeagueIds } },
       include: { event: { select: { title: true, circuitName: true } }, league: { select: { title: true } } },
@@ -25,12 +25,33 @@ export default async function SanctionsPage({ searchParams }: { searchParams: Pr
       take: 500,
     }),
     db.team.findMany({ where: { leagueId: { in: visibleLeagueIds } }, select: { id: true, name: true, leagueId: true }, orderBy: { name: 'asc' } }),
-    // Para poder resolver "dorsal -> equipo/piloto" al registrar una sanción.
+    // El dorsal de un equipo es el de SU coche (TeamCar, lo que se configura en la ficha del
+    // equipo) — no el número individual de inscripción del piloto, que es otra cosa.
+    db.teamCar.findMany({
+      where: { team: { leagueId: { in: visibleLeagueIds } } },
+      select: { dorsal: true, category: true, teamId: true, leagueId: true, team: { select: { name: true, leagueId: true } } },
+    }),
+    // Para intentar rellenar también el nombre del piloto cuando coincide con el dorsal del coche.
     db.leagueRegistration.findMany({
       where: { leagueId: { in: visibleLeagueIds }, assignedNumber: { not: null } },
-      select: { leagueId: true, assignedNumber: true, displayName: true, classTag: true, teamId: true, team: { select: { name: true } } },
+      select: { leagueId: true, assignedNumber: true, displayName: true },
     }),
   ])
+
+  const driverByDorsal = new Map(registrations.map((r) => [`${r.leagueId}|${r.assignedNumber}`, r.displayName]))
+  // leagueId null en el coche = coche "por defecto" del equipo, válido para cualquier liga en la
+  // que compita; leagueId fijo = coche específico para esa liga (p. ej. otra categoría/dorsal ahí).
+  const carEntries = teamCars
+    .filter((c) => c.dorsal.trim() && (c.leagueId === null || c.leagueId === c.team.leagueId))
+    .map((c) => ({
+      leagueId: c.team.leagueId!,
+      dorsal: c.dorsal.trim(),
+      teamId: c.teamId,
+      teamName: c.team.name,
+      category: c.category,
+      driverName: driverByDorsal.get(`${c.team.leagueId}|${Number(c.dorsal)}`) || null,
+    }))
+    .filter((c) => c.leagueId)
 
   const dtoRecords = records.map((r) => ({
     id: r.id,
@@ -55,14 +76,7 @@ export default async function SanctionsPage({ searchParams }: { searchParams: Pr
         leagues={visibleLeagues}
         events={visibleEvents.map((e) => ({ id: e.id, leagueId: e.leagueId, label: e.title || e.circuitName || 'Evento' }))}
         teams={teams}
-        entries={registrations.map((r) => ({
-          leagueId: r.leagueId,
-          dorsal: r.assignedNumber as number,
-          driverName: r.displayName,
-          classTag: r.classTag,
-          teamId: r.teamId,
-          teamName: r.team?.name ?? null,
-        }))}
+        entries={carEntries}
         initialLeagueId={qs.leagueId}
         createAction={createSanctionAction}
         deleteAction={deleteSanctionAction}
