@@ -295,11 +295,10 @@ export async function updateTeam(formData: FormData) {
   const changedCarKeys: string[] = []
   const carChangeDetails: Array<{ category: string; dorsal: string; leagueId: string | null; added: string[]; removed: string[] }> = []
   if (teamCars) {
-    const oldDriversByKey = new Map<string, string[]>()
-    for (const oldCar of existingTeam.cars) {
-      const key = `${oldCar.category}_${oldCar.leagueId || 'general'}_${oldCar.dorsal}`
-      oldDriversByKey.set(key, oldCar.drivers.map((d) => d.userId))
-    }
+    // Por id del propio coche, no por categoría+liga+dorsal: si en el mismo guardado también se
+    // cambia el dorsal, la categoría o la liga de un coche YA EXISTENTE, sigue siendo "el mismo
+    // coche" y su cambio de alineación no debe perderse solo porque la clave compuesta cambió.
+    const oldCarById = new Map(existingTeam.cars.map((c) => [c.id, c]))
 
     const nextEventByLeague = new Map<string, Awaited<ReturnType<typeof getNextLeagueEvent>>>()
     const now = new Date()
@@ -307,9 +306,6 @@ export async function updateTeam(formData: FormData) {
     for (const car of teamCars) {
       const dorsal = car.dorsal.trim()
       if (!dorsal) continue
-      const key = `${car.category}_${car.leagueId || 'general'}_${dorsal}`
-      const oldDrivers = oldDriversByKey.get(key)
-      if (!oldDrivers) continue // brand new car slot — not a "change" to an existing lineup
 
       const newDrivers = Array.from(
         new Set(
@@ -321,6 +317,13 @@ export async function updateTeam(formData: FormData) {
           ].filter(Boolean),
         ),
       )
+
+      const oldCar = car.id ? oldCarById.get(car.id) : undefined
+      // Coche nuevo de verdad (o con un id que ya no existe): no hay "antes" con el que comparar,
+      // pero si ya nace con piloto(s) asignado(s) eso SÍ es un cambio de alineación real — antes
+      // se descartaba en silencio y nunca generaba ni registro ni notificación.
+      const oldDrivers = oldCar ? oldCar.drivers.map((d) => d.userId) : []
+      if (!oldCar && newDrivers.length === 0) continue
       if (sameDriverSet(oldDrivers, newDrivers)) continue
 
       if (car.leagueId) {
@@ -470,21 +473,28 @@ export async function updateTeam(formData: FormData) {
     })
 
     if (changedCarKeys.length > 0) {
-      await db.lineupChangeLog.createMany({
-        data: changedCarKeys.map((carKey) => ({ carId: carKey, teamId, changedById: session.userId })),
-      })
-
-      const adminUserIds = await getAdminUserIds()
-      if (adminUserIds.length > 0) {
-        const message = await buildLineupChangeMessage(name, teamId, carChangeDetails)
-        await db.userNotification.createMany({
-          data: adminUserIds.map((userId) => ({
-            userId,
-            title: 'Cambio de alineación',
-            message,
-            link: `/equipos/${teamId}`,
-          })),
+      // Aparte del try/catch de todo el guardado: el equipo ya quedó guardado (saved = true) pase
+      // lo que pase aquí — si esto falla, que quede como un fallo propio y claro en los logs, no
+      // mezclado en silencio con un fallo real de guardado.
+      try {
+        await db.lineupChangeLog.createMany({
+          data: changedCarKeys.map((carKey) => ({ carId: carKey, teamId, changedById: session.userId })),
         })
+
+        const adminUserIds = await getAdminUserIds()
+        if (adminUserIds.length > 0) {
+          const message = await buildLineupChangeMessage(name, teamId, carChangeDetails)
+          await db.userNotification.createMany({
+            data: adminUserIds.map((userId) => ({
+              userId,
+              title: 'Cambio de alineación',
+              message,
+              link: `/equipos/${teamId}`,
+            })),
+          })
+        }
+      } catch (err) {
+        console.error('Failed to log/notify lineup change (team was saved anyway):', err)
       }
     }
   } catch (error) {
