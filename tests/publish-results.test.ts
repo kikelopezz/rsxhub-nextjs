@@ -5,8 +5,16 @@ const store = vi.hoisted(() => ({
   resultCount: 0,
   raceResults: [] as { userId: string; teamName: string | null; dorsal: string | null; classTag: string | null; points: number | null }[],
   registrations: [] as { userId: string; teamId: string | null; classTag?: string | null; assignedNumber?: number | null }[],
+  // Estado real de las dos tablas, para poder comprobar que sumar no sustituye lo que ya había.
+  teamPointsRows: new Map<string, { leagueId: string; classTag: string; teamId: string; carNumber: string; points: number; updatedBy?: string }>(),
+  eventCarPointsRows: new Map<string, { leagueId: string; eventId: string; classTag: string; teamId: string; carNumber: string; points: number }>(),
   teamPointsUpserts: [] as any[],
 }))
+
+const teamPointsKey = (w: { leagueId: string; classTag: string; teamId: string; carNumber: string }) =>
+  `${w.leagueId}|${w.classTag}|${w.teamId}|${w.carNumber}`
+const eventCarPointsKey = (w: { leagueId: string; eventId: string; classTag: string; teamId: string; carNumber: string }) =>
+  `${w.leagueId}|${w.eventId}|${w.classTag}|${w.teamId}|${w.carNumber}`
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/lib/ttl-cache', () => ({ invalidateCache: vi.fn() }))
@@ -28,14 +36,33 @@ vi.mock('@/lib/db', () => ({
     },
     leagueResult: {
       count: async () => store.resultCount,
-      // El evento ya se marcó 'completed' justo antes de esta llamada (misma petición)
-      findMany: async () => (store.event.status === 'completed' ? store.raceResults : []),
+      findMany: async () => store.raceResults,
     },
     leagueRegistration: { findMany: async () => store.registrations },
+    leagueEventCarPoints: {
+      findMany: async ({ where }: any) => Array.from(store.eventCarPointsRows.values()).filter((r) => r.leagueId === where.leagueId && r.eventId === where.eventId),
+      upsert: async ({ where, create, update }: any) => {
+        const key = eventCarPointsKey(where.leagueId_eventId_classTag_teamId_carNumber)
+        const existing = store.eventCarPointsRows.get(key)
+        const row = existing ? { ...existing, ...update } : { ...create }
+        store.eventCarPointsRows.set(key, row)
+        return row
+      },
+    },
     leagueTeamPoints: {
       upsert: async (args: any) => {
         store.teamPointsUpserts.push(args)
-        return {}
+        const { where, create, update } = args
+        const key = teamPointsKey(where.leagueId_classTag_teamId_carNumber)
+        const existing = store.teamPointsRows.get(key)
+        if (existing) {
+          existing.points += update.points?.increment ?? 0
+          existing.updatedBy = update.updatedBy
+          return existing
+        }
+        const row = { ...create }
+        store.teamPointsRows.set(key, row)
+        return row
       },
     },
     $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
@@ -54,6 +81,8 @@ describe('publicar resultados', () => {
     store.resultCount = 0
     store.raceResults = []
     store.registrations = []
+    store.teamPointsRows = new Map()
+    store.eventCarPointsRows = new Map()
     store.teamPointsUpserts = []
   })
 
@@ -85,18 +114,54 @@ describe('publicar resultados', () => {
     expect(res.status).toBe(404)
   })
 
-  it('publicar carrera suma los puntos de todas las rondas ya publicadas en la clasificación de coches', async () => {
+  it('publicar carrera suma los puntos de la ronda al total de la clasificación de coches', async () => {
     store.resultCount = 2
     store.registrations = [{ userId: 'u1', teamId: 't1', classTag: 'GT3', assignedNumber: 7 }]
-    // Dos rondas ya oficiales del mismo coche (equipo t1, número inscrito 7, GT3): 25 + 18 puntos
     store.raceResults = [
       { userId: 'u1', teamName: 'SHT', dorsal: '7', classTag: 'GT3', points: 25 },
       { userId: 'u1', teamName: 'SHT', dorsal: '7', classTag: 'GT3', points: 18 },
     ]
     await request({ leagueId: 'lg1', eventId: 'ev1', sessionType: 'race' })
-    expect(store.teamPointsUpserts).toHaveLength(1)
-    expect(store.teamPointsUpserts[0].create).toMatchObject({ leagueId: 'lg1', classTag: 'GT3', teamId: 't1', carNumber: '7', points: 43 })
-    expect(store.teamPointsUpserts[0].update).toMatchObject({ points: 43 })
+    expect(store.teamPointsRows.get('lg1|GT3|t1|7')?.points).toBe(43)
+  })
+
+  it('NUNCA sustituye: si ya había puntos cargados (a mano o de otra ronda), la ronda los suma encima', async () => {
+    store.resultCount = 1
+    store.registrations = [{ userId: 'u1', teamId: 't1', classTag: 'GT3', assignedNumber: 7 }]
+    store.raceResults = [{ userId: 'u1', teamName: 'SHT', dorsal: '7', classTag: 'GT3', points: 25 }]
+    // Ya había 10 puntos en la clasificación antes de esta ronda (cargados a mano o por otra vía).
+    store.teamPointsRows.set('lg1|GT3|t1|7', { leagueId: 'lg1', classTag: 'GT3', teamId: 't1', carNumber: '7', points: 10 })
+
+    await request({ leagueId: 'lg1', eventId: 'ev1', sessionType: 'race' })
+
+    expect(store.teamPointsRows.get('lg1|GT3|t1|7')?.points).toBe(35) // 10 que ya había + 25 de la ronda
+  })
+
+  it('publicar la misma ronda dos veces no duplica los puntos', async () => {
+    store.resultCount = 1
+    store.registrations = [{ userId: 'u1', teamId: 't1', classTag: 'GT3', assignedNumber: 7 }]
+    store.raceResults = [{ userId: 'u1', teamName: 'SHT', dorsal: '7', classTag: 'GT3', points: 25 }]
+
+    await request({ leagueId: 'lg1', eventId: 'ev1', sessionType: 'race' })
+    store.event.status = 'scheduled' // simula volver a pulsar "Publicar" sobre la misma ronda
+    await request({ leagueId: 'lg1', eventId: 'ev1', sessionType: 'race' })
+
+    expect(store.teamPointsRows.get('lg1|GT3|t1|7')?.points).toBe(25)
+  })
+
+  it('corregir una ronda ya publicada ajusta solo la diferencia, no vuelve a sumar el total entero', async () => {
+    store.resultCount = 1
+    store.registrations = [{ userId: 'u1', teamId: 't1', classTag: 'GT3', assignedNumber: 7 }]
+    store.raceResults = [{ userId: 'u1', teamName: 'SHT', dorsal: '7', classTag: 'GT3', points: 25 }]
+    await request({ leagueId: 'lg1', eventId: 'ev1', sessionType: 'race' })
+    expect(store.teamPointsRows.get('lg1|GT3|t1|7')?.points).toBe(25)
+
+    // Se corrige la ronda: el piloto en realidad sumó 18, no 25.
+    store.raceResults = [{ userId: 'u1', teamName: 'SHT', dorsal: '7', classTag: 'GT3', points: 18 }]
+    store.event.status = 'scheduled'
+    await request({ leagueId: 'lg1', eventId: 'ev1', sessionType: 'race' })
+
+    expect(store.teamPointsRows.get('lg1|GT3|t1|7')?.points).toBe(18)
   })
 
   it('usa el número INSCRITO del piloto, no el dorsal de la carrera, para no escribir en un coche que la clasificación no lee', async () => {
@@ -106,8 +171,7 @@ describe('publicar resultados', () => {
     store.registrations = [{ userId: 'u1', teamId: 't1', classTag: 'GT3', assignedNumber: 7 }]
     store.raceResults = [{ userId: 'u1', teamName: 'SHT', dorsal: '99', classTag: 'GT3', points: 25 }]
     await request({ leagueId: 'lg1', eventId: 'ev1', sessionType: 'race' })
-    expect(store.teamPointsUpserts).toHaveLength(1)
-    expect(store.teamPointsUpserts[0].create).toMatchObject({ carNumber: '7', points: 25 })
+    expect(store.teamPointsRows.get('lg1|GT3|t1|7')?.points).toBe(25)
   })
 
   it('sin inscripción con equipo, no se le puede atribuir el coche a nadie: no escribe nada', async () => {

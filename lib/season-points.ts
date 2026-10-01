@@ -1,11 +1,14 @@
 import { db } from '@/lib/db'
 
 /**
- * Recalcula `LeagueTeamPoints` (el acumulado de temporada por coche que se ve en la clasificación)
- * a partir de TODOS los `LeagueResult` de carrera ya publicados (rondas con `status: 'completed'`)
- * de la liga. Es un recálculo completo desde cero, no una suma incremental: así, corregir y volver
- * a publicar (o re-subir) una ronda ya oficial nunca duplica puntos, y una corrección se refleja
- * sola la próxima vez que se recalcula.
+ * Suma los puntos de UNA ronda de carrera al acumulado de temporada (`LeagueTeamPoints`), sin
+ * tocar nunca los puntos que ya hubiera ahí por otro motivo (una carga manual, una ronda distinta,
+ * etc.) — nunca recalcula el total desde cero ni lo reemplaza.
+ *
+ * Para poder sumar sin arriesgarse a duplicar si esta misma ronda se corrige y se vuelve a publicar
+ * (o se re-sube ya publicada), se guarda en `LeagueEventCarPoints` cuánto había aportado ya ESTA
+ * ronda a cada coche; la segunda vez solo se aplica la diferencia respecto a esa aportación anterior,
+ * nunca el total de la ronda otra vez entero.
  *
  * IMPORTANTE: el "coche" se identifica EXACTAMENTE igual que en la ficha de la liga (ver
  * `use-league-state.ts`) — por la inscripción del piloto (equipo + número ASIGNADO en la
@@ -14,16 +17,17 @@ import { db } from '@/lib/db'
  * Si se usara el dorsal de carrera como clave, los puntos se guardarían en una fila que la
  * clasificación nunca lee (parece que "se borran" los puntos de ese coche).
  */
-export async function recalculateSeasonPoints(leagueId: string, updatedBy: string): Promise<void> {
-  const [results, registrations] = await Promise.all([
+export async function applyEventPointsToSeasonTotal(leagueId: string, eventId: string, updatedBy: string): Promise<void> {
+  const [results, registrations, previousContributions] = await Promise.all([
     db.leagueResult.findMany({
-      where: { leagueId, sessionType: 'race', event: { status: 'completed' } },
+      where: { leagueId, eventId, sessionType: 'race' },
       select: { userId: true, classTag: true, points: true },
     }),
     db.leagueRegistration.findMany({
       where: { leagueId, teamId: { not: null } },
       select: { userId: true, teamId: true, classTag: true, assignedNumber: true },
     }),
+    db.leagueEventCarPoints.findMany({ where: { leagueId, eventId } }),
   ])
 
   const regsByUser = new Map<string, typeof registrations>()
@@ -38,28 +42,56 @@ export async function recalculateSeasonPoints(leagueId: string, updatedBy: strin
     return list.find((r) => (r.classTag || '').trim().toUpperCase() === wanted) || list[0]
   }
 
-  type Total = { classTag: string; teamId: string; carNumber: string; points: number }
-  const totals = new Map<string, Total>()
+  // Lo que esta ronda aporta a cada coche, calculado desde cero a partir de los LeagueResult
+  // actuales de ESTA ronda únicamente (no de toda la temporada).
+  type RoundTotal = { classTag: string; teamId: string; carNumber: string; points: number }
+  const roundTotals = new Map<string, RoundTotal>()
   for (const row of results) {
     const reg = findRegistration(row.userId, row.classTag)
     if (!reg?.teamId) continue // sin inscripción con equipo, ese coche no sale en la clasificación
     const classTag = (reg.classTag || row.classTag || 'GT3').trim().toUpperCase()
     const carNumber = reg.assignedNumber != null ? String(reg.assignedNumber) : ''
     const key = `${classTag}|${reg.teamId}|${carNumber}`
-    const entry = totals.get(key) || { classTag, teamId: reg.teamId, carNumber, points: 0 }
+    const entry = roundTotals.get(key) || { classTag, teamId: reg.teamId, carNumber, points: 0 }
     entry.points += row.points || 0
-    totals.set(key, entry)
+    roundTotals.set(key, entry)
   }
 
-  if (totals.size === 0) return
+  const previousByKey = new Map(previousContributions.map((p) => [`${p.classTag}|${p.teamId}|${p.carNumber}`, p]))
+
+  // Coches a los que esta ronda ya había dado puntos antes, pero que ahora (tras una corrección) ya
+  // no aparecen — p. ej. un piloto quitado de los resultados. Sin esto, su aportación anterior se
+  // quedaría sumada para siempre aunque el resultado que la causó ya no exista.
+  for (const key of previousByKey.keys()) {
+    if (!roundTotals.has(key)) {
+      const prev = previousByKey.get(key)!
+      roundTotals.set(key, { classTag: prev.classTag, teamId: prev.teamId, carNumber: prev.carNumber, points: 0 })
+    }
+  }
+
+  const writes = Array.from(roundTotals.values())
+    .map((t) => {
+      const key = `${t.classTag}|${t.teamId}|${t.carNumber}`
+      const previous = previousByKey.get(key)?.points ?? 0
+      const delta = t.points - previous
+      return { ...t, delta }
+    })
+    .filter((t) => t.delta !== 0)
+
+  if (writes.length === 0) return
 
   await db.$transaction(
-    Array.from(totals.values()).map((t) =>
+    writes.flatMap((t) => [
+      db.leagueEventCarPoints.upsert({
+        where: { leagueId_eventId_classTag_teamId_carNumber: { leagueId, eventId, classTag: t.classTag, teamId: t.teamId, carNumber: t.carNumber } },
+        create: { leagueId, eventId, classTag: t.classTag, teamId: t.teamId, carNumber: t.carNumber, points: t.points },
+        update: { points: t.points },
+      }),
       db.leagueTeamPoints.upsert({
         where: { leagueId_classTag_teamId_carNumber: { leagueId, classTag: t.classTag, teamId: t.teamId, carNumber: t.carNumber } },
-        create: { leagueId, classTag: t.classTag, teamId: t.teamId, carNumber: t.carNumber, points: t.points, updatedBy },
-        update: { points: t.points, updatedBy },
-      })
-    )
+        create: { leagueId, classTag: t.classTag, teamId: t.teamId, carNumber: t.carNumber, points: Math.max(0, t.delta), updatedBy },
+        update: { points: { increment: t.delta }, updatedBy },
+      }),
+    ])
   )
 }

@@ -7,7 +7,7 @@ import { redirectTo } from '@/lib/redirect'
 import { findEntry } from '@/lib/league-entries'
 import { correlateRow, loadCorrelationContext } from '@/lib/result-review'
 import { getClassTagFromModel } from '@/lib/live-timing'
-import { recalculateSeasonPoints } from '@/lib/season-points'
+import { applyEventPointsToSeasonTotal } from '@/lib/season-points'
 import { isTrustedRequestOrigin } from '@/lib/csrf'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -334,10 +334,10 @@ export async function POST(req: Request) {
     // Guardar ya no publica: la ronda solo se marca como completada/con parrilla cuando se pulsa
     // "Publicar" (ver /api/admin/publish-results) — así se pueden subir varias categorías antes
     // de que los pilotos vean nada, en vez de quedar "oficial" con solo la primera subida.
-    // Si la ronda YA estaba publicada (se está corrigiendo una carrera oficial), la clasificación
-    // de coches se recalcula ahora mismo para que la corrección se note sin tener que "publicar" de nuevo.
+    // Si la ronda YA estaba publicada (se está corrigiendo una carrera oficial), se suma ahora
+    // mismo la diferencia de esta ronda a la clasificación, sin tener que "publicar" de nuevo.
     if (sessionType === 'race' && event.status === 'completed') {
-      await recalculateSeasonPoints(leagueId, session.userId)
+      await applyEventPointsToSeasonTotal(leagueId, eventId, session.userId)
     }
 
     await db.leagueResultImport.create({

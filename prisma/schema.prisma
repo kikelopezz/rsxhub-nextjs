@@ -305,6 +305,7 @@ model League {
   results            LeagueResult[]
   resultImports      LeagueResultImport[]
   teamPoints         LeagueTeamPoints[]
+  eventCarPoints     LeagueEventCarPoints[]
   carPhotos          LeagueCarPhoto[]
   leagueCars         LeagueCar[]
   teams              Team[]
@@ -386,6 +387,7 @@ model LeagueEvent {
   confirmations LeagueEventConfirmation[]
   results         LeagueResult[]
   resultImports   LeagueResultImport[]
+  eventCarPoints  LeagueEventCarPoints[]
   sanctionRecords SanctionRecord[]
 
   @@index([leagueId, startsAt])
@@ -614,6 +616,28 @@ model LeagueTeamPoints {
   @@map("league_team_points")
 }
 
+// Cuánto ha aportado cada ronda concreta al total de LeagueTeamPoints de un coche. Sin este
+// registro no habría forma de sumar los puntos de una ronda al total sin arriesgarse a duplicarlos
+// si esa misma ronda se corrige y se vuelve a publicar — con él, publicar dos veces la misma ronda
+// solo aplica la diferencia respecto a lo que esa ronda ya había aportado antes.
+model LeagueEventCarPoints {
+  id        String   @id @default(cuid())
+  leagueId  String   @map("league_id")
+  eventId   String   @map("event_id")
+  classTag  String   @map("class_tag")
+  teamId    String   @map("team_id")
+  carNumber String   @default("") @map("car_number")
+  points    Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  league League      @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  event  LeagueEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  team   Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([leagueId, eventId, classTag, teamId, carNumber])
+  @@map("league_event_car_points")
+}
+
 // Server-side persisted "side profile" car photo shown on the standings ladder. Keyed the
 // same way as LeagueTeamPoints (a team running two cars in one class must be able to show
 // a different photo per car) — previously this only lived in the uploading admin's own
@@ -697,6 +721,7 @@ model Team {
   teamRegistrations  LeagueTeamRegistration[]
   eventConfirmations LeagueEventConfirmation[]
   teamPoints         LeagueTeamPoints[]
+  eventCarPoints     LeagueEventCarPoints[]
   carPhotos          LeagueCarPhoto[]
   marketListings     MarketListing[]
   marketApplications MarketApplication[]

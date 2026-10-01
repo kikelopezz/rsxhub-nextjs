@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { canAccessPlatformAdmin, canStewardLeague, getCurrentUser, getLeagueRole, getPlatformRole } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
-import { recalculateSeasonPoints } from '@/lib/season-points'
+import { applyEventPointsToSeasonTotal } from '@/lib/season-points'
 import { isTrustedRequestOrigin } from '@/lib/csrf'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -47,9 +47,10 @@ export async function POST(req: Request) {
       await db.leagueEvent.update({ where: { id: eventId }, data: { qualyCompleted: true } })
     } else {
       await db.leagueEvent.update({ where: { id: eventId }, data: { status: 'completed', completedAt: new Date() } })
-      // La clasificación de coches (LeagueTeamPoints) se recalcula sola al publicar una carrera:
-      // la clasificación nunca puntúa en qualy, así que no hace falta tocarla en ese caso.
-      await recalculateSeasonPoints(leagueId, session.userId)
+      // La clasificación de coches (LeagueTeamPoints) suma los puntos de esta ronda al publicar
+      // una carrera, sin tocar lo que ya hubiera — la clasificación nunca puntúa en qualy, así que
+      // no hace falta tocarla en ese caso.
+      await applyEventPointsToSeasonTotal(leagueId, eventId, session.userId)
     }
 
     invalidateCache([`event_results_${eventId}_qualifying`, `event_results_${eventId}_race`])
