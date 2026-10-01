@@ -730,28 +730,24 @@ model Team {
   @@map("teams")
 }
 
-enum SanctionType {
-  warning
-  time_penalty
-  points_deduction
-  grid_drop
-  disqualification
-  race_ban
-  season_ban
-  other
-}
-
 // Historial de sanciones que anotan los comisarios (race directors) de un campeonato, con
 // exportación a Excel. Independiente de Team.sanctionTags (que es el estado actual del equipo
 // visible en Admin → Equipos) — esto es el registro histórico de cada incidente por separado.
+//
+// sanctionType es texto libre (no un enum) a propósito: una sanción real casi siempre combina
+// varios códigos del reglamento (p. ej. "DT + SG 30s"), y el comisario tiene potestad para
+// imponer algo fuera de la tabla (art. 14.1/14.8) — un enum fijo no podría representar eso sin
+// una migración cada vez que aparece una combinación nueva. La lista de códigos sugeridos vive en
+// `lib/sanctions.ts`, solo a nivel de aplicación.
 model SanctionRecord {
   id               String       @id @default(cuid())
   leagueId         String       @map("league_id")
   eventId          String?      @map("event_id")
   teamId           String?      @map("team_id")
+  dorsal           Int?
   driverName       String?      @map("driver_name")
   teamNameSnapshot String?      @map("team_name_snapshot")
-  sanctionType     SanctionType @map("sanction_type")
+  sanctionType     String       @map("sanction_type")
   reason           String
   createdByUserId  String       @map("created_by_user_id")
   createdByName    String       @map("created_by_name")

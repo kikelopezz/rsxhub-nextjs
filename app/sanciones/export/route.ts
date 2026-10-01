@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { getAdminAccessContext, getCurrentUser } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { redirectTo } from '@/lib/redirect'
-import { SANCTION_TYPE_LABELS, type SanctionType } from '@/lib/sanctions'
+import { formatSanctionType } from '@/lib/sanctions'
 
 export async function GET(request: Request) {
   const session = await getCurrentUser()
@@ -40,6 +40,7 @@ export async function GET(request: Request) {
   sheet.columns = [
     { header: 'Fecha', key: 'date', width: 18 },
     { header: 'Campeonato', key: 'league', width: 26 },
+    { header: 'Dorsal', key: 'dorsal', width: 10 },
     { header: 'Piloto', key: 'driver', width: 24 },
     { header: 'Equipo', key: 'team', width: 24 },
     { header: 'Carrera', key: 'event', width: 28 },
@@ -54,16 +55,17 @@ export async function GET(request: Request) {
     sheet.addRow({
       date: r.createdAt.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }),
       league: r.league.title,
+      dorsal: r.dorsal ?? '',
       driver: r.driverName || '',
       team: r.teamNameSnapshot || '',
       event: eventLabel,
-      type: SANCTION_TYPE_LABELS[r.sanctionType as SanctionType] || r.sanctionType,
+      type: formatSanctionType(r.sanctionType),
       reason: r.reason,
       by: r.createdByName,
     })
   }
 
-  sheet.autoFilter = { from: 'A1', to: 'H1' }
+  sheet.autoFilter = { from: 'A1', to: 'I1' }
 
   const buffer = Buffer.from(await workbook.xlsx.writeBuffer())
   const filename = requestedLeagueId ? `sanciones-${requestedLeagueId}.xlsx` : 'sanciones.xlsx'

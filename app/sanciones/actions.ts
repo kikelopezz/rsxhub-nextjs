@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { getAdminAccessContext, getCurrentUser } from '@/lib/auth'
-import { SANCTION_TYPES } from '@/lib/sanctions'
 
 async function requireLeagueSteward(leagueId: string) {
   const session = await getCurrentUser()
@@ -23,15 +22,17 @@ export async function createSanctionAction(formData: FormData) {
 
   const eventId = String(formData.get('eventId') || '').trim() || null
   const teamId = String(formData.get('teamId') || '').trim() || null
+  const dorsalRaw = String(formData.get('dorsal') || '').trim()
+  const dorsal = dorsalRaw ? parseInt(dorsalRaw, 10) : null
   const driverName = String(formData.get('driverName') || '').trim() || null
   let teamNameSnapshot = String(formData.get('teamNameSnapshot') || '').trim() || null
-  const sanctionType = String(formData.get('sanctionType') || '')
+  const sanctionType = String(formData.get('sanctionType') || '').trim()
   const reason = String(formData.get('reason') || '').trim()
 
-  if (!SANCTION_TYPES.includes(sanctionType as (typeof SANCTION_TYPES)[number]) || !reason) {
+  if (!sanctionType || !reason) {
     redirect(`/sanciones?leagueId=${leagueId}&error=1`)
   }
-  if (!driverName && !teamNameSnapshot && !teamId) {
+  if (!driverName && !teamNameSnapshot && !teamId && dorsal == null) {
     redirect(`/sanciones?leagueId=${leagueId}&error=missing-target`)
   }
 
@@ -49,9 +50,10 @@ export async function createSanctionAction(formData: FormData) {
         leagueId,
         eventId,
         teamId,
+        dorsal,
         driverName,
         teamNameSnapshot,
-        sanctionType: sanctionType as any,
+        sanctionType,
         reason,
         createdByUserId: session.userId,
         createdByName: session.steamDisplayName,

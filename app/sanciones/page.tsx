@@ -17,7 +17,7 @@ export default async function SanctionsPage({ searchParams }: { searchParams: Pr
   const visibleLeagueIds = visibleLeagues.map((l) => l.id)
   const visibleEvents = isPlatformAdmin ? allEvents : allEvents.filter((e) => visibleLeagueIds.includes(e.leagueId))
 
-  const [records, teams] = await Promise.all([
+  const [records, teams, registrations] = await Promise.all([
     db.sanctionRecord.findMany({
       where: { leagueId: { in: visibleLeagueIds } },
       include: { event: { select: { title: true, circuitName: true } }, league: { select: { title: true } } },
@@ -25,6 +25,11 @@ export default async function SanctionsPage({ searchParams }: { searchParams: Pr
       take: 500,
     }),
     db.team.findMany({ where: { leagueId: { in: visibleLeagueIds } }, select: { id: true, name: true, leagueId: true }, orderBy: { name: 'asc' } }),
+    // Para poder resolver "dorsal -> equipo/piloto" al registrar una sanción.
+    db.leagueRegistration.findMany({
+      where: { leagueId: { in: visibleLeagueIds }, assignedNumber: { not: null } },
+      select: { leagueId: true, assignedNumber: true, displayName: true, classTag: true, teamId: true, team: { select: { name: true } } },
+    }),
   ])
 
   const dtoRecords = records.map((r) => ({
@@ -34,6 +39,7 @@ export default async function SanctionsPage({ searchParams }: { searchParams: Pr
     eventId: r.eventId,
     eventTitle: r.event ? r.event.title || r.event.circuitName : null,
     teamId: r.teamId,
+    dorsal: r.dorsal,
     driverName: r.driverName,
     teamNameSnapshot: r.teamNameSnapshot,
     sanctionType: r.sanctionType,
@@ -49,6 +55,14 @@ export default async function SanctionsPage({ searchParams }: { searchParams: Pr
         leagues={visibleLeagues}
         events={visibleEvents.map((e) => ({ id: e.id, leagueId: e.leagueId, label: e.title || e.circuitName || 'Evento' }))}
         teams={teams}
+        entries={registrations.map((r) => ({
+          leagueId: r.leagueId,
+          dorsal: r.assignedNumber as number,
+          driverName: r.displayName,
+          classTag: r.classTag,
+          teamId: r.teamId,
+          teamName: r.team?.name ?? null,
+        }))}
         initialLeagueId={qs.leagueId}
         createAction={createSanctionAction}
         deleteAction={deleteSanctionAction}
