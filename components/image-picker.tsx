@@ -39,11 +39,28 @@ function RepositionModal({
 }) {
   const imgRef = useRef<HTMLImageElement>(null)
   const [ready, setReady] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [coverScale, setCoverScale] = useState(1)
   const [natural, setNatural] = useState({ w: 0, h: 0 })
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const dragState = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number } | null>(null)
   const [baking, setBaking] = useState(false)
+
+  // Sin un timeout, una imagen que nunca llega a cargar (red lenta, URL caída) se queda con el
+  // spinner girando para siempre, sin ningún aviso — igual que pasaba con las subidas antes.
+  useEffect(() => {
+    if (ready || loadError) return
+    const timer = setTimeout(() => setLoadError(true), 20_000)
+    return () => clearTimeout(timer)
+  }, [imageSrc, ready, loadError])
+
+  // Si la imagen (sobre todo un blob local, instantáneo) ya está cargada para cuando React
+  // conecta el onLoad, el navegador puede no volver a disparar ese evento — y entonces el
+  // spinner se queda girando aunque la imagen esté lista de sobra. Esto lo detecta igualmente.
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) handleImgLoad()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageSrc])
 
   const handleImgLoad = () => {
     const img = imgRef.current
@@ -144,6 +161,7 @@ function RepositionModal({
             src={imageSrc}
             alt="Ajustar imagen"
             onLoad={handleImgLoad}
+            onError={() => setLoadError(true)}
             draggable={false}
             style={
               ready
@@ -165,9 +183,15 @@ function RepositionModal({
               ))}
             </div>
           )}
-          {!ready && (
+          {!ready && !loadError && (
             <div className="flex h-full w-full items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
+            </div>
+          )}
+          {loadError && (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-4 text-center">
+              <span className="text-xs font-bold text-rose-400">No se pudo cargar la imagen.</span>
+              <span className="text-[11px] text-slate-400">Prueba a cancelar y volver a intentarlo.</span>
             </div>
           )}
         </div>
@@ -285,7 +309,8 @@ export function ImagePicker({ name, defaultValue = '', label = 'League Banner Im
   const handleRepositionExisting = async () => {
     if (!selected) return
     try {
-      const res = await fetch(selected)
+      const res = await fetch(selected, { signal: AbortSignal.timeout(20_000) })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const blob = await res.blob()
       setRepositionSrc(URL.createObjectURL(blob))
     } catch (err) {
