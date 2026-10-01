@@ -26,8 +26,12 @@ type SessionTime = {
   laps: number
 }
 
-// Una sola conexión al servidor por (origen, servidor) cada pocos segundos, aunque haya muchos espectadores
-const CACHE_MS = 3_000
+// Una sola conexión al servidor por (origen, servidor) cada pocos segundos, aunque haya muchos
+// espectadores — 5 s en vez de 3 s para amortiguar mejor entre varios espectadores del mismo
+// servidor (el cliente ya pide esto cada 15 s, así que de todas formas nunca sirve una respuesta
+// cacheada a un único espectador; lo que de verdad ahorra es abrir un websocket nuevo al servidor
+// de carrera por cada visitante que entra en un instante parecido).
+const CACHE_MS = 5_000
 type Entry = { at: number; data?: SessionTime; pending?: Promise<SessionTime> }
 const cache = new Map<string, Entry>()
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { extractCenterline, pointAt, shortestDelta, snapToCenterline, type Centerline } from '@/lib/track-centerline'
 
 /**
@@ -78,7 +78,12 @@ function loadCenterline(url: string): Promise<Centerline | null> {
   return cached
 }
 
-export function TrackMap({
+// Memoizado: el padre vuelve a renderizar cada 1 s (reloj) y cada 4 s (forceTick) sin que haya
+// datos nuevos de verdad — sin esto, cada uno de esos renders reconstruía el <svg> entero (un <g>
+// por coche, reordenados por posición) aunque `samples` fuera exactamente el mismo array. Con
+// props estables (ver mapSamples/mapLabels en page.tsx) esto evita ese trabajo de sobra, que se
+// notaba como un tirón justo cuando además llegaba una actualización real de posiciones.
+export const TrackMap = memo(function TrackMap({
   source,
   track,
   config,
@@ -281,4 +286,4 @@ export function TrackMap({
       </svg>
     </div>
   )
-}
+})

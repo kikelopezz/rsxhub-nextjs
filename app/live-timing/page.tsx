@@ -311,7 +311,16 @@ export default function LiveTimingPage() {
     })
   }
 
+  // Evita que dos polls se solapen: si una petición tarda más que el intervalo de 6 s (el servidor
+  // de origen puede tardar hasta 8 s antes de fallar), el siguiente tick del setInterval se salta
+  // en vez de lanzar otra petición en paralelo — sin esto, una respuesta "vieja" podía llegar
+  // después que una "nueva" y pisarla con datos obsoletos, haciendo que el mapa pareciera
+  // retroceder justo cuando se recupera de un corte.
+  const pollInFlight = useRef(false)
+
   const poll = useCallback(async () => {
+    if (pollInFlight.current) return
+    pollInFlight.current = true
     const key = serverStatusKey(championship, selectedServer)
     try {
       const [stintsMap, res] = await Promise.all([
@@ -330,6 +339,8 @@ export default function LiveTimingPage() {
       // that instead of leaving the board empty until the next successful poll.
       setData((prev) => prev ?? serverStatus[key] ?? prev)
       setStatus('offline')
+    } finally {
+      pollInFlight.current = false
     }
   }, [championship, selectedServer, serverStatus])
 
@@ -339,6 +350,10 @@ export default function LiveTimingPage() {
   // at the same instant) was tripping a 429 that left the whole page blank until the next retry.
   const pollAllStatuses = useCallback(async () => {
     for (const { championshipId, server } of ALL_SERVERS) {
+      // El servidor seleccionado ya se consulta aparte cada 6 s — pedirlo también aquí solo añade
+      // contención contra el mismo origen (con rate limit estricto) justo cuando más importa que
+      // esa respuesta llegue rápido para que el mapa no se quede congelado.
+      if (championshipId === championship && server === selectedServer) continue
       const key = serverStatusKey(championshipId, server)
       try {
         const res = await fetch(`/api/live-timing/leaderboard?server=${server}&source=${championshipId}`, { cache: 'no-store' })
@@ -349,7 +364,7 @@ export default function LiveTimingPage() {
       }
       await new Promise((resolve) => setTimeout(resolve, 350))
     }
-  }, [])
+  }, [championship, selectedServer])
 
   const pollAllStatusesRef = useRef(pollAllStatuses)
   pollAllStatusesRef.current = pollAllStatuses
@@ -559,6 +574,11 @@ export default function LiveTimingPage() {
 
   const liveRows = useMemo(() => sortDrivers(filterDrivers(connected)), [connected, filterDrivers, sortDrivers])
   const resultRows = useMemo(() => sortDrivers(filterDrivers(disconnected)), [disconnected, filterDrivers, sortDrivers])
+
+  // Objeto estable: TrackMap está memoizado (React.memo) para que los re-renders del reloj (cada 1
+  // s) y de forceTick (cada 4 s) no reconstruyan el SVG entero de los coches — un objeto literal
+  // nuevo en cada render para esta prop rompería esa memoización aunque el texto no cambie nunca.
+  const mapLabels = useMemo(() => ({ loading: t.map.loading, unavailable: t.map.unavailable }), [t.map.loading, t.map.unavailable])
 
   const mapSamples = useMemo<MapSample[]>(
     () =>
@@ -818,7 +838,7 @@ export default function LiveTimingPage() {
         </button>
         {showMap && (
           <div className="border-t border-white/10">
-            <TrackMap source={championship} track={data?.Track || ''} config={data?.TrackConfig || ''} samples={mapSamples} labels={{ loading: t.map.loading, unavailable: t.map.unavailable }} />
+            <TrackMap source={championship} track={data?.Track || ''} config={data?.TrackConfig || ''} samples={mapSamples} labels={mapLabels} />
           </div>
         )}
       </div>

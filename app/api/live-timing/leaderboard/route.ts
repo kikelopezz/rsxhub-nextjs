@@ -9,8 +9,13 @@ const SOURCE_URLS: Record<string, string> = {
 
 // This endpoint is public and polled by every open live-timing tab. Without a cache each request
 // became one request to the game server, so N viewers = N upstream calls per poll. Share one
-// upstream fetch per (source, server) for a couple of seconds, and coalesce concurrent requests.
-const CACHE_MS = 2_000
+// upstream fetch per (source, server) for a few seconds, and coalesce concurrent requests.
+//
+// 4 s en vez de los 2 s originales: el cliente solo pide esto cada 6 s, así que 2 s nunca llegaba a
+// amortiguar nada (siempre caía en caché caducada y pagaba el viaje completo al servidor de
+// Assetto Corsa). Con 4 s, el caso que sí importa — varios espectadores del mismo servidor
+// abriendo/actualizando la página en momentos ligeramente distintos — comparte más peticiones.
+const CACHE_MS = 4_000
 type Entry = { at: number; data?: unknown; pending?: Promise<unknown> }
 const cache = new Map<string, Entry>()
 
