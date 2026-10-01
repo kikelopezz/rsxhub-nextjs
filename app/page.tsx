@@ -5,6 +5,7 @@ import { getTeamsDashboard } from '@/lib/team-data'
 import { getLatestNewsPosts } from '@/lib/news-data'
 import { HeroSection } from '@/components/hero-section'
 import { HomeNewsSection } from '@/components/home-news-section'
+import { PartnersSection } from '@/components/partners-section'
 import type { Metadata } from 'next'
 
 // El título y la descripción vienen del layout raíz (title.default); aquí solo se fija la URL canónica de la portada.
@@ -37,6 +38,7 @@ export default async function HomePage() {
         teamsCount={teamsCount}
       />
       <HomeNewsSection posts={newsPosts} />
+      <PartnersSection />
     </div>
   )
 }

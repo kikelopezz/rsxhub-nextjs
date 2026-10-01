@@ -59,6 +59,9 @@ const home: typeof es = {
     signInSteam: 'Sign in with Steam',
     viewLeagues: 'View championships',
   },
+  partners: {
+    title: 'Official partners',
+  },
 }
 
 export default home

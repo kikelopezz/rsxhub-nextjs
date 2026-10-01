@@ -57,6 +57,9 @@ const home = {
     signInSteam: 'Iniciar sesión con Steam',
     viewLeagues: 'Ver campeonatos',
   },
+  partners: {
+    title: 'Partners oficiales',
+  },
 }
 
 export default home
