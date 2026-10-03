@@ -218,6 +218,64 @@ function RepositionModal({
   )
 }
 
+// La respuesta de error no siempre es JSON: Vercel corta antes de llegar a la app las peticiones
+// de más de ~4,5 MB con un 413 en texto plano, así que no se puede dar por hecho el "error" del JSON.
+async function readUploadError(res: Response, fallback: string): Promise<string> {
+  const text = await res.text().catch(() => '')
+  try {
+    const data = JSON.parse(text)
+    if (data?.error) return String(data.error)
+  } catch {}
+  if (res.status === 413) return 'La imagen es demasiado grande para subirla. Prueba con una foto más pequeña.'
+  return `${fallback} (error ${res.status}).`
+}
+
+// Sube directamente del navegador a R2 con una URL firmada: así la foto no pasa por Vercel, cuyo
+// límite de tamaño por petición es mucho menor que el de las fotos de móvil. Devuelve null si R2
+// no está configurado, para que el llamador use la ruta del servidor como alternativa.
+async function uploadDirectToR2(blob: Blob, entityName: string): Promise<string | null> {
+  const presignRes = await fetch('/api/uploads/presign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: 'image.jpg', folder: 'uploads', size: blob.size, label: entityName }),
+  })
+  if (presignRes.status === 501) return null
+  if (!presignRes.ok) throw new Error(await readUploadError(presignRes, 'No se pudo preparar la subida'))
+  const { uploadUrl, publicUrl, contentType } = await presignRes.json()
+
+  const putRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: blob,
+    signal: AbortSignal.timeout(120_000),
+  })
+  if (!putRes.ok) throw new Error(`La subida al almacenamiento falló (error ${putRes.status}).`)
+
+  const confirmRes = await fetch('/api/uploads/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ publicUrl }),
+  })
+  if (!confirmRes.ok) throw new Error(await readUploadError(confirmRes, 'La imagen no se pudo verificar'))
+  return publicUrl
+}
+
+async function uploadThroughServer(blob: Blob, name: string, entityName: string): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', blob, 'image.jpg')
+  formData.append('type', name.toLowerCase().includes('logo') ? 'logo' : 'banner')
+  if (entityName.trim()) formData.append('entityName', entityName.trim())
+
+  const res = await fetch('/api/uploads', { method: 'POST', body: formData, signal: AbortSignal.timeout(90_000) }).catch((err) => {
+    if (err instanceof DOMException && err.name === 'TimeoutError') throw new Error('La subida ha tardado demasiado. Inténtalo de nuevo.')
+    throw err
+  })
+  if (!res.ok) throw new Error(await readUploadError(res, 'No se pudo subir la imagen'))
+  const data = await res.json()
+  if (!data.url) throw new Error('No se pudo subir la imagen.')
+  return data.url
+}
+
 export function ImagePicker({ name, defaultValue = '', label = 'League Banner Image', hideGallery = false, onChange, entityName, square = false }: ImagePickerProps) {
   const frameW = square ? 512 : 720
   const frameH = square ? 512 : 240
@@ -263,35 +321,15 @@ export function ImagePicker({ name, defaultValue = '', label = 'League Banner Im
 
   const uploadBlob = async (blob: Blob) => {
     setUploading(true)
-    const formData = new FormData()
-    formData.append('file', blob, 'image.jpg')
-    if (name.toLowerCase().includes('logo')) {
-      formData.append('type', 'logo')
-    } else {
-      formData.append('type', 'banner')
-    }
-    if (entityName && entityName.trim()) {
-      formData.append('entityName', entityName.trim())
-    }
-
     try {
-      // Sin esto, si la subida se queda colgada (servidor lento, R2 sin responder) el botón se
-      // queda en "Uploading..." para siempre — con el timeout, al menos falla con un aviso claro
-      // en vez de parecer roto indefinidamente.
-      const res = await fetch('/api/uploads', { method: 'POST', body: formData, signal: AbortSignal.timeout(30_000) })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.url) {
-          setImages((prev) => (prev.includes(data.url) ? prev : [data.url, ...prev]))
-          handleSelect(data.url)
-        }
-      } else {
-        const errData = await res.json()
-        alert(errData.error || 'Failed to upload image')
-      }
+      const label = entityName ?? ''
+      const direct = await uploadDirectToR2(blob, label)
+      const url = direct ?? (await uploadThroughServer(blob, name, label))
+      setImages((prev) => (prev.includes(url) ? prev : [url, ...prev]))
+      handleSelect(url)
     } catch (err) {
       console.error('Upload error:', err)
-      alert(err instanceof DOMException && err.name === 'TimeoutError' ? 'La subida ha tardado demasiado. Inténtalo de nuevo.' : 'An error occurred while uploading the image')
+      alert(err instanceof Error ? err.message : 'No se pudo subir la imagen.')
     } finally {
       setUploading(false)
     }

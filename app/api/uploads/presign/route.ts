@@ -3,18 +3,26 @@ import path from 'path'
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { hasR2, createPresignedUploadUrl, getR2PublicUrl } from '@/lib/r2'
 import { rateLimit } from '@/lib/rate-limit'
-import { ARCHIVE_NAME_PATTERN, MAX_PRESIGNED_ARCHIVE_BYTES, archiveContentType } from '@/lib/upload-validation'
+import {
+  ARCHIVE_NAME_PATTERN,
+  MAX_IMAGE_BYTES,
+  MAX_PRESIGNED_ARCHIVE_BYTES,
+  IMAGE_NAME_PATTERN,
+  archiveContentType,
+  imageContentType,
+} from '@/lib/upload-validation'
 import { isTrustedRequestOrigin } from '@/lib/csrf'
 
 // coches/ and circuitos/ are the admin content catalog (platform_admin only). skins/ (flat,
 // or skins/<category>/<league-slug> once a car's category+league are known) is where team
-// managers upload their own car skins — any logged-in user may write there.
+// managers upload their own car skins — any logged-in user may write there. uploads/ holds
+// the images (logos, banners, simulator photos) and is open to any logged-in user too.
 const ADMIN_ONLY_FOLDERS = ['coches', 'circuitos']
 const SKIN_CATEGORIES = ['GT3', 'HYPERCAR', 'LMP2']
 
 function resolveFolder(rawFolder: unknown): string | null {
   if (typeof rawFolder !== 'string') return 'skins'
-  if (rawFolder === 'skins' || ADMIN_ONLY_FOLDERS.includes(rawFolder)) return rawFolder
+  if (rawFolder === 'skins' || rawFolder === 'uploads' || ADMIN_ONLY_FOLDERS.includes(rawFolder)) return rawFolder
   const skinsMatch = rawFolder.match(/^skins\/([A-Z0-9]+)\/([a-z0-9-]+)$/)
   if (skinsMatch && SKIN_CATEGORIES.includes(skinsMatch[1])) return rawFolder
   return null
@@ -37,7 +45,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Demasiadas subidas seguidas. Espera unos minutos.' }, { status: 429 })
     }
 
-    const { filename, folder: rawFolder, size } = await req.json()
+    const { filename, folder: rawFolder, size, label } = await req.json()
     if (!filename || typeof filename !== 'string') {
       return NextResponse.json({ error: 'No filename provided' }, { status: 400 })
     }
@@ -47,13 +55,36 @@ export async function POST(req: Request) {
     if (typeof size !== 'number' || !Number.isFinite(size) || size <= 0) {
       return NextResponse.json({ error: 'File size is required' }, { status: 400 })
     }
-    if (size > MAX_PRESIGNED_ARCHIVE_BYTES) {
-      return NextResponse.json({ error: 'Skin file exceeds maximum allowed limit (200 MB).' }, { status: 413 })
-    }
 
     const folder = resolveFolder(rawFolder)
     if (!folder) {
       return NextResponse.json({ error: 'Invalid upload folder' }, { status: 400 })
+    }
+
+    if (folder === 'uploads') {
+      if (!IMAGE_NAME_PATTERN.test(filename)) {
+        return NextResponse.json({ error: 'Formato no permitido. Sube una imagen PNG, JPG, GIF, WebP o AVIF.' }, { status: 400 })
+      }
+      if (size > MAX_IMAGE_BYTES) {
+        return NextResponse.json({ error: 'La imagen supera el límite de 6 MB.' }, { status: 413 })
+      }
+      const image = imageContentType(filename)
+      if (!image) {
+        return NextResponse.json({ error: 'Formato no permitido. Sube una imagen PNG, JPG, GIF, WebP o AVIF.' }, { status: 400 })
+      }
+      // Mismo formato de nombre que el POST de /api/uploads, para que se pueda saber de quién es
+      // cada imagen y borrarla luego (isOwnUpload en esa ruta).
+      const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+      const entityPrefix = typeof label === 'string' && slug(label) ? `${slug(label)}-` : ''
+      const base = slug(path.basename(filename, path.extname(filename))) || 'image'
+      const uniqueSuffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+      const key = `uploads/${entityPrefix}${base}-${uniqueSuffix}-u${currentUser.userId}${image.ext}`
+      const uploadUrl = await createPresignedUploadUrl(key, image.contentType)
+      return NextResponse.json({ uploadUrl, publicUrl: getR2PublicUrl(key), contentType: image.contentType })
+    }
+
+    if (size > MAX_PRESIGNED_ARCHIVE_BYTES) {
+      return NextResponse.json({ error: 'Skin file exceeds maximum allowed limit (200 MB).' }, { status: 413 })
     }
 
     if (ADMIN_ONLY_FOLDERS.includes(folder)) {

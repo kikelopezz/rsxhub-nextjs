@@ -3,7 +3,7 @@ import path from 'path'
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { hasR2, getR2ObjectPrefix, getR2KeyFromUrl, deleteFromR2 } from '@/lib/r2'
 import { rateLimit } from '@/lib/rate-limit'
-import { archiveMatchesExtension } from '@/lib/upload-validation'
+import { archiveMatchesExtension, detectRasterImage } from '@/lib/upload-validation'
 import { isTrustedRequestOrigin } from '@/lib/csrf'
 
 // A presigned PUT goes straight browser -> R2, so unlike POST /api/uploads (which checks the
@@ -52,6 +52,15 @@ export async function POST(req: Request) {
     // 512 bytes covers every magic-byte / header check in archiveMatchesExtension (tar's is the
     // deepest, at offset 257-262).
     const prefix = await getR2ObjectPrefix(key, 512)
+
+    if (folder === 'uploads') {
+      if (!prefix || !detectRasterImage(prefix)) {
+        if (prefix) await deleteFromR2(key)
+        return NextResponse.json({ ok: false, error: 'El archivo no es una imagen válida.' }, { status: 400 })
+      }
+      return NextResponse.json({ ok: true })
+    }
+
     if (!prefix || !archiveMatchesExtension(prefix, filename)) {
       if (prefix) await deleteFromR2(key)
       return NextResponse.json({ ok: false, error: 'El archivo no es un comprimido válido.' }, { status: 400 })

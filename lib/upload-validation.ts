@@ -36,6 +36,28 @@ export function detectSvg(buf: Buffer): DetectedFile | null {
   return looksLikeSvg ? { ext: '.svg', contentType: 'image/svg+xml' } : null
 }
 
+export const IMAGE_NAME_PATTERN = /\.(png|jpe?g|gif|webp|avif)$/i
+
+/** Content type of a raster image, chosen by us from its extension (never from the client). */
+export function imageContentType(filename: string): { ext: string; contentType: string } | null {
+  const ext = (filename.toLowerCase().match(/\.[a-z0-9]+$/) || [''])[0]
+  switch (ext) {
+    case '.png':
+      return { ext: '.png', contentType: 'image/png' }
+    case '.jpg':
+    case '.jpeg':
+      return { ext: '.jpg', contentType: 'image/jpeg' }
+    case '.gif':
+      return { ext: '.gif', contentType: 'image/gif' }
+    case '.webp':
+      return { ext: '.webp', contentType: 'image/webp' }
+    case '.avif':
+      return { ext: '.avif', contentType: 'image/avif' }
+    default:
+      return null
+  }
+}
+
 export const ARCHIVE_EXTENSIONS = ['zip', 'rar', '7z', 'tar', 'gz', 'tgz'] as const
 export const ARCHIVE_NAME_PATTERN = /\.(zip|rar|7z|tar|gz|tgz)$/i
 

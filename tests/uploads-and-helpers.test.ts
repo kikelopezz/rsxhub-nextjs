@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { archiveContentType, archiveMatchesExtension, detectRasterImage, detectSvg, safeHeaderFilename } from '@/lib/upload-validation'
+import { IMAGE_NAME_PATTERN, archiveContentType, archiveMatchesExtension, detectRasterImage, detectSvg, imageContentType, safeHeaderFilename } from '@/lib/upload-validation'
 import { rateLimit } from '@/lib/rate-limit'
 import { safeRedirectPath } from '@/lib/safe-redirect'
 import { toPublicTeamListing } from '@/lib/team-privacy'
@@ -7,6 +7,19 @@ import { toPublicTeamListing } from '@/lib/team-privacy'
 const bytes = (...b: number[]) => Buffer.from(b)
 
 describe('upload-validation', () => {
+  it('elige el tipo de imagen por la extensión, normalizando jpeg a jpg', () => {
+    expect(imageContentType('foto.JPEG')).toEqual({ ext: '.jpg', contentType: 'image/jpeg' })
+    expect(imageContentType('logo.png')).toEqual({ ext: '.png', contentType: 'image/png' })
+    expect(imageContentType('captura.avif')?.contentType).toBe('image/avif')
+    expect(imageContentType('documento.pdf')).toBeNull()
+  })
+
+  it('solo admite nombres de imagen conocidos', () => {
+    expect(IMAGE_NAME_PATTERN.test('equipo.webp')).toBe(true)
+    expect(IMAGE_NAME_PATTERN.test('equipo.svg')).toBe(false)
+    expect(IMAGE_NAME_PATTERN.test('equipo.exe.png.zip')).toBe(false)
+  })
+
   it('recognises real images by their bytes', () => {
     expect(detectRasterImage(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a))?.ext).toBe('.png')
     expect(detectRasterImage(bytes(0xff, 0xd8, 0xff, 0xe0))?.ext).toBe('.jpg')
