@@ -30,9 +30,9 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
     transcriptChannelId: config.transcriptChannelId || '',
     logChannelId: config.logChannelId || '',
     panelStyle: config.panelStyle === 'buttons' ? ('buttons' as const) : ('menu' as const),
-    pingRoleId: config.pingRoleId || '',
     reminderMinutes: config.reminderMinutes,
   })
+  const [pingRoles, setPingRoles] = useState<string[]>(config.pingRoleIds)
   const [textChannels, setTextChannels] = useState(guild.textChannels)
   const [categories, setCategories] = useState(guild.categories)
   const [staffRoles, setStaffRoles] = useState<string[]>(config.staffRoleIds)
@@ -55,7 +55,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
     categoryId: form.categoryId || null,
     transcriptChannelId: form.transcriptChannelId || null,
     logChannelId: form.logChannelId || null,
-    pingRoleId: form.pingRoleId || null,
+    pingRoleIds: pingRoles,
     staffRoleIds: staffRoles,
     ticketTypes: types.filter((t) => t.label.trim()),
     campeonatos: campeonatos.filter((c) => c.label.trim()),
@@ -304,16 +304,23 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className={label}>Avisar a este rol al abrirse un ticket (general)</label>
-              <select className={input} value={form.pingRoleId} onChange={(e) => set('pingRoleId', e.target.value)}>
-                <option value="">Sin aviso</option>
-                {guild.roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    @{r.name}
-                  </option>
-                ))}
-              </select>
-              <p className={hint}>Cada categoría puede tener su propio rol (más arriba); este es el que se usa si no lo tiene.</p>
+              <span className={label}>Roles a avisar (al abrirse un ticket y mientras siga sin reclamar)</span>
+              <div className="flex flex-wrap gap-2">
+                {guild.roles.map((r) => {
+                  const active = pingRoles.includes(r.id)
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setPingRoles((list) => (active ? list.filter((id) => id !== r.id) : [...list, r.id]))}
+                      className={`rounded-full border px-3 py-1 text-xs font-bold ${active ? 'border-[#4ea1ff] bg-[#4ea1ff]/10 text-[#4ea1ff]' : 'border-white/10 text-slate-400'}`}
+                    >
+                      @{r.name}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className={hint}>Cada categoría puede tener su propio rol (más arriba); si lo tiene, ese es el que se avisa en vez de estos.</p>
             </div>
             <div>
               <label className={label}>Recordatorio si nadie reclama (minutos, 0 = no recordar)</label>

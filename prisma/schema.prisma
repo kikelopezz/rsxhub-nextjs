@@ -152,6 +152,7 @@ model SupportGuildConfig {
   logChannelId        String?  @map("log_channel_id")
   staffRoleIds        String[] @default([]) @map("staff_role_ids")
   pingRoleId          String?  @map("ping_role_id")
+  pingRoleIds         String[] @default([]) @map("ping_role_ids")
   maxOpenTickets      Int      @default(1) @map("max_open_tickets")
   reminderMinutes     Int      @default(0) @map("reminder_minutes")
   welcomeMessage      String   @default("Gracias por abrir un ticket, {user}. El equipo de staff te atenderá en breve.") @map("welcome_message")

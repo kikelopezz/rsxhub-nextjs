@@ -94,7 +94,7 @@ export type SettingsInput = Partial<{
   embedColor: string
   maxOpenTickets: number
   panelStyle: 'menu' | 'buttons'
-  pingRoleId: string | null
+  pingRoleIds: string[]
   reminderMinutes: number
 }>
 
@@ -121,7 +121,8 @@ export function sanitizeSettings(body: SettingsInput): Omit<
     embedColor: /^#[0-9a-fA-F]{6}$/.test(body.embedColor || '') ? (body.embedColor as string) : '#1274de',
     maxOpenTickets: Math.max(1, Math.min(10, Number(body.maxOpenTickets) || 1)),
     panelStyle: body.panelStyle === 'buttons' ? 'buttons' : 'menu',
-    pingRoleId: snowflakeOrNull(body.pingRoleId),
+    pingRoleId: null,
+    pingRoleIds: Array.isArray(body.pingRoleIds) ? Array.from(new Set(body.pingRoleIds.filter(isSnowflake))).slice(0, 10) : [],
     reminderMinutes: Math.max(0, Math.min(1440, Math.round(Number(body.reminderMinutes) || 0))),
   }
 }
