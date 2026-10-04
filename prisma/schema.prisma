@@ -27,11 +27,12 @@ model User {
   // revocarle un rol de admin) — ver lib/session-version.ts.
   sessionVersion Int      @default(0) @map("session_version")
 
-  steamAccount  SteamAccount?
-  profile       Profile?
-  platformRoles PlatformRole[]
-  leagueMembers LeagueMember[]
-  teamMembers   TeamMember[]
+  steamAccount   SteamAccount?
+  profile        Profile?
+  platformRoles  PlatformRole[]
+  leagueMembers  LeagueMember[]
+  teamMembers    TeamMember[]
+  driverLicenses DriverLicense[]
 
   @@map("users")
 }
@@ -82,6 +83,26 @@ model Profile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("profiles")
+}
+
+// Licencia por categoría, conseguida en el servidor de licencias (ver lib/licenses.ts): hace falta
+// una vuelta dentro del 107% del mejor tiempo de la sesión en esa categoría Y un mínimo de horas
+// jugadas en Assetto Corsa (Steam). Se concede sola, nunca se quita automáticamente.
+model DriverLicense {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  classTag       String   @map("class_tag")
+  bestLapNs      Int      @map("best_lap_ns")
+  referenceLapNs Int      @map("reference_lap_ns")
+  steamHours     Int      @map("steam_hours")
+  earnedAt       DateTime @default(now()) @map("earned_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classTag])
+  @@index([userId])
+  @@map("driver_licenses")
 }
 
 enum PlatformRoleValue {

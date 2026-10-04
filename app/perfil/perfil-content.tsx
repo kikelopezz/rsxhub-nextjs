@@ -19,7 +19,8 @@ import {
   Sparkles,
   Copy,
   Mail,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react'
 import { COUNTRIES, getCountryName, getCountryFlagUrl } from '@/lib/countries'
 import { ClassBadge } from '@/components/class-badge'
@@ -39,6 +40,7 @@ type ProfileData = {
   steamId: string
   steamDisplayName: string
   preferredCategories: string[]
+  licenses: string[]
   isPublic: boolean
   bannerUrl: string | null
   accentColor: string | null
@@ -101,6 +103,7 @@ export default function PerfilContent({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copiedSteam, setCopiedSteam] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isCheckingLicense, setIsCheckingLicense] = useState(false)
 
   // Edit form state
   const [editDisplayName, setEditDisplayName] = useState(profile.displayName)
@@ -127,6 +130,32 @@ export default function PerfilContent({
     navigator.clipboard.writeText(profile.steamId)
     setCopiedSteam(true)
     setTimeout(() => setCopiedSteam(false), 2000)
+  }
+
+  const handleCheckLicense = async () => {
+    setIsCheckingLicense(true)
+    try {
+      const res = await fetch('/api/license/check', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        toast.error(data?.error === 'license-server-unreachable' ? t.licenseServerUnreachable : t.licenseCheckError)
+        return
+      }
+      if (data.grantedClasses.length > 0) {
+        toast.success(`${t.licenseCheckGranted} ${data.grantedClasses.join(', ')}`)
+        router.refresh()
+      } else if (data.results.length === 0) {
+        toast(t.licenseCheckNoAttempts)
+      } else if (data.steamHours == null) {
+        toast(t.licenseCheckHoursUnknown)
+      } else {
+        toast(t.licenseCheckNotYet)
+      }
+    } catch {
+      toast.error(t.licenseCheckError)
+    } finally {
+      setIsCheckingLicense(false)
+    }
   }
 
   const handleCategoryToggle = (category: string) => {
@@ -438,23 +467,34 @@ export default function PerfilContent({
         </div>
       </div>
 
-      {/* 4. Preferred Categories Card */}
+      {/* 4. Licenses Card */}
       <div className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-5 md:p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-shell-line pb-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-white flex items-center gap-2">
-            <Award className="h-4 w-4 text-accent" /> {t.preferredCategoriesTitle}
+            <Award className="h-4 w-4 text-accent" /> {t.licensesTitle}
           </h2>
+          <button
+            type="button"
+            onClick={handleCheckLicense}
+            disabled={isCheckingLicense}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 hover:bg-accent/20 disabled:opacity-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-accent transition-colors cursor-pointer"
+          >
+            {isCheckingLicense ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Shield className="h-3.5 w-3.5" />}
+            {t.licenseServerButton}
+          </button>
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {profile.preferredCategories.length === 0 ? (
-            <p className="text-xs text-slate-400 italic">{t.noPreferredCategories}</p>
+          {profile.licenses.length === 0 ? (
+            <p className="text-xs text-slate-400 italic">{t.noLicenses}</p>
           ) : (
-            profile.preferredCategories.map((category) => (
+            profile.licenses.map((category) => (
               <ClassBadge key={category} classTag={category} className="px-4 py-2 text-xs font-bold tracking-wider" />
             ))
           )}
         </div>
+
+        <p className="text-[11px] leading-relaxed text-slate-500">{t.licenseServerHint}</p>
       </div>
 
       {/* 5. Interactive Edit Profile Modal */}

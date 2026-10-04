@@ -40,6 +40,7 @@ export default async function PerfilPage({
     steamId: session.steamId,
     steamDisplayName: session.steamDisplayName,
     preferredCategories: [] as string[],
+    licenses: [] as string[],
     isPublic: true,
     bannerUrl: null as string | null,
     accentColor: null as string | null,
@@ -48,7 +49,7 @@ export default async function PerfilPage({
   let pendingInvites: Array<{ id: string; teamName: string; teamLogoUrl: string | null; invitedBy: string; message: string | null }> = []
 
   try {
-    const [dbProfile, matchingInvites] = await Promise.all([
+    const [dbProfile, matchingInvites, driverLicenses] = await Promise.all([
       db.profile.findUnique({ where: { userId: session.userId } }),
       db.teamInvite.findMany({
         where: {
@@ -56,6 +57,7 @@ export default async function PerfilPage({
           OR: [{ invitedUserId: session.userId }, { invitedSteamId: session.steamId }],
         },
       }),
+      db.driverLicense.findMany({ where: { userId: session.userId }, select: { classTag: true } }),
     ])
 
     if (dbProfile) {
@@ -69,11 +71,14 @@ export default async function PerfilPage({
         steamId: session.steamId,
         steamDisplayName: session.steamDisplayName,
         preferredCategories: dbProfile.preferredCategories || [],
+        licenses: driverLicenses.map((l) => l.classTag),
         isPublic: dbProfile.isPublic,
         bannerUrl: dbProfile.bannerUrl || null,
         accentColor: dbProfile.accentColor || null,
         connections: parseConnections(dbProfile.connections),
       }
+    } else {
+      profile.licenses = driverLicenses.map((l) => l.classTag)
     }
 
     const teamIds = Array.from(new Set(matchingInvites.map((item) => item.teamId)))
