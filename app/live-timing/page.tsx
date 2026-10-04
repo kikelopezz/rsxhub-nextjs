@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDictionary } from '@/lib/i18n/locale-provider'
-import { getCategoryStyles } from '@/components/class-badge'
 import { HelpCircle, Signal, SignalZero, ArrowUp, ArrowDown } from 'lucide-react'
 import {
   CLASS_COLORS,
@@ -13,6 +12,7 @@ import {
   formatStintMs,
   getCarStats,
   getClassTagFromModel,
+  type CarStats,
   type LeaderboardResponse,
   type LiveDriver,
 } from '@/lib/live-timing'
@@ -126,7 +126,7 @@ function tyreStyle(raw?: string) {
 function NumberPlate({ number, cls }: { number?: string; cls: string }) {
   return (
     <span
-      className="inline-flex h-6 min-w-[40px] items-center justify-center rounded-[3px] px-1.5 font-display-league text-[15px] leading-none text-white shadow-[inset_0_-2px_0_rgba(0,0,0,0.25)]"
+      className="inline-flex h-6 min-w-[42px] items-center justify-center px-1.5 font-display-league text-[16px] leading-none tracking-wide text-white"
       style={{ background: classColor(cls) }}
     >
       {number || '–'}
@@ -148,7 +148,7 @@ function Th({
   return (
     <th
       onClick={sortKey && onSort ? () => onSort(sortKey) : undefined}
-      className={`border-b border-white/15 bg-[#06080c] px-2 py-2.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-slate-500 ${
+      className={`border-b border-[#1f242c] px-2 py-3 text-[9px] font-bold uppercase tracking-[0.16em] text-[#6b7280] ${
         sortKey ? 'cursor-pointer select-none hover:text-white' : ''
       } ${className}`}
     >
@@ -159,9 +159,9 @@ function Th({
 
 function HeaderStat({ label, value, tone = 'text-white' }: { label: string; value: React.ReactNode; tone?: string }) {
   return (
-    <div className="px-4 py-2">
-      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{label}</p>
-      <p className={`font-mono-data mt-0.5 text-lg font-bold leading-none tabular-nums ${tone}`}>{value}</p>
+    <div className="px-5 py-3">
+      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6b7280]">{label}</p>
+      <p className={`font-mono-data mt-1 text-2xl font-bold leading-none tabular-nums ${tone}`}>{value}</p>
     </div>
   )
 }
@@ -250,11 +250,11 @@ function SessionClock({
   }
 
   return (
-    <div className="min-w-[200px] px-4 py-2.5 md:px-5">
-      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{label}</p>
-      <p className="font-mono-data text-3xl font-bold leading-none tabular-nums text-white">{lapsLeft != null ? lapsLeft : formatSeconds(seconds)}</p>
-      <div className="mt-1.5 h-1 w-full overflow-hidden bg-white/10">
-        <div className="h-full bg-[#4ea1ff] transition-[width] duration-1000" style={{ width: `${progress}%` }} />
+    <div className="px-5 py-3">
+      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6b7280]">{label}</p>
+      <p className="font-mono-data mt-1 text-3xl font-bold leading-none tabular-nums text-white">{lapsLeft != null ? lapsLeft : formatSeconds(seconds)}</p>
+      <div className="mt-2 h-[3px] w-full overflow-hidden bg-[#1f242c]">
+        <div className="h-full bg-[#e10600] transition-[width] duration-1000" style={{ width: `${progress}%` }} />
       </div>
     </div>
   )
@@ -271,6 +271,162 @@ function LiveClock() {
 }
 
 const LEGEND_COLUMNS =['pos', 'cls', 'classPos', 'number', 'name', 'team', 'tyre', 'gap', 'interval', 'last', 'best', 'laps', 'pits', 'stint', 'state'] as const
+
+type LT = ReturnType<typeof useDictionary>['liveTiming']
+
+function LiveRow({
+  d,
+  car,
+  cls,
+  classPos,
+  interval,
+  stats,
+  stintMs,
+  isClassBest,
+  isOverallBest,
+  moveDelta,
+  splits,
+  labels,
+}: {
+  d: LiveDriver
+  car: { team: string; number: string | null }
+  cls: string
+  classPos: number | undefined
+  interval: string
+  stats: CarStats
+  stintMs: number
+  isClassBest: boolean
+  isOverallBest: boolean
+  moveDelta: number | null
+  splits: { text: string; tone: string }[]
+  labels: LT
+}) {
+  const info = d.CarInfo || {}
+  const color = classColor(cls)
+  const tyre = tyreStyle(info.Tyres)
+  const longPits = d.NumLongPits || 0
+  const totalPits = d.NumPits || 0
+  const normalPits = Math.max(0, totalPits - longPits)
+  const lastIsPersonalBest = Boolean(stats.LastLap && stats.BestLap && stats.LastLap <= stats.BestLap)
+  const lastTone = lastIsPersonalBest ? (isClassBest ? 'text-[#d946ef]' : 'text-[#22c55e]') : 'text-[#c9ced6]'
+
+  return (
+    <tr className={`group border-t border-[#1b2029] transition-colors hover:bg-white/[0.04] ${d.IsInPits ? 'bg-[#f59e0b]/[0.06]' : ''}`} style={{ boxShadow: `inset 3px 0 0 0 ${color}` }}>
+      <td className="py-2.5 pl-4 pr-2">
+        <div className="flex items-center justify-center gap-1.5">
+          <span className="w-7 text-right font-display-league text-xl leading-none text-white">{d.Position}</span>
+          <span className="flex w-3 justify-center">
+            {moveDelta != null && moveDelta > 0 && <ArrowUp className="h-3 w-3 text-[#22c55e]" />}
+            {moveDelta != null && moveDelta < 0 && <ArrowDown className="h-3 w-3 text-[#e10600]" />}
+          </span>
+        </div>
+      </td>
+      <td className="px-2 py-2.5 text-center">
+        <NumberPlate number={car.number ?? undefined} cls={cls} />
+      </td>
+      <td className="px-2 py-2.5 text-center">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="text-[9px] font-black tracking-wider" style={{ color }}>
+            {CLASS_SHORT[cls] || cls}
+          </span>
+          <span className="inline-flex h-5 min-w-[22px] items-center justify-center px-1 text-[11px] font-black text-white" style={{ background: color }}>
+            {classPos ?? '-'}
+          </span>
+        </span>
+      </td>
+      <td className="px-2 py-2.5">
+        <div className="max-w-[220px] truncate text-[13px] font-semibold leading-tight text-white">{info.DriverName || '-'}</div>
+        <div className="max-w-[220px] truncate text-[10px] uppercase leading-tight text-[#6b7280]">{info.CarName || info.CarModel || '-'}</div>
+      </td>
+      <td className="max-w-[200px] truncate px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#c9ced6]">{car.team}</td>
+      <td className="px-2 py-2.5 text-center">
+        {tyre ? (
+          <span title={info.Tyres} className="inline-flex h-5 w-5 items-center justify-center rounded-full border-2 text-[9px] font-black text-white" style={{ borderColor: tyre.color }}>
+            {tyre.letter}
+          </span>
+        ) : (
+          <span className="text-[#374151]">-</span>
+        )}
+      </td>
+      <td className="px-2 py-2.5 text-right tabular-nums text-[#9ca3af]">{d.Position === 1 ? '-' : d.Split || '-'}</td>
+      <td className="px-2 py-2.5 text-right font-bold tabular-nums text-[#38bdf8]">{interval}</td>
+      <td className={`px-2 py-2.5 text-right tabular-nums ${lastTone}`}>{formatNanos(stats.LastLap)}</td>
+      <td className={`px-2 py-2.5 text-right font-bold tabular-nums ${isOverallBest ? 'text-[#d946ef]' : isClassBest ? 'text-[#f0abfc]' : 'text-white'}`} title={isClassBest ? labels.legend.sessionBest : undefined}>
+        {formatNanos(stats.BestLap)}
+      </td>
+      {splits.map((s, i) => (
+        <td key={i} className={`px-1 py-2.5 text-center tabular-nums ${SPLIT_TONE_CLASS[s.tone]}`}>
+          {s.text}
+        </td>
+      ))}
+      <td className="px-2 py-2.5 text-center font-bold tabular-nums text-white">{d.TotalNumLaps || 0}</td>
+      <td className="px-2 py-2.5 text-center tabular-nums text-[#c9ced6]" title={`${normalPits} ${labels.col.normalPits} · ${longPits} ${labels.col.longPits}${d.LastPitStop ? ` · ${labels.col.lastPit}: ${d.LastPitStop}` : ''}`}>
+        {totalPits}
+      </td>
+      <td className="px-2 py-2.5 text-center font-bold tabular-nums text-[#f59e0b]">{formatStintMs(stintMs)}</td>
+      <td className="px-2 py-2.5 text-center">
+        {d.IsInPits ? (
+          <span className="animate-pulse bg-[#f59e0b] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-black">{labels.pit}</span>
+        ) : (
+          <span className="text-[9px] font-bold uppercase tracking-wider text-[#22c55e]">{labels.onTrack}</span>
+        )}
+      </td>
+    </tr>
+  )
+}
+
+function ResultRow({
+  d,
+  idx,
+  car,
+  cls,
+  stats,
+  stintMs,
+  sectors,
+  seen,
+  
+}: {
+  d: LiveDriver
+  idx: number
+  car: { team: string; number: string | null }
+  cls: string
+  stats: CarStats
+  stintMs: number
+  sectors: { text: string; tone: string }[]
+  seen: string
+}) {
+  const info = d.CarInfo || {}
+  const color = classColor(cls)
+  const longPits = d.NumLongPits || 0
+  const normalPits = Math.max(0, (d.NumPits || 0) - longPits)
+  return (
+    <tr className="border-t border-[#1b2029] transition-colors hover:bg-white/[0.04]" style={{ boxShadow: `inset 3px 0 0 0 ${color}` }}>
+      <td className="py-2.5 pl-4 pr-2 text-center font-display-league text-lg text-[#6b7280]">{idx + 1}</td>
+      <td className="px-2 py-2.5 text-center">
+        <NumberPlate number={car.number ?? undefined} cls={cls} />
+      </td>
+      <td className="px-2 py-2.5 text-center text-[9px] font-black tracking-wider" style={{ color }}>
+        {CLASS_SHORT[cls] || cls}
+      </td>
+      <td className="px-2 py-2.5">
+        <div className="text-[13px] font-semibold leading-tight text-white">{info.DriverName || '-'}</div>
+        <div className="text-[10px] uppercase leading-tight text-[#6b7280]">{info.CarModel || '-'}</div>
+      </td>
+      <td className="px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#c9ced6]">{car.team}</td>
+      <td className="px-2 py-2.5 text-right font-bold tabular-nums text-white">{formatNanos(stats.BestLap)}</td>
+      {sectors.map((s, i) => (
+        <td key={i} className={`px-1 py-2.5 text-center tabular-nums ${SPLIT_TONE_CLASS[s.tone]}`}>
+          {s.text}
+        </td>
+      ))}
+      <td className="px-2 py-2.5 text-center font-bold tabular-nums text-white">{d.TotalNumLaps || 0}</td>
+      <td className="px-2 py-2.5 text-center tabular-nums text-[#c9ced6]">{longPits}</td>
+      <td className="px-2 py-2.5 text-center tabular-nums text-[#6b7280]">{normalPits}</td>
+      <td className="px-2 py-2.5 text-center font-bold tabular-nums text-[#f59e0b]">{formatStintMs(stintMs)}</td>
+      <td className="px-2 py-2.5 text-right text-[#6b7280]">{seen}</td>
+    </tr>
+  )
+}
 
 export default function LiveTimingPage() {
   const t = useDictionary().liveTiming
@@ -627,29 +783,31 @@ export default function LiveTimingPage() {
   const leaderLaps = useMemo(() => connected.reduce((max, d) => Math.max(max, d.TotalNumLaps || 0), 0), [connected])
   const inPitCount = useMemo(() => connected.filter((d) => d.IsInPits).length, [connected])
   const nowMs = Date.now()
-
   const fastestClasses = Object.keys(fastest.byClass).sort((a, b) => fastest.byClass[a].time - fastest.byClass[b].time)
+  const onAir = status === 'online'
 
   return (
-    <div className="mx-auto w-full max-w-[1700px] space-y-3">
-      {/* Cabecera de retransmisión: título, campeonato, servidores y reloj */}
-      <div className="relative overflow-hidden border border-white/[0.07] bg-[#06080c]">
-        <div className="absolute inset-x-0 top-0 h-px bg-[#ff3b3b]" />
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-5">
-          <div className="flex items-center gap-3">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className={`absolute inline-flex h-full w-full rounded-full ${status === 'online' ? 'animate-ping bg-rose-500' : 'bg-slate-600'} opacity-75`} />
-              <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${status === 'online' ? 'bg-rose-500' : 'bg-slate-600'}`} />
+    <div className="mx-auto w-full max-w-[1700px] space-y-4 text-[#e8eaee]">
+      {/* Cabecera */}
+      <header className="border border-[#1f242c] bg-[#11141a]">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+          <div className="flex items-center gap-4">
+            <span
+              className={`flex items-center gap-2 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${
+                onAir ? 'bg-[#e10600] text-white' : status === 'offline' ? 'bg-[#1f242c] text-[#e10600]' : 'bg-[#1f242c] text-[#6b7280]'
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${onAir ? 'animate-pulse bg-white' : 'bg-current'}`} />
+              {onAir ? t.statusOnline : status === 'offline' ? t.statusOffline : t.statusConnecting}
             </span>
             <div>
-              <h1 className="font-display-league text-2xl uppercase leading-none tracking-wide text-white md:text-3xl">{t.title}</h1>
-              <p className="mt-1 hidden text-[10px] uppercase tracking-[0.2em] text-slate-500 md:block">{t.subtitle}</p>
+              <h1 className="font-display-league text-3xl uppercase leading-none tracking-wide text-white">{t.title}</h1>
+              <p className="mt-1 hidden text-[10px] uppercase tracking-[0.2em] text-[#6b7280] md:block">{t.subtitle}</p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            {/* Campeonato */}
-            <div className="flex border border-white/10">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex border border-[#1f242c]">
               {CHAMPIONSHIPS.map((c) => (
                 <button
                   key={c.id}
@@ -658,49 +816,24 @@ export default function LiveTimingPage() {
                     setChampionship(c.id)
                     setSelectedServer(c.servers[0])
                   }}
-                  className={`relative px-4 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                    championship === c.id ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'
+                  className={`px-3.5 py-2 text-[11px] font-black uppercase tracking-wider transition-colors ${
+                    championship === c.id ? 'bg-white text-black' : 'text-[#6b7280] hover:text-white'
                   }`}
                 >
                   {c.label}
-                  {championship === c.id && <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[#4ea1ff]" />}
                 </button>
               ))}
             </div>
-
-            {/* Servidores */}
-            <div className="flex gap-1">
-              {activeServers.map((server, idx) => {
-                const live = server === selectedServer ? status === 'online' : Boolean(serverStatus[serverStatusKey(championship, server)])
-                const isSelected = server === selectedServer
-                return (
-                  <button
-                    key={server}
-                    type="button"
-                    onClick={() => setSelectedServer(server)}
-                    title={live ? t.statusOnline : t.statusOffline}
-                    className={`flex items-center gap-2 border px-3 py-2 text-left transition-colors ${
-                      isSelected ? 'border-[#4ea1ff] bg-[#4ea1ff]/10' : 'border-white/10 hover:border-white/30'
-                    }`}
-                  >
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${live ? 'bg-emerald-400' : 'bg-rose-500'}`} />
-                    <span className="font-mono-data text-[11px] font-bold text-white">{String(idx + 1).padStart(2, '0')}</span>
-                    <span className={`hidden max-w-[110px] truncate text-[10px] font-bold uppercase tracking-wider sm:block ${live ? 'text-emerald-400' : 'text-slate-600'}`}>
-                      {live ? t.statusOnline : t.statusOffline}
-                    </span>
-                  </button>
-                )
-              })}
+            <div className="font-mono-data px-1 text-xl font-bold tabular-nums text-white">
+              <LiveClock />
             </div>
-
-            <div className="font-mono-data border border-white/10 bg-black/40 px-3 py-1.5 text-sm font-bold tabular-nums text-white"><LiveClock /></div>
             <button
               type="button"
               onClick={() => setShowLegend((v) => !v)}
               title={t.legend.title}
               aria-label={t.legend.title}
               className={`flex h-9 w-9 items-center justify-center border transition-colors ${
-                showLegend ? 'border-[#4ea1ff] text-[#4ea1ff]' : 'border-white/10 text-slate-400 hover:border-white/30 hover:text-white'
+                showLegend ? 'border-white text-white' : 'border-[#1f242c] text-[#6b7280] hover:border-[#374151] hover:text-white'
               }`}
             >
               <HelpCircle className="h-4 w-4" />
@@ -708,195 +841,170 @@ export default function LiveTimingPage() {
           </div>
         </div>
 
-        {/* Banda de sesión: circuito, tiempo restante con barra de progreso, vueltas y temperaturas */}
-        <div className="border-t border-white/[0.07] bg-[#080b10]">
-          <div className="flex flex-wrap items-stretch divide-x divide-white/10">
-            <div className="min-w-[220px] flex-1 px-4 py-2.5 md:px-5">
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{t.track}</p>
-              <p className="font-display-condensed truncate text-xl font-extrabold uppercase leading-tight text-white md:text-2xl">{formatTrackName(data?.Track) || '—'}</p>
-              <p className="truncate font-mono-data text-[10px] text-slate-500">{data?.ServerName || t.serverConnecting}</p>
-            </div>
-            <SessionClock
-              source={championship}
-              server={selectedServer}
-              fallbackTotalSeconds={totalSeconds}
-              fallbackElapsedMs={data?.ElapsedMilliseconds ?? null}
-              leaderLaps={leaderLaps}
-              labels={{ remaining: t.remaining, countdown: t.countdown, over: t.clockOver, lapsRemaining: t.lapsRemaining }}
-            />
-            <HeaderStat label={t.lap} value={leaderLaps || '—'} />
-            <HeaderStat label={t.cars} value={connected.length ? `${connected.length}${inPitCount ? ` · ${inPitCount} ${t.pit}` : ''}` : '—'} />
-            <HeaderStat label={t.air} value={data?.AmbientTemp != null ? `${data.AmbientTemp}°` : '—'} tone="text-amber-400" />
-            <HeaderStat label={t.trackTemp} value={data?.RoadTemp != null ? `${data.RoadTemp}°` : '—'} tone="text-orange-500" />
-            <div className="flex items-center px-4 py-2.5">
-              <span
-                className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${
-                  status === 'online' ? 'text-emerald-400' : status === 'offline' ? 'text-rose-400' : 'text-slate-400'
+        {/* Servidores */}
+        <div className="flex flex-wrap gap-2 border-t border-[#1f242c] px-5 py-3">
+          {activeServers.map((server, idx) => {
+            const live = server === selectedServer ? status === 'online' : Boolean(serverStatus[serverStatusKey(championship, server)])
+            const isSelected = server === selectedServer
+            return (
+              <button
+                key={server}
+                type="button"
+                onClick={() => setSelectedServer(server)}
+                title={live ? t.statusOnline : t.statusOffline}
+                className={`flex items-center gap-2.5 border px-3.5 py-2 transition-colors ${
+                  isSelected ? 'border-white bg-white/[0.06]' : 'border-[#1f242c] hover:border-[#374151]'
                 }`}
               >
-                {status === 'online' ? <Signal className="h-3.5 w-3.5" /> : <SignalZero className="h-3.5 w-3.5" />}
-                {status === 'online' ? t.statusOnline : status === 'offline' ? t.statusOffline : t.statusConnecting}
-              </span>
-            </div>
-          </div>
+                <span className={`h-1.5 w-1.5 rounded-full ${live ? 'bg-[#22c55e]' : 'bg-[#374151]'}`} />
+                <span className="font-mono-data text-[11px] font-bold text-white">{String(idx + 1).padStart(2, '0')}</span>
+                <span className={`hidden text-[10px] font-bold uppercase tracking-wider sm:block ${live ? 'text-[#22c55e]' : 'text-[#4b5563]'}`}>
+                  {live ? t.statusOnline : t.statusOffline}
+                </span>
+              </button>
+            )
+          })}
         </div>
 
-        {/* Mejor vuelta por categoría */}
-        {fastestClasses.length > 0 && (
-          <div className="flex flex-wrap items-stretch gap-px border-t border-white/10 bg-white/10">
-            <div className="flex items-center bg-[#06080c] px-4 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{t.fastestLaps}</div>
+        {/* Sesión */}
+        <div className="grid grid-cols-2 border-t border-[#1f242c] md:grid-cols-6">
+          <div className="col-span-2 border-b border-[#1f242c] px-5 py-3 md:border-b-0 md:border-r">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6b7280]">{t.track}</p>
+            <p className="font-display-league truncate text-2xl uppercase leading-tight text-white">{formatTrackName(data?.Track) || '—'}</p>
+            <p className="truncate font-mono-data text-[10px] text-[#4b5563]">{data?.ServerName || t.serverConnecting}</p>
+          </div>
+          <SessionClock
+            source={championship}
+            server={selectedServer}
+            fallbackTotalSeconds={totalSeconds}
+            fallbackElapsedMs={data?.ElapsedMilliseconds ?? null}
+            leaderLaps={leaderLaps}
+            labels={{ remaining: t.remaining, countdown: t.countdown, over: t.clockOver, lapsRemaining: t.lapsRemaining }}
+          />
+          <HeaderStat label={t.lap} value={leaderLaps || '—'} />
+          <HeaderStat label={t.cars} value={connected.length ? `${connected.length}${inPitCount ? ` · ${inPitCount} ${t.pit}` : ''}` : '—'} />
+          <HeaderStat label={t.air} value={data?.AmbientTemp != null ? `${data.AmbientTemp}°` : '—'} />
+          <HeaderStat label={t.trackTemp} value={data?.RoadTemp != null ? `${data.RoadTemp}°` : '—'} tone="text-[#f59e0b]" />
+        </div>
+      </header>
+
+      {/* Mejores vueltas por categoría */}
+      {fastestClasses.length > 0 && (
+        <section>
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.2em] text-[#6b7280]">{t.fastestLaps}</p>
+          <div className="grid gap-px border border-[#1f242c] bg-[#1f242c] md:grid-cols-3 xl:grid-cols-5">
             {fastestClasses.map((cls) => {
               const item = fastest.byClass[cls]
-              const info = item.driver.CarInfo || {}
               const car = resolveCar(item.driver)
+              const isOverall = fastest.overall?.driver === item.driver
               return (
-                <div key={cls} className="flex min-w-[210px] flex-1 items-center gap-3 bg-[#06080c] px-4 py-2">
-                  <span className="rounded-[3px] px-1.5 py-0.5 text-[10px] font-black text-white" style={{ background: classColor(cls) }}>
-                    {CLASS_SHORT[cls] || cls}
-                  </span>
+                <div key={cls} className="flex items-center gap-3 bg-[#11141a] px-4 py-3" style={{ boxShadow: `inset 3px 0 0 0 ${classColor(cls)}` }}>
                   <NumberPlate number={car.number ?? undefined} cls={cls} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[11px] font-bold uppercase text-white">{car.team}</p>
-                    <p className="truncate text-[9px] uppercase text-slate-500">{info.DriverName || '-'}</p>
+                    <p className="truncate text-[11px] font-bold uppercase tracking-wide text-white">{car.team}</p>
+                    <p className="truncate text-[10px] uppercase text-[#6b7280]">{item.driver.CarInfo?.DriverName || '-'}</p>
                   </div>
-                  <span className={`font-mono-data text-sm font-bold tabular-nums ${fastest.overall?.driver === item.driver ? 'text-fuchsia-400' : 'text-white'}`}>
-                    {formatNanos(item.time)}
-                  </span>
+                  <div className="text-right">
+                    <p className="text-[9px] font-black uppercase tracking-wider" style={{ color: classColor(cls) }}>{CLASS_SHORT[cls] || cls}</p>
+                    <p className={`font-mono-data text-base font-bold tabular-nums ${isOverall ? 'text-[#d946ef]' : 'text-white'}`}>{formatNanos(item.time)}</p>
+                  </div>
                 </div>
               )
             })}
           </div>
-        )}
+        </section>
+      )}
 
-        {showLegend && (
-          <div className="border-t border-white/10 bg-[#06080c] px-5 py-4">
-            <div className="grid gap-6 md:grid-cols-3">
-              <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.legend.columns}</p>
-                <dl className="space-y-1 text-[11px]">
-                  {LEGEND_COLUMNS.map((key) => (
-                    <div key={key} className="flex items-baseline gap-2">
-                      <dt className="w-16 shrink-0 font-mono-data font-bold text-[#4ea1ff]">{(t.col as Record<string, string>)[key]}</dt>
-                      <dd className="text-slate-400">{(t.legend.colDesc as Record<string, string>)[key]}</dd>
-                    </div>
-                  ))}
-                  <div className="flex items-baseline gap-2">
-                    <dt className="w-16 shrink-0 font-mono-data font-bold text-[#4ea1ff]">S1 / S2 / S3</dt>
-                    <dd className="text-slate-400">{t.legend.sector}</dd>
-                  </div>
-                </dl>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.legend.positions}</p>
-                  <div className="space-y-1.5 text-[11px] text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <ArrowUp className="h-3.5 w-3.5 text-emerald-400" /> {t.legend.gained}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <ArrowDown className="h-3.5 w-3.5 text-rose-400" /> {t.legend.lost}
-                    </div>
-                  </div>
+      {showLegend && (
+        <section className="grid gap-6 border border-[#1f242c] bg-[#11141a] px-5 py-4 md:grid-cols-3">
+          <div>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#6b7280]">{t.legend.columns}</p>
+            <dl className="space-y-1 text-[11px]">
+              {LEGEND_COLUMNS.map((key) => (
+                <div key={key} className="flex items-baseline gap-2">
+                  <dt className="w-16 shrink-0 font-mono-data font-bold text-white">{(t.col as Record<string, string>)[key]}</dt>
+                  <dd className="text-[#9ca3af]">{(t.legend.colDesc as Record<string, string>)[key]}</dd>
                 </div>
-                <div>
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.legend.connection}</p>
-                  <div className="space-y-1.5 text-[11px]">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-rose-500" />
-                      <span className="text-slate-400">{t.legend.live}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-slate-600" />
-                      <span className="text-slate-400">{t.legend.offline}</span>
-                    </div>
-                  </div>
-                </div>
+              ))}
+              <div className="flex items-baseline gap-2">
+                <dt className="w-16 shrink-0 font-mono-data font-bold text-white">S1 / S2 / S3</dt>
+                <dd className="text-[#9ca3af]">{t.legend.sector}</dd>
               </div>
-
-              <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.legend.colors}</p>
-                <div className="space-y-3">
-                  <div className="space-y-1.5 text-[11px]">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-fuchsia-400" />
-                      <span className="text-slate-400">{t.legend.sessionBest}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
-                      <span className="text-slate-400">{t.legend.personalBest}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-[11px]">
-                    {Object.entries(CLASS_COLORS).map(([cls, color]) => (
-                      <span key={cls} className="flex items-center gap-1.5 text-slate-400">
-                        <span className="h-2 w-3 shrink-0" style={{ background: color }} /> {cls}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
+            </dl>
+          </div>
+          <div className="space-y-4 text-[11px] text-[#9ca3af]">
+            <div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#6b7280]">{t.legend.positions}</p>
+              <div className="flex items-center gap-2"><ArrowUp className="h-3.5 w-3.5 text-[#22c55e]" /> {t.legend.gained}</div>
+              <div className="flex items-center gap-2"><ArrowDown className="h-3.5 w-3.5 text-[#e10600]" /> {t.legend.lost}</div>
+            </div>
+            <div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#6b7280]">{t.legend.connection}</p>
+              <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#e10600]" /> {t.legend.live}</div>
+              <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#374151]" /> {t.legend.offline}</div>
             </div>
           </div>
-        )}
-      </div>
+          <div>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#6b7280]">{t.legend.colors}</p>
+            <div className="space-y-1.5 text-[11px] text-[#9ca3af]">
+              <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#d946ef]" /> {t.legend.sessionBest}</div>
+              <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#22c55e]" /> {t.legend.personalBest}</div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5 text-[11px] text-[#9ca3af]">
+              {Object.entries(CLASS_COLORS).map(([cls, color]) => (
+                <span key={cls} className="flex items-center gap-1.5"><span className="h-2 w-3" style={{ background: color }} /> {cls}</span>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
-      {/* Mapa del circuito con los coches en directo */}
-      <div className="border border-white/10 bg-[#06080c]">
-        <button
-          type="button"
-          onClick={toggleMap}
-          className="flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-white/[0.03]"
-        >
-          <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-            <span className="h-2 w-2 rounded-full bg-[#4ea1ff]" />
+      {/* Mapa del circuito */}
+      <section className="border border-[#1f242c] bg-[#11141a]">
+        <button type="button" onClick={toggleMap} className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors hover:bg-white/[0.03]">
+          <span className="flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#9ca3af]">
             {t.map.title}
-            {data?.Track && <span className="text-slate-600">· {formatTrackName(data.Track)}</span>}
+            {data?.Track && <span className="text-[#4b5563]">· {formatTrackName(data.Track)}</span>}
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{showMap ? t.map.hide : t.map.show}</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b7280]">{showMap ? t.map.hide : t.map.show}</span>
         </button>
         {showMap && (
-          <div className="border-t border-white/10">
+          <div className="border-t border-[#1f242c]">
             <TrackMap source={championship} track={data?.Track || ''} config={data?.TrackConfig || ''} samples={mapSamples} labels={mapLabels} />
           </div>
         )}
-      </div>
+      </section>
 
       {/* Clasificación */}
-      <div className="min-w-0 overflow-hidden border border-white/10 bg-[#06080c]">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-2.5">
+      <section className="min-w-0 overflow-hidden border border-[#1f242c] bg-[#11141a]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1f242c] px-4 py-3">
           <div className="flex flex-wrap gap-1.5">
             {CLASS_FILTERS.map((cls) => {
               const active = filter === cls
-              const styles = cls === 'ALL' ? '' : getCategoryStyles(cls, active)
               return (
                 <button
                   key={cls}
                   onClick={() => setFilter(cls)}
-                  className={`border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                    cls === 'ALL'
-                      ? active
-                        ? 'border-white bg-white text-black'
-                        : 'border-white/15 bg-white/5 text-slate-300 hover:border-white/40'
-                      : styles
+                  className={`border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                    active ? 'border-white bg-white text-black' : 'border-[#1f242c] text-[#9ca3af] hover:border-[#374151] hover:text-white'
                   }`}
+                  style={!active && cls !== 'ALL' ? { color: classColor(cls) } : undefined}
                 >
                   {cls === 'ALL' ? t.filterAll : cls}
                 </button>
               )
             })}
           </div>
-          <div className="flex border border-white/10">
+          <div className="flex border border-[#1f242c]">
             {(['live', 'results'] as Tab[]).map((tb) => (
               <button
                 key={tb}
                 onClick={() => setTab(tb)}
-                className={`relative px-5 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                  tab === tb ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'
+                className={`px-4 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors ${
+                  tab === tb ? 'bg-white text-black' : 'text-[#6b7280] hover:text-white'
                 }`}
               >
                 {tb === 'live' ? t.tabLive : t.tabResults}
-                {tab === tb && <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[#4ea1ff]" />}
               </button>
             ))}
           </div>
@@ -905,220 +1013,107 @@ export default function LiveTimingPage() {
         <div className="overflow-x-auto">
           {tab === 'live' ? (
             <table className="w-full min-w-[1260px] border-collapse text-left font-mono-data text-[11px] whitespace-nowrap">
-              <thead className="sticky top-0 z-10">
-                <tr>
-                  <Th sortKey="Position" onSort={handleSort} className="w-14 text-center">{t.col.pos}</Th>
-                  <Th sortKey="Number" onSort={handleSort} className="w-16 text-center">{t.col.number}</Th>
-                  <Th sortKey="Class" onSort={handleSort} className="w-24 text-center">{t.col.cls}</Th>
+              <thead className="sticky top-0 z-10 bg-[#11141a]">
+                <tr className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#6b7280]">
+                  <Th sortKey="Position" onSort={handleSort} className="pl-4 text-center">{t.col.pos}</Th>
+                  <Th sortKey="Number" onSort={handleSort} className="text-center">{t.col.number}</Th>
+                  <Th sortKey="Class" onSort={handleSort} className="text-center">{t.col.cls}</Th>
                   <Th sortKey="Driver" onSort={handleSort}>{t.col.name}</Th>
                   <Th sortKey="Team" onSort={handleSort}>{t.col.team}</Th>
                   <Th className="text-center">{t.col.tyre}</Th>
                   <Th className="text-right">{t.col.gap}</Th>
-                  <Th className="text-right !text-[#4ea1ff]">{t.col.interval}</Th>
+                  <Th className="text-right text-[#38bdf8]">{t.col.interval}</Th>
                   <Th sortKey="LastLap" onSort={handleSort} className="text-right">{t.col.last}</Th>
                   <Th sortKey="BestLap" onSort={handleSort} className="text-right">{t.col.best}</Th>
-                  <Th className="w-12 text-center !text-slate-600">S1</Th>
-                  <Th className="w-12 text-center !text-slate-600">S2</Th>
-                  <Th className="w-12 text-center !text-slate-600">S3</Th>
+                  <Th className="text-center">S1</Th>
+                  <Th className="text-center">S2</Th>
+                  <Th className="text-center">S3</Th>
                   <Th sortKey="Laps" onSort={handleSort} className="text-center">{t.col.laps}</Th>
                   <Th className="text-center">{t.col.pits}</Th>
-                  <Th className="text-center !text-orange-400">{t.col.stint}</Th>
+                  <Th className="text-center text-[#f59e0b]">{t.col.stint}</Th>
                   <Th className="text-center">{t.col.state}</Th>
                 </tr>
               </thead>
               <tbody>
                 {liveRows.length === 0 ? (
                   <tr>
-                    <td colSpan={17} className="px-4 py-14 text-center text-xs text-slate-600">
-                      {t.noDrivers}
-                    </td>
+                    <td colSpan={17} className="px-4 py-16 text-center text-xs text-[#4b5563]">{t.noDrivers}</td>
                   </tr>
                 ) : (
                   liveRows.map((d) => {
                     const key = carKey(d)
                     const info = d.CarInfo || {}
-                    const car = resolveCar(d)
+                    const cls = rowMeta.get(key)?.cls || getClassTagFromModel(info.CarModel)
                     const stats = getCarStats(d)
-                    const meta = rowMeta.get(key)
-                    const cls = meta?.cls || getClassTagFromModel(info.CarModel)
-                    const color = classColor(cls)
-                    const interval = meta?.interval ?? '-'
-
-                    const longPits = d.NumLongPits || 0
-                    const totalPits = d.NumPits || 0
-                    const normalPits = Math.max(0, totalPits - longPits)
-                    const stintMs = info.DriverGUID ? stints[info.DriverGUID] || 0 : 0
-                    const tyre = tyreStyle(info.Tyres)
-
                     const classBest = fastest.byClass[cls]?.time
-                    const isClassBest = Boolean(stats.BestLap && classBest && stats.BestLap <= classBest)
-                    const isOverallBest = Boolean(stats.BestLap && fastest.overall && stats.BestLap <= fastest.overall.time)
-                    const lastIsPersonalBest = Boolean(stats.LastLap && stats.BestLap && stats.LastLap <= stats.BestLap)
-                    const lastTone = lastIsPersonalBest ? (isClassBest ? 'text-fuchsia-400 font-bold' : 'text-emerald-400 font-semibold') : 'text-slate-300'
-
                     const move = moves[key]
                     const moveActive = move && nowMs - move.at < 12_000 ? move : null
-
-                    const splits = [0, 1, 2].map((i) => bestSplitFor(d, i, sessionBestSplits))
-
                     return (
-                      <tr
+                      <LiveRow
                         key={key}
-                        className={`border-t border-white/[0.05] transition-colors hover:bg-white/[0.05] ${
-                          d.IsInPits ? 'bg-amber-500/[0.05]' : d.Position % 2 === 0 ? 'bg-white/[0.018]' : ''
-                        }`}
-                        style={{ boxShadow: `inset 4px 0 0 0 ${color}` }}
-                      >
-                        <td className="py-1.5 pl-3 pr-2">
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="w-6 text-right font-display-league text-[17px] leading-none text-white">{d.Position}</span>
-                            <span className="flex w-4 justify-center">
-                              {moveActive && moveActive.delta > 0 && <ArrowUp className="h-3 w-3 text-emerald-400" />}
-                              {moveActive && moveActive.delta < 0 && <ArrowDown className="h-3 w-3 text-rose-400" />}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-2 py-1.5 text-center">
-                          <NumberPlate number={car.number ?? undefined} cls={cls} />
-                        </td>
-                        <td className="px-2 py-1.5 text-center">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="text-[9px] font-black tracking-wider" style={{ color }}>
-                              {CLASS_SHORT[cls] || cls}
-                            </span>
-                            <span className="inline-flex h-5 min-w-[22px] items-center justify-center rounded-[3px] px-1 text-[11px] font-black text-white" style={{ background: color }}>
-                              {meta?.classPos ?? '-'}
-                            </span>
-                          </span>
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <div className="max-w-[210px] truncate text-[12px] font-bold leading-tight text-white">{info.DriverName || '-'}</div>
-                          <div className="max-w-[210px] truncate text-[10px] uppercase leading-tight text-slate-500">{info.CarName || info.CarModel || '-'}</div>
-                        </td>
-                        <td className="max-w-[200px] truncate px-2 py-1.5 text-[11px] font-bold uppercase text-slate-300">{car.team}</td>
-                        <td className="px-2 py-1.5 text-center">
-                          {tyre ? (
-                            <span
-                              title={info.Tyres}
-                              className="inline-flex h-5 w-5 items-center justify-center rounded-full border-2 text-[9px] font-black text-white"
-                              style={{ borderColor: tyre.color }}
-                            >
-                              {tyre.letter}
-                            </span>
-                          ) : (
-                            <span className="text-slate-700">-</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{d.Position === 1 ? '-' : d.Split || '-'}</td>
-                        <td className="px-2 py-1.5 text-right font-bold tabular-nums text-[#4ea1ff]">{interval}</td>
-                        <td className={`px-2 py-1.5 text-right tabular-nums ${lastTone}`}>{formatNanos(stats.LastLap)}</td>
-                        <td
-                          className={`px-2 py-1.5 text-right font-bold tabular-nums ${isOverallBest ? 'text-fuchsia-400' : isClassBest ? 'text-fuchsia-300' : 'text-white'}`}
-                          title={isClassBest ? t.legend.sessionBest : undefined}
-                        >
-                          {formatNanos(stats.BestLap)}
-                        </td>
-                        {splits.map((s, i) => (
-                          <td key={i} className={`px-1 py-1.5 text-center tabular-nums ${SPLIT_TONE_CLASS[s.tone]}`}>
-                            {s.text}
-                          </td>
-                        ))}
-                        <td className="px-2 py-1.5 text-center font-bold tabular-nums text-white">{d.TotalNumLaps || 0}</td>
-                        <td
-                          className="px-2 py-1.5 text-center text-slate-300"
-                          title={`${normalPits} ${t.col.normalPits} · ${longPits} ${t.col.longPits}${d.LastPitStop ? ` · ${t.col.lastPit}: ${d.LastPitStop}` : ''}`}
-                        >
-                          {totalPits}
-                        </td>
-                        <td className="px-2 py-1.5 text-center font-bold tabular-nums text-orange-400">{formatStintMs(stintMs)}</td>
-                        <td className="px-2 py-1.5 text-center">
-                          {d.IsInPits ? (
-                            <span className="animate-pulse rounded-[3px] bg-amber-500 px-1.5 py-0.5 text-[9px] font-black text-black">{t.pit}</span>
-                          ) : (
-                            <span className="text-[9px] font-bold text-emerald-500">{t.onTrack}</span>
-                          )}
-                        </td>
-                      </tr>
+                        d={d}
+                        car={resolveCar(d)}
+                        cls={cls}
+                        classPos={rowMeta.get(key)?.classPos}
+                        interval={rowMeta.get(key)?.interval ?? '-'}
+                        stats={stats}
+                        stintMs={info.DriverGUID ? stints[info.DriverGUID] || 0 : 0}
+                        isClassBest={Boolean(stats.BestLap && classBest && stats.BestLap <= classBest)}
+                        isOverallBest={Boolean(stats.BestLap && fastest.overall && stats.BestLap <= fastest.overall.time)}
+                        moveDelta={moveActive ? moveActive.delta : null}
+                        splits={[0, 1, 2].map((i) => bestSplitFor(d, i, sessionBestSplits))}
+                        labels={t}
+                      />
                     )
                   })
                 )}
               </tbody>
             </table>
           ) : (
-            <table className="w-full min-w-[1040px] border-collapse text-left font-mono-data text-[11px] whitespace-nowrap">
-              <thead>
-                <tr>
-                  <Th sortKey="Position" onSort={handleSort} className="w-12 text-center">{t.col.pos}</Th>
-                  <Th sortKey="Number" onSort={handleSort} className="w-16 text-center">{t.col.number}</Th>
-                  <Th sortKey="Class" onSort={handleSort} className="w-20 text-center">{t.col.cls}</Th>
-                  <Th sortKey="Driver" onSort={handleSort}>{t.col.name}</Th>
-                  <Th sortKey="Team" onSort={handleSort}>{t.col.team}</Th>
-                  <Th sortKey="BestLap" onSort={handleSort} className="text-right">{t.col.best}</Th>
-                  <Th className="w-12 text-center !text-slate-600">S1</Th>
-                  <Th className="w-12 text-center !text-slate-600">S2</Th>
-                  <Th className="w-12 text-center !text-slate-600">S3</Th>
-                  <Th sortKey="Laps" onSort={handleSort} className="text-center">{t.col.laps}</Th>
-                  <Th className="text-center !text-orange-400">{t.col.stint}</Th>
+            <table className="w-full min-w-[1100px] border-collapse text-left font-mono-data text-[11px] whitespace-nowrap">
+              <thead className="sticky top-0 z-10 bg-[#11141a]">
+                <tr className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#6b7280]">
+                  <Th className="pl-4 text-center">{t.col.pos}</Th>
+                  <Th className="text-center">{t.col.number}</Th>
+                  <Th className="text-center">{t.col.cls}</Th>
+                  <Th>{t.col.name}</Th>
+                  <Th>{t.col.team}</Th>
+                  <Th className="text-right">{t.col.best}</Th>
+                  <Th className="text-center">S1</Th>
+                  <Th className="text-center">S2</Th>
+                  <Th className="text-center">S3</Th>
+                  <Th className="text-center">{t.col.laps}</Th>
                   <Th className="text-center">{t.col.longPits}</Th>
                   <Th className="text-center">{t.col.normalPits}</Th>
+                  <Th className="text-center text-[#f59e0b]">{t.col.stint}</Th>
                   <Th className="text-right">{t.col.lastSeen}</Th>
                 </tr>
               </thead>
               <tbody>
                 {resultRows.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="px-4 py-14 text-center text-xs text-slate-600">
-                      {t.noResults}
-                    </td>
+                    <td colSpan={14} className="px-4 py-16 text-center text-xs text-[#4b5563]">{t.noResults}</td>
                   </tr>
                 ) : (
                   resultRows.map((d, idx) => {
                     const info = d.CarInfo || {}
-                    const car = resolveCar(d)
-                    const stats = getCarStats(d)
                     const cls = getClassTagFromModel(info.CarModel)
-                    const color = classColor(cls)
-                    const longPits = d.NumLongPits || 0
-                    const normalPits = Math.max(0, (d.NumPits || 0) - longPits)
-                    const stintMs = info.DriverGUID ? stints[info.DriverGUID] || 0 : 0
                     const seen =
                       d.LastSeen && !d.LastSeen.startsWith('0001')
                         ? new Date(d.LastSeen).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
                         : '-'
-
                     return (
-                      <tr
+                      <ResultRow
                         key={`${carKey(d)}-${idx}`}
-                        className={`border-t border-white/[0.05] hover:bg-white/[0.05] ${idx % 2 === 1 ? 'bg-white/[0.018]' : ''}`}
-                        style={{ boxShadow: `inset 4px 0 0 0 ${color}` }}
-                      >
-                        <td className="py-1.5 pl-3 pr-2 text-center font-display-league text-[15px] text-slate-400">{idx + 1}</td>
-                        <td className="px-2 py-1.5 text-center">
-                          <NumberPlate number={car.number ?? undefined} cls={cls} />
-                        </td>
-                        <td className="px-2 py-1.5 text-center text-[9px] font-black tracking-wider" style={{ color }}>
-                          {CLASS_SHORT[cls] || cls}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <div className="text-[12px] font-bold leading-tight text-white">{info.DriverName || '-'}</div>
-                          <div className="text-[10px] uppercase leading-tight text-slate-500">{info.CarModel || '-'}</div>
-                        </td>
-                        <td className="px-2 py-1.5 text-[11px] font-bold uppercase text-slate-300">{car.team}</td>
-                        <td className="px-2 py-1.5 text-right font-bold tabular-nums text-white">{formatNanos(stats.BestLap)}</td>
-                        {[0, 1, 2].map((i) => {
-                          const sector = bestLapSplit(d, i, resultBestSplits)
-                          return (
-                            <td key={i} className={`px-1 py-1.5 text-center tabular-nums ${SPLIT_TONE_CLASS[sector.tone]}`}>
-                              {sector.text}
-                            </td>
-                          )
-                        })}
-                        <td className="px-2 py-1.5 text-center font-bold tabular-nums text-white">{d.TotalNumLaps || 0}</td>
-                        <td className="px-2 py-1.5 text-center font-bold tabular-nums text-orange-400">{formatStintMs(stintMs)}</td>
-                        <td className="px-2 py-1.5 text-center text-slate-400">{longPits}</td>
-                        <td className="px-2 py-1.5 text-center text-slate-500">{normalPits}</td>
-                        <td className="px-2 py-1.5 text-right text-slate-500">{seen}</td>
-                      </tr>
+                        d={d}
+                        idx={idx}
+                        car={resolveCar(d)}
+                        cls={cls}
+                        stats={getCarStats(d)}
+                        stintMs={info.DriverGUID ? stints[info.DriverGUID] || 0 : 0}
+                        sectors={[0, 1, 2].map((i) => bestLapSplit(d, i, resultBestSplits))}
+                        seen={seen}
+                      />
                     )
                   })
                 )}
@@ -1127,22 +1122,16 @@ export default function LiveTimingPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 border-t border-white/10 bg-[#06080c] px-4 py-2.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-fuchsia-400" /> {t.legend.sessionBest}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" /> {t.legend.personalBest}
-          </span>
-          <span className="ml-auto flex items-center gap-3 normal-case tracking-normal text-slate-600">
+        <footer className="flex flex-wrap items-center gap-5 border-t border-[#1f242c] px-4 py-2.5 text-[9px] font-bold uppercase tracking-wider text-[#6b7280]">
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#d946ef]" /> {t.legend.sessionBest}</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#22c55e]" /> {t.legend.personalBest}</span>
+          <span className="ml-auto flex flex-wrap items-center gap-3 normal-case tracking-normal">
             {Object.entries(CLASS_COLORS).map(([cls, color]) => (
-              <span key={cls} className="flex items-center gap-1.5">
-                <span className="h-2 w-1 shrink-0" style={{ background: color }} /> {cls}
-              </span>
+              <span key={cls} className="flex items-center gap-1.5"><span className="h-2 w-2.5" style={{ background: color }} /> {cls}</span>
             ))}
           </span>
-        </div>
-      </div>
+        </footer>
+      </section>
     </div>
   )
 }
