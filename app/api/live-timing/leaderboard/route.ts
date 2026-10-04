@@ -19,6 +19,19 @@ const CACHE_MS = 4_000
 type Entry = { at: number; data?: unknown; pending?: Promise<unknown> }
 const cache = new Map<string, Entry>()
 
+// El timeout del propio fetch no basta: en producción hay peticiones al servidor de origen que no
+// llegan a cancelarse, y esa promesa colgada queda compartida en la caché (ver abajo), así que todas
+// las siguientes para ese servidor se quedan esperando con ella. Este límite corta siempre.
+const UPSTREAM_DEADLINE_MS = 9_000
+
+function withDeadline<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Live timing upstream deadline exceeded')), ms)
+  })
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer))
+}
+
 async function fetchUpstream(sourceUrl: string, server: string) {
   const url = new URL(sourceUrl)
   url.searchParams.set('server', server)
@@ -54,7 +67,7 @@ export async function GET(req: Request) {
     } else if (hit?.pending) {
       data = await hit.pending
     } else {
-      const pending = fetchUpstream(sourceUrl, server)
+      const pending = withDeadline(fetchUpstream(sourceUrl, server), UPSTREAM_DEADLINE_MS)
       cache.set(key, { at: now, pending })
       try {
         data = await pending

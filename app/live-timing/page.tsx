@@ -91,6 +91,19 @@ const serverStatusKey = (championshipId: ChampionshipId, server: number) => `${c
 
 const ALL_SERVERS = CHAMPIONSHIPS.flatMap((c) => c.servers.map((server) => ({ championshipId: c.id, server })))
 
+// Sin timeout, una petición que el servidor deja colgada bloquea para siempre el barrido de estados
+// (los servidores siguientes nunca se llegan a consultar) o el poll principal (y con él el tablero).
+const LIVE_FETCH_TIMEOUT_MS = 10_000
+const liveFetch = (url: string) => fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(LIVE_FETCH_TIMEOUT_MS) })
+
+function withFallback<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const limit = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), ms)
+  })
+  return Promise.race([promise.catch(() => fallback), limit]).finally(() => clearTimeout(timer))
+}
+
 function isServerLive(json: LeaderboardResponse | null) {
   return Boolean(json && (json.ServerName || json.ConnectedDrivers || json.DisconnectedDrivers))
 }
@@ -189,7 +202,7 @@ function SessionClock({
     let alive = true
     const load = async () => {
       try {
-        const res = await fetch(`/api/live-timing/session?source=${source}&server=${server}`, { cache: 'no-store' })
+        const res = await liveFetch(`/api/live-timing/session?source=${source}&server=${server}`)
         if (!res.ok) return
         const json = await res.json()
         if (alive && json?.ok) setInfo({ data: json.session as SessionTime, at: Date.now() })
@@ -324,12 +337,12 @@ export default function LiveTimingPage() {
     const key = serverStatusKey(championship, selectedServer)
     try {
       const [stintsMap, res] = await Promise.all([
-        fetchOfficialStints(),
-        fetch(`/api/live-timing/leaderboard?server=${selectedServer}&source=${championship}`, { cache: 'no-store' }),
+        withFallback<Record<string, number> | null>(fetchOfficialStints(), LIVE_FETCH_TIMEOUT_MS, null),
+        liveFetch(`/api/live-timing/leaderboard?server=${selectedServer}&source=${championship}`),
       ])
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json: LeaderboardResponse = await res.json()
-      setStints(stintsMap)
+      if (stintsMap) setStints(stintsMap)
       setData(json)
       setServerStatus((prev) => ({ ...prev, [key]: json }))
       setStatus(isServerLive(json) ? 'online' : 'offline')
@@ -348,21 +361,28 @@ export default function LiveTimingPage() {
   // Fired one at a time with a small gap instead of all 6 at once — the upstream source has a
   // tight per-IP rate limit, and 6 simultaneous requests (plus the selected-server poll landing
   // at the same instant) was tripping a 429 that left the whole page blank until the next retry.
+  const sweepInFlight = useRef(false)
   const pollAllStatuses = useCallback(async () => {
-    for (const { championshipId, server } of ALL_SERVERS) {
-      // El servidor seleccionado ya se consulta aparte cada 6 s — pedirlo también aquí solo añade
-      // contención contra el mismo origen (con rate limit estricto) justo cuando más importa que
-      // esa respuesta llegue rápido para que el mapa no se quede congelado.
-      if (championshipId === championship && server === selectedServer) continue
-      const key = serverStatusKey(championshipId, server)
-      try {
-        const res = await fetch(`/api/live-timing/leaderboard?server=${server}&source=${championshipId}`, { cache: 'no-store' })
-        const json = res.ok ? ((await res.json()) as LeaderboardResponse) : null
-        setServerStatus((prev) => ({ ...prev, [key]: json }))
-      } catch {
-        setServerStatus((prev) => ({ ...prev, [key]: null }))
+    if (sweepInFlight.current) return
+    sweepInFlight.current = true
+    try {
+      for (const { championshipId, server } of ALL_SERVERS) {
+        // El servidor seleccionado ya se consulta aparte cada 6 s — pedirlo también aquí solo añade
+        // contención contra el mismo origen (con rate limit estricto) justo cuando más importa que
+        // esa respuesta llegue rápido para que el mapa no se quede congelado.
+        if (championshipId === championship && server === selectedServer) continue
+        const key = serverStatusKey(championshipId, server)
+        try {
+          const res = await liveFetch(`/api/live-timing/leaderboard?server=${server}&source=${championshipId}`)
+          const json = res.ok ? ((await res.json()) as LeaderboardResponse) : null
+          setServerStatus((prev) => ({ ...prev, [key]: json }))
+        } catch {
+          setServerStatus((prev) => ({ ...prev, [key]: null }))
+        }
+        await new Promise((resolve) => setTimeout(resolve, 350))
       }
-      await new Promise((resolve) => setTimeout(resolve, 350))
+    } finally {
+      sweepInFlight.current = false
     }
   }, [championship, selectedServer])
 
