@@ -275,6 +275,8 @@ const LEGEND_COLUMNS =['pos', 'cls', 'classPos', 'number', 'name', 'team', 'tyre
 type LT = ReturnType<typeof useDictionary>['liveTiming']
 
 function LiveRow({
+  selected,
+  onSelect,
   d,
   car,
   cls,
@@ -288,6 +290,8 @@ function LiveRow({
   splits,
   labels,
 }: {
+  selected: boolean
+  onSelect: () => void
   d: LiveDriver
   car: { team: string; number: string | null }
   cls: string
@@ -311,7 +315,11 @@ function LiveRow({
   const lastTone = lastIsPersonalBest ? (isClassBest ? 'text-[#d946ef]' : 'text-[#22c55e]') : 'text-[#c9ced6]'
 
   return (
-    <tr className={`group border-t border-[#1b2029] transition-colors hover:bg-white/[0.04] ${d.IsInPits ? 'bg-[#f59e0b]/[0.06]' : ''}`} style={{ boxShadow: `inset 3px 0 0 0 ${color}` }}>
+    <tr
+      onClick={onSelect}
+      className={`group cursor-pointer border-t border-[#1b2029] transition-colors hover:bg-white/[0.04] ${selected ? 'bg-white/[0.08]' : d.IsInPits ? 'bg-[#f59e0b]/[0.06]' : ''}`}
+      style={{ boxShadow: `inset 3px 0 0 0 ${color}` }}
+    >
       <td className="py-2.5 pl-4 pr-2">
         <div className="flex items-center justify-center gap-1.5">
           <span className="w-7 text-right font-display-league text-xl leading-none text-white">{d.Position}</span>
@@ -441,6 +449,8 @@ export default function LiveTimingPage() {
   // Equipo y dorsal según el apartado de Equipos del Hub, por Steam ID
   const [hubEntries, setHubEntries] = useState<Record<string, HubEntry[]>>({})
   const [showMap, setShowMap] = useState(true)
+  // Coche seleccionado (clic en la tabla o en el mapa): se destaca en ambos
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'Position', dir: 'asc' })
   const [showLegend, setShowLegend] = useState(false)
@@ -767,6 +777,7 @@ export default function LiveTimingPage() {
             key: carKey(d),
             x: d.LastPos!.X,
             z: d.LastPos!.Z,
+            progress: typeof d.NormalisedSplinePos === 'number' ? d.NormalisedSplinePos : null,
             initials: (d.CarInfo?.DriverInitials || d.CarInfo?.DriverName || '').slice(0, 3).toUpperCase(),
             inPits: Boolean(d.IsInPits),
             number: car.number || '–',
@@ -970,7 +981,15 @@ export default function LiveTimingPage() {
         </button>
         {showMap && (
           <div className="border-t border-[#1f242c]">
-            <TrackMap source={championship} track={data?.Track || ''} config={data?.TrackConfig || ''} samples={mapSamples} labels={mapLabels} />
+            <TrackMap
+              source={championship}
+              track={data?.Track || ''}
+              config={data?.TrackConfig || ''}
+              samples={mapSamples}
+              selectedKey={selectedKey}
+              onSelect={(key) => setSelectedKey((prev) => (prev === key ? null : key))}
+              labels={mapLabels}
+            />
           </div>
         )}
       </section>
@@ -1051,6 +1070,8 @@ export default function LiveTimingPage() {
                     return (
                       <LiveRow
                         key={key}
+                        selected={selectedKey === key}
+                        onSelect={() => setSelectedKey((prev) => (prev === key ? null : key))}
                         d={d}
                         car={resolveCar(d)}
                         cls={cls}
