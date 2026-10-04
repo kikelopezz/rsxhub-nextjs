@@ -148,7 +148,7 @@ function Th({
   return (
     <th
       onClick={sortKey && onSort ? () => onSort(sortKey) : undefined}
-      className={`border-b border-white/15 bg-[#04070d] px-2 py-2.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-slate-500 ${
+      className={`border-b border-white/15 bg-[#06080c] px-2 py-2.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-slate-500 ${
         sortKey ? 'cursor-pointer select-none hover:text-white' : ''
       } ${className}`}
     >
@@ -260,7 +260,17 @@ function SessionClock({
   )
 }
 
-const LEGEND_COLUMNS = ['pos', 'cls', 'classPos', 'number', 'name', 'team', 'tyre', 'gap', 'interval', 'last', 'best', 'laps', 'pits', 'stint', 'state'] as const
+// Reloj de pared en su propio componente: así su tick de cada segundo no vuelve a pintar la tabla.
+function LiveClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return <span>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+}
+
+const LEGEND_COLUMNS =['pos', 'cls', 'classPos', 'number', 'name', 'team', 'tyre', 'gap', 'interval', 'last', 'best', 'laps', 'pits', 'stint', 'state'] as const
 
 export default function LiveTimingPage() {
   const t = useDictionary().liveTiming
@@ -270,25 +280,17 @@ export default function LiveTimingPage() {
   const activeServers = CHAMPIONSHIPS.find((c) => c.id === championship)?.servers ?? CHAMPIONSHIPS[0].servers
   const [selectedServer, setSelectedServer] = useState(activeServers[0])
   const [data, setData] = useState<LeaderboardResponse | null>(null)
-  const [serverStatus, setServerStatus] = useState<Record<string, LeaderboardResponse | null>>({})
+  const [serverStatus, setServerStatus] = useState<Record<string, boolean>>({})
   const [stints, setStints] = useState<Record<string, number>>({})
   // Equipo y dorsal según el apartado de Equipos del Hub, por Steam ID
   const [hubEntries, setHubEntries] = useState<Record<string, HubEntry[]>>({})
   const [showMap, setShowMap] = useState(true)
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'Position', dir: 'asc' })
-  const [clock, setClock] = useState('')
   const [showLegend, setShowLegend] = useState(false)
   // Cambios de posición recientes (flechas verde/roja que se apagan solas a los 12 s)
   const [moves, setMoves] = useState<Record<string, { delta: number; at: number }>>({})
   const prevPositions = useRef<Map<string, number>>(new Map())
-
-  useEffect(() => {
-    const tick = () => setClock(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [])
 
   useEffect(() => {
     let alive = true
@@ -324,60 +326,62 @@ export default function LiveTimingPage() {
     })
   }
 
-  // Evita que dos polls se solapen: si una petición tarda más que el intervalo de 6 s (el servidor
-  // de origen puede tardar hasta 8 s antes de fallar), el siguiente tick del setInterval se salta
-  // en vez de lanzar otra petición en paralelo — sin esto, una respuesta "vieja" podía llegar
-  // después que una "nueva" y pisarla con datos obsoletos, haciendo que el mapa pareciera
-  // retroceder justo cuando se recupera de un corte.
+  // Evita que dos polls se solapen: si una petición tarda más que el intervalo, el siguiente tick se salta
+  // en vez de lanzar otra en paralelo, para que una respuesta vieja no pise a una nueva.
   const pollInFlight = useRef(false)
 
   const poll = useCallback(async () => {
-    if (pollInFlight.current) return
+    if (pollInFlight.current || document.hidden) return
     pollInFlight.current = true
     const key = serverStatusKey(championship, selectedServer)
     try {
-      const [stintsMap, res] = await Promise.all([
-        withFallback<Record<string, number> | null>(fetchOfficialStints(), LIVE_FETCH_TIMEOUT_MS, null),
-        liveFetch(`/api/live-timing/leaderboard?server=${selectedServer}&source=${championship}`),
-      ])
+      const res = await liveFetch(`/api/live-timing/leaderboard?server=${selectedServer}&source=${championship}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json: LeaderboardResponse = await res.json()
-      if (stintsMap) setStints(stintsMap)
       setData(json)
-      setServerStatus((prev) => ({ ...prev, [key]: json }))
+      setServerStatus((prev) => ({ ...prev, [key]: isServerLive(json) }))
       setStatus(isServerLive(json) ? 'online' : 'offline')
     } catch {
-      // A single failed poll (e.g. the upstream's rate limit) shouldn't blank the page if we
-      // already have a recent snapshot of this server from the status sweep — fall back to
-      // that instead of leaving the board empty until the next successful poll.
-      setData((prev) => prev ?? serverStatus[key] ?? prev)
       setStatus('offline')
+      setServerStatus((prev) => ({ ...prev, [key]: false }))
     } finally {
       pollInFlight.current = false
     }
-  }, [championship, selectedServer, serverStatus])
+  }, [championship, selectedServer])
 
-  // Lightweight status check across all servers (both championships), to populate the selector cards.
-  // Fired one at a time with a small gap instead of all 6 at once — the upstream source has a
-  // tight per-IP rate limit, and 6 simultaneous requests (plus the selected-server poll landing
-  // at the same instant) was tripping a 429 that left the whole page blank until the next retry.
+  // Los stints oficiales cambian despacio y vienen de otra base de datos: se piden una vez al minuto,
+  // no en cada sondeo de la carrera.
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      if (document.hidden) return
+      const map = await withFallback<Record<string, number> | null>(fetchOfficialStints(), LIVE_FETCH_TIMEOUT_MS, null)
+      if (alive && map) setStints(map)
+    }
+    load()
+    const id = setInterval(load, 60_000)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [])
+
+  // Estado de los demás servidores para las tarjetas de selección. Usa la ruta de sesión (114 bytes) y no el
+  // leaderboard completo (hasta 12 MB): con el leaderboard, cinco servidores cada 30 s saturaban al origen.
   const sweepInFlight = useRef(false)
   const pollAllStatuses = useCallback(async () => {
-    if (sweepInFlight.current) return
+    if (sweepInFlight.current || document.hidden) return
     sweepInFlight.current = true
     try {
       for (const { championshipId, server } of ALL_SERVERS) {
-        // El servidor seleccionado ya se consulta aparte cada 6 s — pedirlo también aquí solo añade
-        // contención contra el mismo origen (con rate limit estricto) justo cuando más importa que
-        // esa respuesta llegue rápido para que el mapa no se quede congelado.
         if (championshipId === championship && server === selectedServer) continue
         const key = serverStatusKey(championshipId, server)
         try {
-          const res = await liveFetch(`/api/live-timing/leaderboard?server=${server}&source=${championshipId}`)
-          const json = res.ok ? ((await res.json()) as LeaderboardResponse) : null
-          setServerStatus((prev) => ({ ...prev, [key]: json }))
+          const res = await liveFetch(`/api/live-timing/session?source=${championshipId}&server=${server}`)
+          const json = res.ok ? await res.json() : null
+          setServerStatus((prev) => ({ ...prev, [key]: Boolean(json?.ok && json.session?.phase !== 'unknown') }))
         } catch {
-          setServerStatus((prev) => ({ ...prev, [key]: null }))
+          setServerStatus((prev) => ({ ...prev, [key]: false }))
         }
         await new Promise((resolve) => setTimeout(resolve, 350))
       }
@@ -403,14 +407,17 @@ export default function LiveTimingPage() {
     setStatus('connecting')
     setMoves({})
     prevPositions.current = new Map()
-    // Slight delay so this doesn't land in the same instant as the all-servers status sweep above.
-    // The selected server is the only thing polled this often — the burst that used to trip the
-    // upstream's rate limit was 6+ servers fetched at once, not one server fetched frequently.
     const kickoff = setTimeout(() => pollRef.current(), 400)
     const id = setInterval(() => pollRef.current(), 6000)
+    // Al volver a la pestaña se refresca enseguida, en vez de esperar al siguiente tick.
+    const onVisible = () => {
+      if (!document.hidden) pollRef.current()
+    }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       clearTimeout(kickoff)
       clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [selectedServer, championship])
 
@@ -453,13 +460,6 @@ export default function LiveTimingPage() {
       return { ...alive, ...changes }
     })
   }, [connected])
-
-  // Repinta cada 4 s para que las flechas caduquen aunque el servidor no mande cambios
-  const [, forceTick] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => forceTick((n) => n + 1), 4000)
-    return () => clearInterval(id)
-  }, [])
 
   const filterDrivers = useCallback(
     (drivers: LiveDriver[]) => {
@@ -633,8 +633,8 @@ export default function LiveTimingPage() {
   return (
     <div className="mx-auto w-full max-w-[1700px] space-y-3">
       {/* Cabecera de retransmisión: título, campeonato, servidores y reloj */}
-      <div className="relative overflow-hidden border border-white/10 bg-[#04070d]">
-        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#e10600] via-[#0072f0] to-[#009f00]" />
+      <div className="relative overflow-hidden border border-white/[0.07] bg-[#06080c]">
+        <div className="absolute inset-x-0 top-0 h-px bg-[#ff3b3b]" />
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-5">
           <div className="flex items-center gap-3">
             <span className="relative flex h-2.5 w-2.5">
@@ -671,15 +671,14 @@ export default function LiveTimingPage() {
             {/* Servidores */}
             <div className="flex gap-1">
               {activeServers.map((server, idx) => {
-                const info = serverStatus[serverStatusKey(championship, server)]
-                const live = isServerLive(info)
+                const live = server === selectedServer ? status === 'online' : Boolean(serverStatus[serverStatusKey(championship, server)])
                 const isSelected = server === selectedServer
                 return (
                   <button
                     key={server}
                     type="button"
                     onClick={() => setSelectedServer(server)}
-                    title={live ? formatTrackName(info?.Track) || t.statusOnline : t.statusOffline}
+                    title={live ? t.statusOnline : t.statusOffline}
                     className={`flex items-center gap-2 border px-3 py-2 text-left transition-colors ${
                       isSelected ? 'border-[#4ea1ff] bg-[#4ea1ff]/10' : 'border-white/10 hover:border-white/30'
                     }`}
@@ -687,14 +686,14 @@ export default function LiveTimingPage() {
                     <span className={`h-2 w-2 shrink-0 rounded-full ${live ? 'bg-emerald-400' : 'bg-rose-500'}`} />
                     <span className="font-mono-data text-[11px] font-bold text-white">{String(idx + 1).padStart(2, '0')}</span>
                     <span className={`hidden max-w-[110px] truncate text-[10px] font-bold uppercase tracking-wider sm:block ${live ? 'text-emerald-400' : 'text-slate-600'}`}>
-                      {live ? formatTrackName(info?.Track) || t.statusOnline : t.statusOffline}
+                      {live ? t.statusOnline : t.statusOffline}
                     </span>
                   </button>
                 )
               })}
             </div>
 
-            <div className="font-mono-data border border-white/10 bg-black/40 px-3 py-1.5 text-sm font-bold tabular-nums text-white">{clock}</div>
+            <div className="font-mono-data border border-white/10 bg-black/40 px-3 py-1.5 text-sm font-bold tabular-nums text-white"><LiveClock /></div>
             <button
               type="button"
               onClick={() => setShowLegend((v) => !v)}
@@ -710,7 +709,7 @@ export default function LiveTimingPage() {
         </div>
 
         {/* Banda de sesión: circuito, tiempo restante con barra de progreso, vueltas y temperaturas */}
-        <div className="border-t border-white/10 bg-gradient-to-r from-[#0a1220] via-[#060a12] to-[#0a1220]">
+        <div className="border-t border-white/[0.07] bg-[#080b10]">
           <div className="flex flex-wrap items-stretch divide-x divide-white/10">
             <div className="min-w-[220px] flex-1 px-4 py-2.5 md:px-5">
               <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{t.track}</p>
@@ -745,13 +744,13 @@ export default function LiveTimingPage() {
         {/* Mejor vuelta por categoría */}
         {fastestClasses.length > 0 && (
           <div className="flex flex-wrap items-stretch gap-px border-t border-white/10 bg-white/10">
-            <div className="flex items-center bg-[#04070d] px-4 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{t.fastestLaps}</div>
+            <div className="flex items-center bg-[#06080c] px-4 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{t.fastestLaps}</div>
             {fastestClasses.map((cls) => {
               const item = fastest.byClass[cls]
               const info = item.driver.CarInfo || {}
               const car = resolveCar(item.driver)
               return (
-                <div key={cls} className="flex min-w-[210px] flex-1 items-center gap-3 bg-[#04070d] px-4 py-2">
+                <div key={cls} className="flex min-w-[210px] flex-1 items-center gap-3 bg-[#06080c] px-4 py-2">
                   <span className="rounded-[3px] px-1.5 py-0.5 text-[10px] font-black text-white" style={{ background: classColor(cls) }}>
                     {CLASS_SHORT[cls] || cls}
                   </span>
@@ -770,7 +769,7 @@ export default function LiveTimingPage() {
         )}
 
         {showLegend && (
-          <div className="border-t border-white/10 bg-[#04070d] px-5 py-4">
+          <div className="border-t border-white/10 bg-[#06080c] px-5 py-4">
             <div className="grid gap-6 md:grid-cols-3">
               <div>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t.legend.columns}</p>
@@ -843,7 +842,7 @@ export default function LiveTimingPage() {
       </div>
 
       {/* Mapa del circuito con los coches en directo */}
-      <div className="border border-white/10 bg-[#04070d]">
+      <div className="border border-white/10 bg-[#06080c]">
         <button
           type="button"
           onClick={toggleMap}
@@ -864,7 +863,7 @@ export default function LiveTimingPage() {
       </div>
 
       {/* Clasificación */}
-      <div className="min-w-0 overflow-hidden border border-white/10 bg-[#04070d]">
+      <div className="min-w-0 overflow-hidden border border-white/10 bg-[#06080c]">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-2.5">
           <div className="flex flex-wrap gap-1.5">
             {CLASS_FILTERS.map((cls) => {
@@ -1128,7 +1127,7 @@ export default function LiveTimingPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 border-t border-white/10 bg-[#04070d] px-4 py-2.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+        <div className="flex flex-wrap items-center gap-4 border-t border-white/10 bg-[#06080c] px-4 py-2.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
           <span className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-fuchsia-400" /> {t.legend.sessionBest}
           </span>
