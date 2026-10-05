@@ -44,6 +44,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     cache: 'no-store',
+    // Sin timeout, un bot colgado dejaba la página del dashboard o la acción esperando para siempre.
+    signal: AbortSignal.timeout(10_000),
     headers: { 'content-type': 'application/json', authorization: `Bearer ${API_KEY}`, ...init?.headers },
   })
   const body = await res.json().catch(() => null)

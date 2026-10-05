@@ -48,14 +48,23 @@ export function TicketChat({ guildId, ticketId }: { guildId: string; ticketId: s
   useEffect(() => {
     if (!open) return
     let cancelled = false
+    let inFlight = false
 
     async function poll() {
-      const fresh = await getTicketMessagesAction(guildId, ticketId, lastIdRef.current)
-      if (cancelled || fresh.length === 0) return
-      lastIdRef.current = fresh[fresh.length - 1].id
-      setMessages((prev) => [...prev, ...fresh])
-      setLoaded(true)
-      requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }))
+      if (inFlight) return
+      inFlight = true
+      try {
+        const fresh = await getTicketMessagesAction(guildId, ticketId, lastIdRef.current)
+        if (cancelled || fresh.length === 0) return
+        lastIdRef.current = fresh[fresh.length - 1].id
+        setMessages((prev) => [...prev, ...fresh])
+        setLoaded(true)
+        requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }))
+      } catch {
+        // Un fallo puntual (bot reiniciándose) no debe tumbar el chat: se reintenta en el siguiente tick.
+      } finally {
+        inFlight = false
+      }
     }
 
     poll()
