@@ -85,3 +85,24 @@ export function pickHubEntry(entries: HubEntry[] | undefined, classTag?: string 
   const sameClass = cls ? entries.find((e) => e.category && (e.category === cls || cls.includes(e.category) || e.category.includes(cls))) : undefined
   return sameClass || entries.find((e) => e.dorsal) || entries[0]
 }
+
+/**
+ * Nombre que el piloto tiene en el Hub (su perfil, o el de Steam si no tiene perfil), indexado por Steam ID.
+ * Solo se usa para mostrar el nombre en el live timing cuando la cuenta de Steam está vinculada.
+ */
+async function loadHubNames(): Promise<Record<string, string>> {
+  const accounts = await db.steamAccount.findMany({
+    select: { steamId: true, steamDisplayName: true, user: { select: { profile: { select: { displayName: true } } } } },
+  })
+  const out: Record<string, string> = {}
+  for (const a of accounts) {
+    const name = a.user.profile?.displayName?.trim() || a.steamDisplayName?.trim()
+    if (name) out[a.steamId] = name
+  }
+  return out
+}
+
+/** Nombres del Hub por Steam ID, con caché de un minuto. */
+export function getHubNames() {
+  return fetchWithTTLCache('live_timing_hub_names', loadHubNames, 60)
+}

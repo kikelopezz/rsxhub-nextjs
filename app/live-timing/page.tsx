@@ -293,7 +293,7 @@ function LiveRow({
   selected: boolean
   onSelect: () => void
   d: LiveDriver
-  car: { team: string; number: string | null }
+  car: { team: string; number: string | null; driver: string }
   cls: string
   classPos: number | undefined
   interval: string
@@ -343,7 +343,7 @@ function LiveRow({
         </span>
       </td>
       <td className="px-2 py-2.5">
-        <div className="max-w-[220px] truncate text-[13px] font-semibold leading-tight text-white">{info.DriverName || '-'}</div>
+        <div className="max-w-[220px] truncate text-[13px] font-semibold leading-tight text-white">{car.driver}</div>
         <div className="max-w-[220px] truncate text-[10px] uppercase leading-tight text-[#6b7280]">{info.CarName || info.CarModel || '-'}</div>
       </td>
       <td className="max-w-[200px] truncate px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#c9ced6]">{car.team}</td>
@@ -396,7 +396,7 @@ function ResultRow({
 }: {
   d: LiveDriver
   idx: number
-  car: { team: string; number: string | null }
+  car: { team: string; number: string | null; driver: string }
   cls: string
   stats: CarStats
   stintMs: number
@@ -417,7 +417,7 @@ function ResultRow({
         {CLASS_SHORT[cls] || cls}
       </td>
       <td className="px-2 py-2.5">
-        <div className="text-[13px] font-semibold leading-tight text-white">{info.DriverName || '-'}</div>
+        <div className="text-[13px] font-semibold leading-tight text-white">{car.driver}</div>
         <div className="text-[10px] uppercase leading-tight text-[#6b7280]">{info.CarModel || '-'}</div>
       </td>
       <td className="px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#c9ced6]">{car.team}</td>
@@ -448,6 +448,8 @@ export default function LiveTimingPage() {
   const [stints, setStints] = useState<Record<string, number>>({})
   // Equipo y dorsal según el apartado de Equipos del Hub, por Steam ID
   const [hubEntries, setHubEntries] = useState<Record<string, HubEntry[]>>({})
+  // Nombre de cada piloto en el Hub, por Steam ID (si la cuenta de Steam está vinculada)
+  const [hubNames, setHubNames] = useState<Record<string, string>>({})
   const [showMap, setShowMap] = useState(true)
   // Coche seleccionado (clic en la tabla o en el mapa): se destaca en ambos
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -465,6 +467,7 @@ export default function LiveTimingPage() {
         const res = await fetch('/api/live-timing/entries')
         const json = await res.json()
         if (alive && json?.entries) setHubEntries(json.entries)
+        if (alive && json?.names) setHubNames(json.names)
       } catch {
         // Sin datos del Hub se muestran los del servidor de carrera
       }
@@ -604,9 +607,10 @@ export default function LiveTimingPage() {
       return {
         team: pick?.teamName || info.TeamName || info.DriverName || '-',
         number: pick?.dorsal || simNumber,
+        driver: hubNames[steamId] || info.DriverName || '-',
       }
     },
-    [hubEntries]
+    [hubEntries, hubNames]
   )
 
   // Detecta adelantamientos: compara cada posición con la del sondeo anterior
