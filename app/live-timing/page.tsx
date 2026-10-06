@@ -48,7 +48,7 @@ function bestSplitFor(driver: LiveDriver, index: number, sessionBest: Record<num
   const curr = stats.CurrentLapSplits ? Object.values(stats.CurrentLapSplits).find((s) => s.SplitIndex === index) : undefined
   const curVal = curr?.SplitTime ?? 0
   if (!curVal || curVal <= 0) return { text: '-', tone: 'empty' as const }
-  const fmt = (curVal / 1e9).toFixed(1)
+  const fmt = (curVal / 1e9).toFixed(3)
   if (curVal <= (sessionBest[index] ?? Infinity)) return { text: fmt, tone: 'purple' as const }
   const best = stats.BestSplits ? Object.values(stats.BestSplits).find((s) => s.SplitIndex === index) : undefined
   const pb = best?.SplitTime ?? Infinity
@@ -62,7 +62,7 @@ function bestLapSplit(driver: LiveDriver, index: number, sessionBest: Record<num
   const split = stats.BestSplits ? Object.values(stats.BestSplits).find((s) => s.SplitIndex === index) : undefined
   const value = split?.SplitTime ?? 0
   if (!value || value <= 0) return { text: '-', tone: 'empty' as const }
-  const text = (value / 1e9).toFixed(1)
+  const text = (value / 1e9).toFixed(3)
   return { text, tone: value <= (sessionBest[index] ?? Infinity) ? ('purple' as const) : ('green' as const) }
 }
 
