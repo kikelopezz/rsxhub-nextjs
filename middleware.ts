@@ -15,7 +15,12 @@ export function middleware(request: NextRequest) {
     // Los estilos en línea (style={{...}} de React) no llevan nonce factible uno a uno; el riesgo
     // de solo-CSS es mucho menor que el de script-src.
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
+    // blob: hace falta para el modal de "ajustar imagen" (components/image-picker.tsx): tanto al
+    // elegir un archivo nuevo como al reajustar uno ya subido, la vista previa se carga desde una
+    // URL creada con URL.createObjectURL(), que el navegador sirve con el esquema blob:. Sin esto
+    // en la whitelist, la CSP bloquea esa carga y el modal muestra "No se pudo cargar la imagen."
+    // aunque el archivo/blob en sí sea perfectamente válido.
+    "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     // Subida directa navegador→R2 (URL prefirmada) y los dos niveles de respaldo sin R2 configurado.
     "connect-src 'self' https://*.r2.cloudflarestorage.com https://catbox.moe https://litterbox.catbox.moe",
