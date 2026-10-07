@@ -56,11 +56,14 @@ export function computeCarValidation(
     }
 
     if (d && /^[0-9]{1,3}$/.test(d)) {
+      // El dorsal es unico por LIGA, no por categoria: dos coches de la misma
+      // liga no pueden compartir numero aunque sean de categorias distintas
+      // (p.ej. un Hypercar y un GT3 de la misma liga no pueden ser ambos #44).
+      // leaguesOverlap ya se encarga de que ligas distintas sean independientes.
       const internalCollision = cars.find((other) => {
         if (other.id === car.id) return false
         const otherD = String(other.dorsal || '').trim()
         if (!otherD || otherD !== d) return false
-        if (String(other.category).toUpperCase() !== String(car.category).toUpperCase()) return false
         return leaguesOverlap(car.leagueId, other.leagueId)
       })
       if (internalCollision) {
@@ -71,7 +74,6 @@ export function computeCarValidation(
         if (td.teamId === currentTeamId) return false
         const otherD = String(td.dorsal || '').trim()
         if (!otherD || otherD !== d) return false
-        if (String(td.category).toUpperCase() !== String(car.category).toUpperCase()) return false
         return leaguesOverlap(car.leagueId, td.leagueId)
       })
       if (takenByOther) {

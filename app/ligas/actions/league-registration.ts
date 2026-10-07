@@ -114,12 +114,37 @@ export async function registerTeamAction(formData: FormData) {
   // Get current registrations to check for taken numbers
   const registrations = await getRegistrations(leagueId)
 
-  function resolveFreeNumber(classTag: string, preferred: number): number {
-    const isTaken = (num: number) =>
-      registrations.some((r) => r.classTag === classTag && r.assignedNumber === num && r.status !== 'rejected')
-    if (preferred > 0 && !isTaken(preferred)) return preferred
+  // El dorsal es unico por LIGA, no por categoria dentro de la liga: si el #44 ya
+  // lo lleva un Hypercar en esta liga, un GT3 de la misma liga no puede usar
+  // tambien el #44 (y viceversa). Ligas distintas (p.ej. "RC" y "RC NextGen")
+  // son independientes entre si porque `registrations` ya viene filtrado por
+  // leagueId mas arriba (getRegistrations(leagueId)).
+  //
+  // Dos cosas mas, para que el ambito "por liga" no rompa casos normales:
+  //  1. Se excluyen las inscripciones YA EXISTENTES de este mismo equipo: si no,
+  //     un equipo que ya tiene el #44 en GT3 se bloquearia a si mismo al volver
+  //     a guardar/registrar (las filas viejas no se borran hasta el final de
+  //     esta funcion, asi que seguirian contando como "ocupadas" en esta
+  //     comprobacion).
+  //  2. Los numeros se van marcando segun se resuelven DENTRO de esta misma
+  //     llamada (takenNumbers.add), para que si el mismo equipo registra dos
+  //     coches de categorias distintas a la vez no acaben con el mismo numero
+  //     entre si.
+  const takenNumbers = new Set(
+    registrations
+      .filter((r) => r.teamId !== teamId && r.status !== 'rejected')
+      .map((r) => r.assignedNumber)
+  )
+  function resolveFreeNumber(preferred: number): number {
+    if (preferred > 0 && !takenNumbers.has(preferred)) {
+      takenNumbers.add(preferred)
+      return preferred
+    }
     for (let num = 12; num <= 99; num++) {
-      if (!isTaken(num)) return num
+      if (!takenNumbers.has(num)) {
+        takenNumbers.add(num)
+        return num
+      }
     }
     return preferred > 0 ? preferred : 12
   }
@@ -153,7 +178,7 @@ export async function registerTeamAction(formData: FormData) {
       })
     )
 
-    const regCarNumber = resolveFreeNumber(carToReg.classTag, carToReg.carNumber)
+    const regCarNumber = resolveFreeNumber(carToReg.carNumber)
 
     // getRegistrations() only shows a registration once it finds a TeamCar with a
     // matching category+dorsal bound to this league (or unbound) — it's how stale
