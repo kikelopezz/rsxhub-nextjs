@@ -22,6 +22,8 @@ const equipos = {
     invalidRole: 'Rol no válido.',
     dorsalDuplicate: 'Error: uno de los dorsales seleccionados ya pertenece a otro equipo o está duplicado.',
     maxCarsPerCategory: 'Error: como máximo puedes tener 3 coches de la misma categoría en el mismo campeonato.',
+    lineupLockedQualyDay: 'No se puede cambiar la alineación: ya ha empezado el día de clasificación/carrera del próximo evento de este campeonato.',
+    lineupRateLimited: 'Has alcanzado el máximo de 3 cambios de alineación hoy para este coche. Inténtalo de nuevo mañana.',
     actionFailed: 'No se pudo completar la acción.',
   },
   list: {

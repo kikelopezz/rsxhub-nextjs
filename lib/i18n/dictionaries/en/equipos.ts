@@ -24,6 +24,8 @@ const equipos: typeof es = {
     invalidRole: 'Invalid role.',
     dorsalDuplicate: 'Error: One of the selected dorsals already belongs to another team or is duplicated.',
     maxCarsPerCategory: 'Error: you can have at most 3 cars of the same category in the same championship.',
+    lineupLockedQualyDay: "Can't change the lineup: this championship's next event has already reached its qualifying/race day.",
+    lineupRateLimited: "You've reached the limit of 3 lineup changes today for this car. Try again tomorrow.",
     actionFailed: 'Could not complete the action.',
   },
   list: {

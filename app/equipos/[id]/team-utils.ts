@@ -91,6 +91,8 @@ export function profileStatusMessage(
   if (params.error === 'invalid-role') return { kind: 'warn', text: m.invalidRole }
   if (params.error === 'dorsal-duplicate') return { kind: 'error', text: m.dorsalDuplicate }
   if (params.error === 'max-cars-per-category') return { kind: 'error', text: m.maxCarsPerCategory }
+  if (params.error === 'lineup-locked-qualy-day') return { kind: 'warn', text: m.lineupLockedQualyDay }
+  if (params.error === 'lineup-rate-limited') return { kind: 'warn', text: m.lineupRateLimited }
   if (params.error) return { kind: 'error', text: m.actionFailed }
   return null
 }
