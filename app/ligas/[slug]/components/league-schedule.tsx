@@ -445,13 +445,17 @@ export function LeagueSchedule({
                                         fd.set('carModel', '')
                                         fd.set('slug', league.slug)
 
-                                        if (wasConfirmed) {
-                                          await cancelAttendanceAction(fd)
-                                          toast.success(`#${dorsalDisplay} ${tag} unconfirmed`)
-                                        } else {
-                                          await confirmAttendanceAction(fd)
-                                          toast.success(`#${dorsalDisplay} ${tag} confirmed`)
+                                        // Las acciones ya no lanzan: en producción, Next.js cambia el mensaje de
+                                        // cualquier error lanzado desde una Server Action por uno genérico (solo
+                                        // deja un "digest" en los logs del servidor) — por eso devuelven
+                                        // { ok, message } y el mensaje real se enseña aquí.
+                                        const result = wasConfirmed ? await cancelAttendanceAction(fd) : await confirmAttendanceAction(fd)
+                                        if (!result.ok) {
+                                          setLocalConfirmations(confirmations)
+                                          alert(result.message || tr.attendanceError)
+                                          return
                                         }
+                                        toast.success(`#${dorsalDisplay} ${tag} ${wasConfirmed ? 'unconfirmed' : 'confirmed'}`)
                                         router.refresh()
                                       } catch (err: any) {
                                         setLocalConfirmations(confirmations)

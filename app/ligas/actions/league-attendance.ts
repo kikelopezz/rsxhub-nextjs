@@ -5,9 +5,15 @@ import { getCurrentUser } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getLeagueBySlug } from '@/lib/platform-data'
 
-export async function confirmAttendanceAction(formData: FormData) {
+export type AttendanceResult = { ok: true } | { ok: false; message: string }
+
+export async function confirmAttendanceAction(formData: FormData): Promise<AttendanceResult> {
+  // Next.js oculta en producción el mensaje de cualquier error que se lance desde una Server
+  // Action (solo deja un "digest" para los logs del servidor) — por eso esta función nunca lanza
+  // para un fallo esperado (sin pilotos, parrilla llena, límite de pilotos...): devuelve
+  // { ok: false, message } y es quien la llama (league-schedule.tsx) quien enseña ese mensaje.
   const session = await getCurrentUser()
-  if (!session) throw new Error('Unauthorized')
+  if (!session) return { ok: false, message: 'No has iniciado sesión.' }
 
   const eventId = String(formData.get('eventId') || '')
   const leagueId = String(formData.get('leagueId') || '')
@@ -18,7 +24,7 @@ export async function confirmAttendanceAction(formData: FormData) {
   const slug = String(formData.get('slug') || '')
 
   if (!eventId || !leagueId || !teamId || !classTag || !carNumber) {
-    throw new Error('All fields are required.')
+    return { ok: false, message: 'Faltan datos para confirmar la asistencia.' }
   }
 
   // 0. Verify car has assigned drivers, and collect this car's driver ids
@@ -35,7 +41,7 @@ export async function confirmAttendanceAction(formData: FormData) {
     const defaultDrivers = car.drivers.filter((d) => !d.leagueId).map((d) => d.userId)
     driverUserIds = Array.from(new Set(leagueDrivers.length > 0 ? leagueDrivers : defaultDrivers))
     if (driverUserIds.length === 0) {
-      throw new Error('No se puede confirmar asistencia: El vehículo no tiene pilotos asignados.')
+      return { ok: false, message: 'No se puede confirmar asistencia: el vehículo no tiene pilotos asignados.' }
     }
   }
 
@@ -78,14 +84,14 @@ export async function confirmAttendanceAction(formData: FormData) {
       driverUserIds.forEach((id) => distinctDrivers.add(id))
 
       if (distinctDrivers.size > event.maxDrivers) {
-        throw new Error(`¡Límite de pilotos alcanzado para esta carrera (${event.maxDrivers} máximo)!`)
+        return { ok: false, message: `¡Límite de pilotos alcanzado para esta carrera (${event.maxDrivers} máximo)!` }
       }
     }
   }
 
   const effectiveCurrentConfirmed = existing ? currentConfirmed - 1 : currentConfirmed
   if (effectiveCurrentConfirmed >= categoryLimit) {
-    throw new Error(`¡La parrilla para la categoría ${classTag} está llena (${categoryLimit} coches máximo)!`)
+    return { ok: false, message: `¡La parrilla para la categoría ${classTag} está llena (${categoryLimit} coches máximo)!` }
   }
 
   // 3. Save the confirmation
@@ -108,11 +114,12 @@ export async function confirmAttendanceAction(formData: FormData) {
   })
 
   revalidatePath(`/ligas/${slug}`)
+  return { ok: true }
 }
 
-export async function cancelAttendanceAction(formData: FormData) {
+export async function cancelAttendanceAction(formData: FormData): Promise<AttendanceResult> {
   const session = await getCurrentUser()
-  if (!session) throw new Error('Unauthorized')
+  if (!session) return { ok: false, message: 'No has iniciado sesión.' }
 
   const eventId = String(formData.get('eventId') || '')
   const teamId = String(formData.get('teamId') || '')
@@ -121,10 +128,11 @@ export async function cancelAttendanceAction(formData: FormData) {
   const slug = String(formData.get('slug') || '')
 
   if (!eventId || !teamId || !classTag || !carNumber) {
-    throw new Error('All fields are required.')
+    return { ok: false, message: 'Faltan datos para cancelar la asistencia.' }
   }
 
   await db.leagueEventConfirmation.deleteMany({ where: { eventId, teamId, classTag, carNumber } })
 
   revalidatePath(`/ligas/${slug}`)
+  return { ok: true }
 }
