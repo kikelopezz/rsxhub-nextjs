@@ -53,6 +53,7 @@ export async function createLeague(formData: FormData) {
       bannerUrl: String(formData.get('bannerUrl') || '') || null,
       isFeatured: formData.get('featured') === 'on',
       registrationMode: String(formData.get('registrationMode') || 'individual') as any,
+      requiresPayment: formData.get('requiresPayment') === 'on',
       classTags,
     },
   })
@@ -102,6 +103,7 @@ export async function updateLeague(formData: FormData) {
         bannerUrl: String(formData.get('bannerUrl') || '') || null,
         isFeatured: formData.get('featured') === 'on',
         registrationMode: String(formData.get('registrationMode') || 'individual') as any,
+        requiresPayment: formData.get('requiresPayment') === 'on',
         classTags: parseClassTags(formData),
       },
     })

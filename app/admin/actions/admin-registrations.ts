@@ -10,6 +10,9 @@ export async function updateRegistrationStatus(formData: FormData) {
   const registrationId = String(formData.get('registrationId') || '')
   const status = String(formData.get('status') || 'pending')
   const leagueId = String(formData.get('leagueId') || '')
+  // Lets callers outside the per-league admin page (e.g. the cross-league Pagos queue)
+  // stay where they were instead of always bouncing to /admin/ligas/[id].
+  const returnTo = String(formData.get('returnTo') || '') || `/admin/ligas/${leagueId}?updated=1`
 
   await guardLeaguePermission(leagueId, 'steward')
 
@@ -25,7 +28,7 @@ export async function updateRegistrationStatus(formData: FormData) {
 
   invalidateCache(['registrations_', 'event_confirmations_'])
   revalidatePath('/admin')
-  redirect(`/admin/ligas/${leagueId}?updated=1`)
+  redirect(returnTo)
 }
 
 export async function updateTeamRegistrationStatus(formData: FormData) {
@@ -35,6 +38,7 @@ export async function updateTeamRegistrationStatus(formData: FormData) {
   const classTag = classTagRaw === '__NULL__' ? null : classTagRaw
   const carNumberRaw = String(formData.get('carNumber') || '')
   const status = String(formData.get('status') || 'pending')
+  const returnTo = String(formData.get('returnTo') || '') || `/admin/ligas/${leagueId}?updated=1`
 
   await guardLeaguePermission(leagueId, 'steward')
   if (!leagueId || !teamId || !carNumberRaw) redirect(`/admin/ligas/${leagueId}?updated=0`)
@@ -59,5 +63,28 @@ export async function updateTeamRegistrationStatus(formData: FormData) {
   invalidateCache(['registrations_', 'event_confirmations_'])
   revalidatePath('/admin')
   revalidatePath(`/admin/ligas/${leagueId}`)
-  redirect(`/admin/ligas/${leagueId}?updated=1`)
+  redirect(returnTo)
+}
+
+// Pagos-tab only: confirms/rejects payment for every car a team has entered in a league
+// at once, unlike updateTeamRegistrationStatus which is scoped to one car (class+number)
+// for the per-league race-entry approval flow.
+export async function updateTeamPaymentStatus(formData: FormData) {
+  const leagueId = String(formData.get('leagueId') || '')
+  const teamId = String(formData.get('teamId') || '')
+  const status = String(formData.get('status') || 'pending')
+  const returnTo = String(formData.get('returnTo') || '') || `/admin/ligas/${leagueId}?updated=1`
+
+  await guardLeaguePermission(leagueId, 'steward')
+  if (!leagueId || !teamId) redirect(`/admin/ligas/${leagueId}?updated=0`)
+
+  await db.leagueRegistration.updateMany({
+    where: { leagueId, teamId },
+    data: { status: status as any },
+  }).catch((error) => console.error('Failed to update team payment status:', error))
+
+  invalidateCache(['registrations_', 'event_confirmations_'])
+  revalidatePath('/admin')
+  revalidatePath(`/admin/ligas/${leagueId}`)
+  redirect(returnTo)
 }

@@ -307,6 +307,9 @@ model League {
   isFeatured       Boolean          @default(false) @map("is_featured")
   registrationOpen Boolean          @default(false) @map("registration_open")
   registrationMode RegistrationMode @default(individual) @map("registration_mode")
+  /// Si es true, las inscripciones nuevas entran como "pending" en vez de aprobarse
+  /// solas: un admin las aprueba a mano tras confirmar el pago (fuera de la plataforma).
+  requiresPayment  Boolean          @default(false) @map("requires_payment")
   accentColor      String?          @map("accent_color")
   slogan           String?
   discordUrl       String?          @map("discord_url")
