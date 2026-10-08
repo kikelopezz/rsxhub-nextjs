@@ -45,6 +45,7 @@ export const getLeagues = cache(async (): Promise<League[]> => {
         featured: data.isFeatured,
         registrationOpen: data.status === 'open',
         registrationMode: data.registrationMode,
+        requiresPayment: data.requiresPayment,
         accentColor: data.accentColor,
         slogan: data.slogan,
         discordUrl: data.discordUrl,

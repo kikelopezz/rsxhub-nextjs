@@ -207,6 +207,7 @@ const admin = {
     statusClosed: 'Cerrada',
     featured: 'Destacada',
     openRegistration: 'Inscripción abierta',
+    requiresPayment: 'Campeonato de pago (inscripciones quedan pendientes hasta aprobarlas tras confirmar el pago)',
     registrationModeIndividual: 'Inscripción individual',
     registrationModeTeam: 'Inscripción por equipo',
     saveLeague: 'Guardar campeonato',

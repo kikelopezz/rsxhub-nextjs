@@ -29,8 +29,11 @@ export async function registerTeamAction(formData: FormData) {
     throw new Error('League ID and Team ID are required.')
   }
 
-  const league = await db.league.findUnique({ where: { id: leagueId }, select: { slug: true, classTags: true } })
+  const league = await db.league.findUnique({ where: { id: leagueId }, select: { slug: true, classTags: true, requiresPayment: true } })
   const leagueClassTags = league?.classTags || []
+  // Ligas de pago no se auto-aprueban: quedan "pending" hasta que un admin confirme
+  // el pago (fuera de la plataforma) y las apruebe desde el panel de admin.
+  const initialStatus: 'approved' | 'pending' = league?.requiresPayment ? 'pending' : 'approved'
   if (!slug) slug = league?.slug || leagueId
 
   const team = await db.team.findUnique({
@@ -154,7 +157,7 @@ export async function registerTeamAction(formData: FormData) {
     userId: string
     teamId: string
     displayName: string
-    status: 'approved'
+    status: 'approved' | 'pending'
     classTag: string
     assignedNumber: number
   }[] = []
@@ -213,7 +216,7 @@ export async function registerTeamAction(formData: FormData) {
         userId: info.userId,
         teamId,
         displayName: info.displayName,
-        status: 'approved',
+        status: initialStatus,
         classTag: carToReg.classTag,
         assignedNumber: regCarNumber,
       })

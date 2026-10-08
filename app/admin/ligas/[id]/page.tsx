@@ -248,6 +248,7 @@ export default async function AdminLeaguePage({
             </select>
             <label className="flex items-center gap-2 border border-shell-line bg-black/20 px-3 py-2 text-xs text-slate-200 rounded-lg"><input type="checkbox" name="featured" defaultChecked={Boolean(league.featured)} /> {t.featured}</label>
             <label className="flex items-center gap-2 border border-shell-line bg-black/20 px-3 py-2 text-xs text-slate-200 rounded-lg"><input type="checkbox" name="registrationOpen" defaultChecked={Boolean(league.registrationOpen)} /> {t.openRegistration}</label>
+            <label className="flex items-center gap-2 border border-shell-line bg-black/20 px-3 py-2 text-xs text-slate-200 rounded-lg"><input type="checkbox" name="requiresPayment" defaultChecked={Boolean(league.requiresPayment)} /> {t.requiresPayment}</label>
             <select name="registrationMode" defaultValue={league.registrationMode || 'individual'} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg">
               <option value="individual">{t.registrationModeIndividual}</option>
               <option value="team">{t.registrationModeTeam}</option>
