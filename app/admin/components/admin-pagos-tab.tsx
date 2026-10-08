@@ -1,5 +1,5 @@
 import { ClassBadge } from '@/components/class-badge'
-import { updateRegistrationStatus } from '../actions/admin-registrations'
+import { updateTeamRegistrationStatus, updateRegistrationStatus } from '../actions/admin-registrations'
 import type { PaymentReviewDTO } from '@/lib/data/registrations'
 
 const STATUS_STYLES: Record<PaymentReviewDTO['status'], { label: string; className: string }> = {
@@ -9,51 +9,130 @@ const STATUS_STYLES: Record<PaymentReviewDTO['status'], { label: string; classNa
   rejected: { label: 'Rechazada', className: 'border-rose-500/40 bg-rose-950/40 text-rose-300' },
 }
 
-function PaymentRow({ review }: { review: PaymentReviewDTO }) {
-  const status = STATUS_STYLES[review.status]
+type Group = {
+  key: string
+  leagueId: string
+  leagueTitle: string
+  teamId: string | null
+  teamName: string | null
+  classTag: string | null
+  assignedNumber: number | null
+  drivers: PaymentReviewDTO[]
+  status: PaymentReviewDTO['status']
+  createdAt: string
+}
+
+// Same grouping key as the per-league admin page's team-mode registration list
+// (teamId::classTag::assignedNumber) so "approve" acts on the whole car entry at once.
+function groupReviews(reviews: PaymentReviewDTO[]): Group[] {
+  const byKey = new Map<string, Group>()
+  for (const r of reviews) {
+    const key = r.teamId
+      ? `${r.teamId}::${r.classTag || 'noclass'}::${r.assignedNumber ?? 'nonum'}`
+      : `solo-${r.id}`
+    const existing = byKey.get(key)
+    if (existing) {
+      existing.drivers.push(r)
+      if (r.createdAt < existing.createdAt) existing.createdAt = r.createdAt
+      // Drivers in the same car group are updated together, but if they ever drift,
+      // bias toward showing the group as already-handled rather than stuck pending.
+      if (existing.status === 'pending' && r.status !== 'pending') existing.status = r.status
+    } else {
+      byKey.set(key, {
+        key,
+        leagueId: r.leagueId,
+        leagueTitle: r.leagueTitle,
+        teamId: r.teamId,
+        teamName: r.teamName,
+        classTag: r.classTag,
+        assignedNumber: r.assignedNumber,
+        drivers: [r],
+        status: r.status,
+        createdAt: r.createdAt,
+      })
+    }
+  }
+  return Array.from(byKey.values())
+}
+
+function GroupRow({ group }: { group: Group }) {
+  const status = STATUS_STYLES[group.status]
 
   return (
-    <tr className="hover:bg-white/[0.02] transition-colors">
+    <tr className="hover:bg-white/[0.02] transition-colors align-top">
       <td className="p-3 font-bold text-white">
-        <span className="max-w-[160px] truncate">{review.displayName}</span>
-        {review.teamName && <p className="mt-0.5 text-[11px] font-normal text-slate-400">{review.teamName}</p>}
+        <span className="max-w-[180px] truncate">{group.teamName || 'Sin equipo'}</span>
+        <ul className="mt-1 space-y-0.5 text-[11px] font-normal text-slate-400">
+          {group.drivers.map((d) => (
+            <li key={d.id}>{d.displayName}</li>
+          ))}
+        </ul>
       </td>
-      <td className="p-3 text-xs text-slate-300">{review.leagueTitle}</td>
+      <td className="p-3 text-xs text-slate-300">{group.leagueTitle}</td>
       <td className="p-3">
-        {review.classTag && <ClassBadge classTag={review.classTag} className="text-[10px] font-black" />}
-        {review.assignedNumber != null && (
+        {group.classTag && <ClassBadge classTag={group.classTag} className="text-[10px] font-black" />}
+        {group.assignedNumber != null && (
           <span className="font-mono-data ml-1.5 shrink-0 rounded-md border border-[#4ea1ff]/30 bg-[rgba(78,161,255,.12)] px-2.5 py-1 text-sm font-black text-[#4ea1ff]">
-            #{review.assignedNumber}
+            #{group.assignedNumber}
           </span>
         )}
       </td>
-      <td className="p-3 font-mono text-xxs text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</td>
+      <td className="p-3 font-mono text-xxs text-slate-400">{new Date(group.createdAt).toLocaleDateString()}</td>
       <td className="p-3">
         <span className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.className}`}>
           {status.label}
         </span>
       </td>
       <td className="p-3 text-right">
-        {review.status === 'pending' ? (
+        {group.status === 'pending' ? (
           <div className="flex items-center justify-end gap-1.5">
-            <form action={updateRegistrationStatus}>
-              <input type="hidden" name="registrationId" value={review.id} />
-              <input type="hidden" name="leagueId" value={review.leagueId} />
-              <input type="hidden" name="status" value="approved" />
-              <input type="hidden" name="returnTo" value="/admin?tab=pagos&updated=1" />
-              <button className="rounded-md border border-emerald-500/40 bg-emerald-950/30 px-2 py-1 text-[10px] font-bold uppercase text-emerald-400 transition-colors hover:bg-emerald-500/20">
-                Aprobar
-              </button>
-            </form>
-            <form action={updateRegistrationStatus}>
-              <input type="hidden" name="registrationId" value={review.id} />
-              <input type="hidden" name="leagueId" value={review.leagueId} />
-              <input type="hidden" name="status" value="rejected" />
-              <input type="hidden" name="returnTo" value="/admin?tab=pagos&updated=1" />
-              <button className="rounded-md border border-rose-500/40 bg-rose-950/30 px-2 py-1 text-[10px] font-bold uppercase text-rose-400 transition-colors hover:bg-rose-500/20">
-                Rechazar
-              </button>
-            </form>
+            {group.teamId ? (
+              <>
+                <form action={updateTeamRegistrationStatus}>
+                  <input type="hidden" name="leagueId" value={group.leagueId} />
+                  <input type="hidden" name="teamId" value={group.teamId} />
+                  <input type="hidden" name="classTag" value={group.classTag || '__NULL__'} />
+                  <input type="hidden" name="carNumber" value={String(group.assignedNumber ?? 0)} />
+                  <input type="hidden" name="status" value="approved" />
+                  <input type="hidden" name="returnTo" value="/admin?tab=pagos&updated=1" />
+                  <button className="rounded-md border border-emerald-500/40 bg-emerald-950/30 px-2 py-1 text-[10px] font-bold uppercase text-emerald-400 transition-colors hover:bg-emerald-500/20">
+                    Pagado
+                  </button>
+                </form>
+                <form action={updateTeamRegistrationStatus}>
+                  <input type="hidden" name="leagueId" value={group.leagueId} />
+                  <input type="hidden" name="teamId" value={group.teamId} />
+                  <input type="hidden" name="classTag" value={group.classTag || '__NULL__'} />
+                  <input type="hidden" name="carNumber" value={String(group.assignedNumber ?? 0)} />
+                  <input type="hidden" name="status" value="rejected" />
+                  <input type="hidden" name="returnTo" value="/admin?tab=pagos&updated=1" />
+                  <button className="rounded-md border border-rose-500/40 bg-rose-950/30 px-2 py-1 text-[10px] font-bold uppercase text-rose-400 transition-colors hover:bg-rose-500/20">
+                    No pagado
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <form action={updateRegistrationStatus}>
+                  <input type="hidden" name="registrationId" value={group.drivers[0].id} />
+                  <input type="hidden" name="leagueId" value={group.leagueId} />
+                  <input type="hidden" name="status" value="approved" />
+                  <input type="hidden" name="returnTo" value="/admin?tab=pagos&updated=1" />
+                  <button className="rounded-md border border-emerald-500/40 bg-emerald-950/30 px-2 py-1 text-[10px] font-bold uppercase text-emerald-400 transition-colors hover:bg-emerald-500/20">
+                    Pagado
+                  </button>
+                </form>
+                <form action={updateRegistrationStatus}>
+                  <input type="hidden" name="registrationId" value={group.drivers[0].id} />
+                  <input type="hidden" name="leagueId" value={group.leagueId} />
+                  <input type="hidden" name="status" value="rejected" />
+                  <input type="hidden" name="returnTo" value="/admin?tab=pagos&updated=1" />
+                  <button className="rounded-md border border-rose-500/40 bg-rose-950/30 px-2 py-1 text-[10px] font-bold uppercase text-rose-400 transition-colors hover:bg-rose-500/20">
+                    No pagado
+                  </button>
+                </form>
+              </>
+            )}
           </div>
         ) : (
           <span className="text-[10px] text-slate-500">—</span>
@@ -64,16 +143,17 @@ function PaymentRow({ review }: { review: PaymentReviewDTO }) {
 }
 
 export function AdminPagosTab({ reviews }: { reviews: PaymentReviewDTO[] }) {
-  const pending = reviews.filter((r) => r.status === 'pending')
-  const reviewed = reviews.filter((r) => r.status !== 'pending')
+  const groups = groupReviews(reviews)
+  const pending = groups.filter((g) => g.status === 'pending')
+  const reviewed = groups.filter((g) => g.status !== 'pending')
 
   return (
     <section className="space-y-4 rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
       <div className="border-b border-shell-line pb-3">
         <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">Pagos</h2>
         <p className="text-xs text-slate-400">
-          Inscripciones a ligas de pago. Aprueba una fila solo tras confirmar el pago fuera de la plataforma —
-          hasta entonces el piloto no cuenta como participante.
+          Equipos inscritos en ligas de pago. Marca "Pagado" solo tras confirmar el pago fuera de la plataforma —
+          hasta entonces ese coche no cuenta como participante.
         </p>
       </div>
 
@@ -81,7 +161,7 @@ export function AdminPagosTab({ reviews }: { reviews: PaymentReviewDTO[] }) {
         <table className="w-full min-w-[720px] border-collapse text-left">
           <thead>
             <tr className="border-b border-shell-line bg-black/40 text-xxs font-black uppercase tracking-wider text-slate-400">
-              <th className="p-3">Piloto</th>
+              <th className="p-3">Equipo / Pilotos</th>
               <th className="p-3">Liga</th>
               <th className="p-3">Clase / Dorsal</th>
               <th className="p-3">Inscrito</th>
@@ -97,7 +177,7 @@ export function AdminPagosTab({ reviews }: { reviews: PaymentReviewDTO[] }) {
                 </td>
               </tr>
             ) : (
-              pending.map((review) => <PaymentRow key={review.id} review={review} />)
+              pending.map((group) => <GroupRow key={group.key} group={group} />)
             )}
           </tbody>
         </table>
@@ -105,12 +185,12 @@ export function AdminPagosTab({ reviews }: { reviews: PaymentReviewDTO[] }) {
 
       {reviewed.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Revisadas recientemente</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Revisados recientemente</p>
           <div className="overflow-x-auto border border-shell-line bg-black/10">
             <table className="w-full min-w-[720px] border-collapse text-left">
               <tbody className="divide-y divide-white/5 text-xs text-slate-300">
-                {reviewed.slice(0, 20).map((review) => (
-                  <PaymentRow key={review.id} review={review} />
+                {reviewed.slice(0, 30).map((group) => (
+                  <GroupRow key={group.key} group={group} />
                 ))}
               </tbody>
             </table>

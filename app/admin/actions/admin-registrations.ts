@@ -38,6 +38,7 @@ export async function updateTeamRegistrationStatus(formData: FormData) {
   const classTag = classTagRaw === '__NULL__' ? null : classTagRaw
   const carNumberRaw = String(formData.get('carNumber') || '')
   const status = String(formData.get('status') || 'pending')
+  const returnTo = String(formData.get('returnTo') || '') || `/admin/ligas/${leagueId}?updated=1`
 
   await guardLeaguePermission(leagueId, 'steward')
   if (!leagueId || !teamId || !carNumberRaw) redirect(`/admin/ligas/${leagueId}?updated=0`)
@@ -62,5 +63,5 @@ export async function updateTeamRegistrationStatus(formData: FormData) {
   invalidateCache(['registrations_', 'event_confirmations_'])
   revalidatePath('/admin')
   revalidatePath(`/admin/ligas/${leagueId}`)
-  redirect(`/admin/ligas/${leagueId}?updated=1`)
+  redirect(returnTo)
 }
