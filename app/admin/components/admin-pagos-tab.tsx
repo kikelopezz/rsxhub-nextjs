@@ -86,7 +86,7 @@ function GroupRow({ group }: { group: Group }) {
         </span>
       </td>
       <td className="p-3 text-right">
-        {group.status === 'pending' ? (
+        {
           <div className="flex items-center justify-end gap-1.5">
             {group.teamId ? (
               <>
@@ -132,9 +132,7 @@ function GroupRow({ group }: { group: Group }) {
               </>
             )}
           </div>
-        ) : (
-          <span className="text-[10px] text-slate-500">—</span>
-        )}
+        }
       </td>
     </tr>
   )
