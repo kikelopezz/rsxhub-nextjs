@@ -86,6 +86,51 @@ export const getRegistrations = cache(async (leagueId?: string): Promise<LeagueR
   }, 60)
 })
 
+export type PaymentReviewDTO = {
+  id: string
+  leagueId: string
+  leagueTitle: string
+  userId: string
+  teamId: string | null
+  teamName: string | null
+  displayName: string
+  classTag: string | null
+  assignedNumber: number | null
+  status: 'pending' | 'approved' | 'waitlist' | 'rejected'
+  createdAt: string
+}
+
+// Not cached — this powers the admin payment-review queue, which needs to reflect a
+// just-submitted or just-approved registration immediately. Only covers leagues flagged
+// requiresPayment; see league-registration.ts for why those start "pending" instead of
+// auto-approving.
+export async function getPaymentReviewQueue(): Promise<PaymentReviewDTO[]> {
+  try {
+    const rows = await db.leagueRegistration.findMany({
+      where: { league: { requiresPayment: true } },
+      include: { league: { select: { title: true } }, team: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return rows.map((r) => ({
+      id: r.id,
+      leagueId: r.leagueId,
+      leagueTitle: r.league.title,
+      userId: r.userId,
+      teamId: r.teamId,
+      teamName: r.team?.name ?? null,
+      displayName: r.displayName,
+      classTag: r.classTag,
+      assignedNumber: r.assignedNumber,
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+    }))
+  } catch (error) {
+    console.error('Failed to get payment review queue:', error)
+    return []
+  }
+}
+
 export const getLeagueMembers = cache(async (leagueId: string): Promise<LeagueMember[]> => {
   try {
     const members = await db.leagueMember.findMany({ where: { leagueId }, orderBy: { createdAt: 'asc' } })

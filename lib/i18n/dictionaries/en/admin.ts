@@ -209,6 +209,7 @@ const admin: typeof es = {
     statusClosed: 'Closed',
     featured: 'Featured',
     openRegistration: 'Open Registration',
+    requiresPayment: 'Paid championship (registrations stay pending until approved after payment is confirmed)',
     registrationModeIndividual: 'Individual registration',
     registrationModeTeam: 'Team registration',
     saveLeague: 'Save League',

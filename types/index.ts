@@ -67,6 +67,7 @@ export interface League {
   featured: boolean
   registrationOpen?: boolean
   registrationMode?: LeagueRegistrationMode
+  requiresPayment?: boolean
   accentColor?: string | null
   slogan?: string | null
   discordUrl?: string | null

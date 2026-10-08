@@ -33,6 +33,9 @@ export async function syncLeagueRegistrations(teamId: string): Promise<string[]>
     if (!league) continue
 
     const leagueClassTags = league.classTags || []
+    // Ligas de pago no se auto-aprueban al re-sincronizar: si no, editar el coche del
+    // equipo bastaria para saltarse la aprobacion manual tras el pago.
+    const initialStatus: 'approved' | 'pending' = league.requiresPayment ? 'pending' : 'approved'
     const matchingCars = team.cars.filter((car) => {
       const c1 = car.category.toUpperCase()
       const isExplicitLeague = Boolean(car.leagueId && (car.leagueId === league.id || car.leagueId === league.slug))
@@ -94,7 +97,7 @@ export async function syncLeagueRegistrations(teamId: string): Promise<string[]>
           userId: r.userId,
           teamId,
           displayName: r.displayName,
-          status: 'approved',
+          status: initialStatus,
           classTag: r.classTag,
           assignedNumber: r.assignedNumber,
         })),
