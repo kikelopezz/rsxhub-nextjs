@@ -62,11 +62,6 @@ function GroupRow({ group }: { group: Group }) {
     <tr className="hover:bg-white/[0.02] transition-colors align-top">
       <td className="p-3 font-bold text-white">
         <span className="max-w-[180px] truncate">{group.teamName || 'Sin equipo'}</span>
-        <ul className="mt-1 space-y-0.5 text-[11px] font-normal text-slate-400">
-          {group.drivers.map((d) => (
-            <li key={d.id}>{d.displayName}</li>
-          ))}
-        </ul>
       </td>
       <td className="p-3 text-xs text-slate-300">{group.leagueTitle}</td>
       <td className="p-3">
