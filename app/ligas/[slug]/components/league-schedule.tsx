@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 import { EventEntryListModal } from './event-entry-list-modal'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 import { DeadlineCountdown } from '@/components/deadline-countdown'
+import { sameCarNumber } from './car-number-match'
 
 interface LeagueScheduleProps {
   league: League
@@ -364,7 +365,7 @@ export function LeagueSchedule({
                                 c.eventId === ev.id &&
                                 c.teamId === team.id &&
                                 c.classTag === tag &&
-                                String((c as any).dorsalDisplay || c.carNumber || '').trim() === dorsalDisplay &&
+                                sameCarNumber((c as any).dorsalDisplay ?? c.carNumber, dorsalDisplay) &&
                                 c.status === 'confirmed'
                             )
                             const confirmedCount = localConfirmations.filter(
@@ -414,7 +415,7 @@ export function LeagueSchedule({
                                                 c.eventId === ev.id &&
                                                 c.teamId === team.id &&
                                                 c.classTag === tag &&
-                                                String((c as any).dorsalDisplay || c.carNumber || '').trim() === dorsalDisplay
+                                                sameCarNumber((c as any).dorsalDisplay ?? c.carNumber, dorsalDisplay)
                                               )
                                           )
                                         )

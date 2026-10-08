@@ -19,11 +19,14 @@ export async function confirmAttendanceAction(formData: FormData): Promise<Atten
   const leagueId = String(formData.get('leagueId') || '')
   const teamId = String(formData.get('teamId') || '')
   const classTag = String(formData.get('classTag') || '').trim().toUpperCase()
-  const carNumber = Number(formData.get('carNumber') || 0)
+  // "0" es un dorsal válido (p. ej. el campeón defendiendo el número 0) — con `!carNumber` un coche
+  // #0 nunca podía confirmar asistencia: lo rechazaba como si faltara el dato. Se valida aparte.
+  const carNumberRaw = String(formData.get('carNumber') ?? '').trim()
+  const carNumber = Number(carNumberRaw)
   const carModel = String(formData.get('carModel') || '')
   const slug = String(formData.get('slug') || '')
 
-  if (!eventId || !leagueId || !teamId || !classTag || !carNumber) {
+  if (!eventId || !leagueId || !teamId || !classTag || carNumberRaw === '' || !Number.isInteger(carNumber) || carNumber < 0) {
     return { ok: false, message: 'Faltan datos para confirmar la asistencia.' }
   }
 
@@ -124,10 +127,11 @@ export async function cancelAttendanceAction(formData: FormData): Promise<Attend
   const eventId = String(formData.get('eventId') || '')
   const teamId = String(formData.get('teamId') || '')
   const classTag = String(formData.get('classTag') || '').trim().toUpperCase()
-  const carNumber = Number(formData.get('carNumber') || 0)
+  const carNumberRaw = String(formData.get('carNumber') ?? '').trim()
+  const carNumber = Number(carNumberRaw)
   const slug = String(formData.get('slug') || '')
 
-  if (!eventId || !teamId || !classTag || !carNumber) {
+  if (!eventId || !teamId || !classTag || carNumberRaw === '' || !Number.isInteger(carNumber) || carNumber < 0) {
     return { ok: false, message: 'Faltan datos para cancelar la asistencia.' }
   }
 
