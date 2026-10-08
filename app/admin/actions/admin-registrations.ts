@@ -10,6 +10,9 @@ export async function updateRegistrationStatus(formData: FormData) {
   const registrationId = String(formData.get('registrationId') || '')
   const status = String(formData.get('status') || 'pending')
   const leagueId = String(formData.get('leagueId') || '')
+  // Lets callers outside the per-league admin page (e.g. the cross-league Pagos queue)
+  // stay where they were instead of always bouncing to /admin/ligas/[id].
+  const returnTo = String(formData.get('returnTo') || '') || `/admin/ligas/${leagueId}?updated=1`
 
   await guardLeaguePermission(leagueId, 'steward')
 
@@ -25,7 +28,7 @@ export async function updateRegistrationStatus(formData: FormData) {
 
   invalidateCache(['registrations_', 'event_confirmations_'])
   revalidatePath('/admin')
-  redirect(`/admin/ligas/${leagueId}?updated=1`)
+  redirect(returnTo)
 }
 
 export async function updateTeamRegistrationStatus(formData: FormData) {
