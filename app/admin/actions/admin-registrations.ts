@@ -65,3 +65,26 @@ export async function updateTeamRegistrationStatus(formData: FormData) {
   revalidatePath(`/admin/ligas/${leagueId}`)
   redirect(returnTo)
 }
+
+// Pagos-tab only: confirms/rejects payment for every car a team has entered in a league
+// at once, unlike updateTeamRegistrationStatus which is scoped to one car (class+number)
+// for the per-league race-entry approval flow.
+export async function updateTeamPaymentStatus(formData: FormData) {
+  const leagueId = String(formData.get('leagueId') || '')
+  const teamId = String(formData.get('teamId') || '')
+  const status = String(formData.get('status') || 'pending')
+  const returnTo = String(formData.get('returnTo') || '') || `/admin/ligas/${leagueId}?updated=1`
+
+  await guardLeaguePermission(leagueId, 'steward')
+  if (!leagueId || !teamId) redirect(`/admin/ligas/${leagueId}?updated=0`)
+
+  await db.leagueRegistration.updateMany({
+    where: { leagueId, teamId },
+    data: { status: status as any },
+  }).catch((error) => console.error('Failed to update team payment status:', error))
+
+  invalidateCache(['registrations_', 'event_confirmations_'])
+  revalidatePath('/admin')
+  revalidatePath(`/admin/ligas/${leagueId}`)
+  redirect(returnTo)
+}
