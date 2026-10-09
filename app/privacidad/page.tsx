@@ -38,7 +38,7 @@ function ContentEs() {
           </p>
           <ul className="list-disc pl-5 space-y-1 text-slate-400 font-medium">
             <li><strong className="text-slate-300">Nombre / Denominación social:</strong> RSX Real Sim Experience</li>
-            <li><strong className="text-slate-300">Email de contacto:</strong> contacto@realsimexperience.com</li>
+            <li><strong className="text-slate-300">Email de contacto:</strong> realsimxperience@gmail.com</li>
             <li><strong className="text-slate-300">Sitio web:</strong> <a href="https://realsimexperience.com" className="text-[#1274de] hover:underline" target="_blank" rel="noopener noreferrer">https://realsimexperience.com</a></li>
           </ul>
         </section>
@@ -168,7 +168,7 @@ function ContentEn() {
           </p>
           <ul className="list-disc pl-5 space-y-1 text-slate-400 font-medium">
             <li><strong className="text-slate-300">Name / Corporate name:</strong> RSX Real Sim Experience</li>
-            <li><strong className="text-slate-300">Contact email:</strong> contacto@realsimexperience.com</li>
+            <li><strong className="text-slate-300">Contact email:</strong> realsimxperience@gmail.com</li>
             <li><strong className="text-slate-300">Website:</strong> <a href="https://realsimexperience.com" className="text-[#1274de] hover:underline" target="_blank" rel="noopener noreferrer">https://realsimexperience.com</a></li>
           </ul>
         </section>
