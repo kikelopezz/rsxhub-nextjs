@@ -144,15 +144,23 @@ export async function deleteUserAccountAction(targetUserId: string) {
   }
 
   try {
-    // Mirrors the original scope exactly: wipes the profile, roles, team
-    // memberships, registrations, and market listings, but deliberately
-    // leaves the users/steam_accounts identity rows in place.
+    // La política de privacidad promete borrar los datos personales al eliminar la cuenta — eso
+    // incluye la identidad de Steam (steamId, nombre, avatar), que antes se dejaba a propósito sin
+    // tocar. `profile` y `steamAccount` tienen onDelete: Cascade desde `user`, así que borrar el
+    // user se lleva ambos; el resto de tablas solo guardan el userId como texto suelto (sin FK), así
+    // que hay que vaciarlas aparte o quedarían huérfanas apuntando a un usuario que ya no existe.
     await db.$transaction([
-      db.profile.deleteMany({ where: { userId: targetUserId } }),
       db.platformRole.deleteMany({ where: { userId: targetUserId } }),
       db.teamMember.deleteMany({ where: { userId: targetUserId } }),
       db.leagueRegistration.deleteMany({ where: { userId: targetUserId } }),
       db.marketListing.deleteMany({ where: { userId: targetUserId } }),
+      db.teamCarDriver.deleteMany({ where: { userId: targetUserId } }),
+      db.eventConfirmationDriver.deleteMany({ where: { userId: targetUserId } }),
+      db.leagueTeamRegistrationDriver.deleteMany({ where: { userId: targetUserId } }),
+      db.driverNumberPreference.deleteMany({ where: { userId: targetUserId } }),
+      // Los logs de auditoría SÍ se conservan a propósito (rastro de quién hizo qué,
+      // obligación/interés legítimo de seguridad) — la política ya contempla esa excepción.
+      db.user.delete({ where: { id: targetUserId } }),
     ])
   } catch (err) {
     console.error('Failed to delete user account:', err)

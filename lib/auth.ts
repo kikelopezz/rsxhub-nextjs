@@ -38,7 +38,12 @@ export const getCurrentUser = cache(async () => {
       `session_version_${session.userId}`,
       async () => {
         try {
-          return (await db.user.findUnique({ where: { id: session.userId }, select: { sessionVersion: true } }))?.sessionVersion ?? null
+          const row = await db.user.findUnique({ where: { id: session.userId }, select: { sessionVersion: true } })
+          // -1 es un centinela distinto de `null`: "la fila no existe" (cuenta eliminada de verdad),
+          // no "no se pudo leer la base de datos". isSessionVersionValid() es fail-open con `null`
+          // a propósito (para un fallo de red no cerrar sesión a nadie) — pero una cuenta borrada sí
+          // debe cerrar la sesión siempre, por eso se corta aquí y no se deja caer en esa función.
+          return row ? row.sessionVersion : -1
         } catch (err) {
           console.error('Failed to read sessionVersion (treating session as valid):', err)
           return null
@@ -46,6 +51,7 @@ export const getCurrentUser = cache(async () => {
       },
       30
     )
+    if (currentVersion === -1) return null
     if (!isSessionVersionValid(session.sessionVersion, currentVersion)) return null
     // If we have a generic name or are missing the avatar, try to resolve it dynamically from
     // Steam. This hits an external, uncached API — without a TTL cache it would mean a live
