@@ -51,16 +51,16 @@ function ContentEs() {
               </thead>
               <tbody className="divide-y divide-white/5 text-slate-400">
                 <tr>
-                  <td className="p-3 font-semibold text-slate-200">rsx_session</td>
+                  <td className="p-3 font-semibold text-slate-200">simleague_session</td>
                   <td className="p-3">Técnica / Sesión</td>
-                  <td className="p-3">Mantiene la sesión del usuario autenticado</td>
-                  <td className="p-3">Sesión / 7 días</td>
+                  <td className="p-3">Mantiene la sesión del usuario autenticado (token cifrado)</td>
+                  <td className="p-3">7 días</td>
                 </tr>
                 <tr>
-                  <td className="p-3 font-semibold text-slate-200">__session</td>
-                  <td className="p-3">Técnica / Sesión</td>
-                  <td className="p-3">Token de autenticación cifrado (JWT)</td>
-                  <td className="p-3">7 días</td>
+                  <td className="p-3 font-semibold text-slate-200">steam_login_state</td>
+                  <td className="p-3">Técnica / Seguridad</td>
+                  <td className="p-3">Evita falsificaciones durante el inicio de sesión con Steam; se borra al volver de Steam</td>
+                  <td className="p-3">10 minutos</td>
                 </tr>
               </tbody>
             </table>
@@ -139,16 +139,16 @@ function ContentEn() {
               </thead>
               <tbody className="divide-y divide-white/5 text-slate-400">
                 <tr>
-                  <td className="p-3 font-semibold text-slate-200">rsx_session</td>
+                  <td className="p-3 font-semibold text-slate-200">simleague_session</td>
                   <td className="p-3">Technical / Session</td>
-                  <td className="p-3">Maintains the authenticated user session</td>
-                  <td className="p-3">Session / 7 days</td>
+                  <td className="p-3">Maintains the authenticated user session (encrypted token)</td>
+                  <td className="p-3">7 days</td>
                 </tr>
                 <tr>
-                  <td className="p-3 font-semibold text-slate-200">__session</td>
-                  <td className="p-3">Technical / Session</td>
-                  <td className="p-3">Encrypted authentication token (JWT)</td>
-                  <td className="p-3">7 days</td>
+                  <td className="p-3 font-semibold text-slate-200">steam_login_state</td>
+                  <td className="p-3">Technical / Security</td>
+                  <td className="p-3">Prevents forgery during Steam sign-in; cleared on return from Steam</td>
+                  <td className="p-3">10 minutes</td>
                 </tr>
               </tbody>
             </table>
