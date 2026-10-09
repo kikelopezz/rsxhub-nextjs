@@ -18,19 +18,36 @@ import {
   parseClassTag,
 } from './actions/league-registration-upsert'
 
+// Estos 4 Server Actions no las llama ningún componente ahora mismo (parecían quedarse sin
+// terminar de cablear a la UI), pero siguen siendo endpoints reales y alcanzables: cualquiera que
+// supiera construir la petición podía mandar el `userId` que quisiera. getPreferredNumbers e
+// isNumberAvailable solo leían/comparaban con ese id ajeno (fuga de datos); upsertLeagueRegistration
+// directamente BORRABA y CREABA la inscripción de otra persona (IDOR de escritura). Se exige sesión
+// y que el `userId` recibido sea el de quien llama, igual que en el resto de Server Actions del sitio.
+
 export async function getPreferredNumbers(params: Parameters<typeof _getPreferredNumbers>[0]) {
+  const session = await getCurrentUser()
+  if (!session || session.userId !== params.userId) return []
   return _getPreferredNumbers(params)
 }
 
 export async function pickAssignedNumber(params: Parameters<typeof _pickAssignedNumber>[0]) {
+  const session = await getCurrentUser()
+  if (!session) return null
   return _pickAssignedNumber(params)
 }
 
 export async function isNumberAvailable(params: Parameters<typeof _isNumberAvailable>[0]) {
-  return _isNumberAvailable(params)
+  const session = await getCurrentUser()
+  if (!session) return false
+  // El `currentUserId` solo sirve para "no cuenta como ocupado tu propio número": se fuerza al de
+  // la sesión real, nunca al que mande el cliente, para que no se pueda suplantar a otra persona.
+  return _isNumberAvailable({ ...params, currentUserId: session.userId })
 }
 
 export async function upsertLeagueRegistration(params: Parameters<typeof _upsertLeagueRegistration>[0]) {
+  const session = await getCurrentUser()
+  if (!session || session.userId !== params.userId) throw new Error('No autorizado.')
   return _upsertLeagueRegistration(params)
 }
 
