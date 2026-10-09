@@ -138,21 +138,36 @@ function Th({
   children,
   sortKey,
   onSort,
+  sort,
   className = '',
 }: {
   children?: React.ReactNode
   sortKey?: SortKey
   onSort?: (key: SortKey) => void
+  /** Estado de orden actual de la tabla — solo hace falta si esta columna es `sortKey`. */
+  sort?: { key: SortKey; dir: 'asc' | 'desc' }
   className?: string
 }) {
+  // Antes el <th> entero era el objetivo de un onClick suelto: sin onKeyDown ni foco, no se podía
+  // ordenar la tabla con teclado ni un lector de pantalla sabía que era ordenable. Ahora el control
+  // de verdad es un <button> (foco y teclado gratis) y aria-sort en el <th> dice el estado real.
+  if (!sortKey || !onSort) {
+    return <th className={`border-b border-[#1f242c] px-2 py-3 text-[9px] font-bold uppercase tracking-[0.16em] text-[#6b7280] ${className}`}>{children}</th>
+  }
+  const active = sort?.key === sortKey
   return (
     <th
-      onClick={sortKey && onSort ? () => onSort(sortKey) : undefined}
-      className={`border-b border-[#1f242c] px-2 py-3 text-[9px] font-bold uppercase tracking-[0.16em] text-[#6b7280] ${
-        sortKey ? 'cursor-pointer select-none hover:text-white' : ''
-      } ${className}`}
+      aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      className={`border-b border-[#1f242c] p-0 text-[9px] font-bold uppercase tracking-[0.16em] text-[#6b7280] ${className}`}
     >
-      {children}
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`w-full cursor-pointer select-none px-2 py-3 text-inherit hover:text-white ${className.includes('text-right') ? 'text-right' : className.includes('text-center') ? 'text-center' : 'text-left'}`}
+      >
+        {children}
+        {active ? <span aria-hidden="true">{sort!.dir === 'asc' ? ' ▲' : ' ▼'}</span> : null}
+      </button>
     </th>
   )
 }
@@ -578,6 +593,11 @@ export default function LiveTimingPage() {
     prevPositions.current = new Map()
     const kickoff = setTimeout(() => pollRef.current(), 400)
     const id = setInterval(() => pollRef.current(), 6000)
+    // Red de seguridad: poll() siempre debería dejar "Conectando…" en online/offline, pero si la
+    // pestaña se abrió en segundo plano (poll() no hace nada mientras document.hidden) y nunca pasa
+    // a primer plano, antes se quedaba así para siempre. A los 8 s se fuerza "offline" — solo es un
+    // estado visual, el intervalo normal lo corrige solo en el siguiente sondeo que sí tenga datos.
+    const safety = setTimeout(() => setStatus((prev) => (prev === 'connecting' ? 'offline' : prev)), 8000)
     // Al volver a la pestaña se refresca enseguida, en vez de esperar al siguiente tick.
     const onVisible = () => {
       if (!document.hidden) pollRef.current()
@@ -585,6 +605,7 @@ export default function LiveTimingPage() {
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       clearTimeout(kickoff)
+      clearTimeout(safety)
       clearInterval(id)
       document.removeEventListener('visibilitychange', onVisible)
     }
@@ -1038,20 +1059,20 @@ export default function LiveTimingPage() {
             <table className="w-full min-w-[1260px] border-collapse text-left font-mono-data text-[11px] whitespace-nowrap">
               <thead className="sticky top-0 z-10 bg-[#11141a]">
                 <tr className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#6b7280]">
-                  <Th sortKey="Position" onSort={handleSort} className="pl-4 text-center">{t.col.pos}</Th>
-                  <Th sortKey="Number" onSort={handleSort} className="text-center">{t.col.number}</Th>
-                  <Th sortKey="Class" onSort={handleSort} className="text-center">{t.col.cls}</Th>
-                  <Th sortKey="Driver" onSort={handleSort}>{t.col.name}</Th>
-                  <Th sortKey="Team" onSort={handleSort}>{t.col.team}</Th>
+                  <Th sortKey="Position" onSort={handleSort} sort={sort} className="pl-4 text-center">{t.col.pos}</Th>
+                  <Th sortKey="Number" onSort={handleSort} sort={sort} className="text-center">{t.col.number}</Th>
+                  <Th sortKey="Class" onSort={handleSort} sort={sort} className="text-center">{t.col.cls}</Th>
+                  <Th sortKey="Driver" onSort={handleSort} sort={sort}>{t.col.name}</Th>
+                  <Th sortKey="Team" onSort={handleSort} sort={sort}>{t.col.team}</Th>
                   <Th className="text-center">{t.col.tyre}</Th>
                   <Th className="text-right">{t.col.gap}</Th>
                   <Th className="text-right text-[#38bdf8]">{t.col.interval}</Th>
-                  <Th sortKey="LastLap" onSort={handleSort} className="text-right">{t.col.last}</Th>
-                  <Th sortKey="BestLap" onSort={handleSort} className="text-right">{t.col.best}</Th>
+                  <Th sortKey="LastLap" onSort={handleSort} sort={sort} className="text-right">{t.col.last}</Th>
+                  <Th sortKey="BestLap" onSort={handleSort} sort={sort} className="text-right">{t.col.best}</Th>
                   <Th className="text-center">S1</Th>
                   <Th className="text-center">S2</Th>
                   <Th className="text-center">S3</Th>
-                  <Th sortKey="Laps" onSort={handleSort} className="text-center">{t.col.laps}</Th>
+                  <Th sortKey="Laps" onSort={handleSort} sort={sort} className="text-center">{t.col.laps}</Th>
                   <Th className="text-center">{t.col.pits}</Th>
                   <Th className="text-center text-[#f59e0b]">{t.col.stint}</Th>
                   <Th className="text-center">{t.col.state}</Th>
