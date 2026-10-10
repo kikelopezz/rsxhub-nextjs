@@ -634,24 +634,6 @@ export default function LiveTimingPage() {
     [hubEntries, hubNames]
   )
 
-  // Detecta adelantamientos: compara cada posición con la del sondeo anterior
-  useEffect(() => {
-    const now = Date.now()
-    const next = new Map<string, number>()
-    const changes: Record<string, { delta: number; at: number }> = {}
-    connected.forEach((d) => {
-      const key = carKey(d)
-      next.set(key, d.Position)
-      const before = prevPositions.current.get(key)
-      if (before != null && before !== d.Position) changes[key] = { delta: before - d.Position, at: now }
-    })
-    prevPositions.current = next
-    setMoves((prev) => {
-      const alive = Object.fromEntries(Object.entries(prev).filter(([, m]) => now - m.at < 12_000))
-      return { ...alive, ...changes }
-    })
-  }, [connected])
-
   const filterDrivers = useCallback(
     (drivers: LiveDriver[]) => {
       if (filter === 'ALL') return drivers
@@ -716,6 +698,28 @@ export default function LiveTimingPage() {
       })
     return meta
   }, [connected])
+
+  // Detecta "peleas de posición": compara la posición DENTRO DE SU CATEGORÍA con el sondeo
+  // anterior, nunca la posición general de la carrera — si no, un coche de GT3 parecía "subir o
+  // bajar puesto" solo porque a un LMP2 (que no compite contra él) lo doblaron o entró a boxes.
+  useEffect(() => {
+    const now = Date.now()
+    const next = new Map<string, number>()
+    const changes: Record<string, { delta: number; at: number }> = {}
+    connected.forEach((d) => {
+      const key = carKey(d)
+      const classPos = rowMeta.get(key)?.classPos
+      if (classPos == null) return
+      next.set(key, classPos)
+      const before = prevPositions.current.get(key)
+      if (before != null && before !== classPos) changes[key] = { delta: before - classPos, at: now }
+    })
+    prevPositions.current = next
+    setMoves((prev) => {
+      const alive = Object.fromEntries(Object.entries(prev).filter(([, m]) => now - m.at < 12_000))
+      return { ...alive, ...changes }
+    })
+  }, [connected, rowMeta])
 
   // Mejor vuelta de cada categoría (y la absoluta) para pintar en morado y para la banda de vueltas rápidas
   const fastest = useMemo(() => {
