@@ -323,8 +323,17 @@ export function ImagePicker({ name, defaultValue = '', label = 'League Banner Im
     setUploading(true)
     try {
       const label = entityName ?? ''
-      const direct = await uploadDirectToR2(blob, label)
-      const url = direct ?? (await uploadThroughServer(blob, name, label))
+      let url: string
+      try {
+        const direct = await uploadDirectToR2(blob, label)
+        url = direct ?? (await uploadThroughServer(blob, name, label))
+      } catch (directErr) {
+        // La subida directa a R2 puede fallar por algo ajeno a "R2 no configurado" (CORS del
+        // bucket, red): antes esto tumbaba la subida entera en vez de probar la ruta por el
+        // servidor, que sigue funcionando igual para imágenes de este tamaño.
+        console.error('Direct upload to R2 failed, falling back to server upload:', directErr)
+        url = await uploadThroughServer(blob, name, label)
+      }
       setImages((prev) => (prev.includes(url) ? prev : [url, ...prev]))
       handleSelect(url)
     } catch (err) {
