@@ -89,7 +89,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
           </div>
           <div>
             <label className={label}>Descripción</label>
-            <textarea className={input} rows={3} maxLength={500} value={form.panelDescription} onChange={(e) => set('panelDescription', e.target.value)} />
+            <textarea className={input} rows={3} maxLength={2000} value={form.panelDescription} onChange={(e) => set('panelDescription', e.target.value)} />
           </div>
           <div className="grid gap-4 md:grid-cols-[1fr_auto]">
             <div>
@@ -156,7 +156,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
           </div>
           <div>
             <label className={label}>Mensaje de bienvenida dentro del ticket</label>
-            <textarea className={input} rows={3} maxLength={500} value={form.welcomeMessage} onChange={(e) => set('welcomeMessage', e.target.value)} />
+            <textarea className={input} rows={3} maxLength={1000} value={form.welcomeMessage} onChange={(e) => set('welcomeMessage', e.target.value)} />
             <p className={hint}>Usa {'{user}'} para mencionar a quien abrió el ticket.</p>
           </div>
         </section>
@@ -164,10 +164,9 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
         <section className={card}>
           <h2 className={heading}>Categorías de la duda o incidencia</h2>
           <p className="text-xs text-slate-400">
-            {campeonatos.length > 0
-              ? 'Se preguntan después de elegir el campeonato (más abajo). Las mismas categorías valen para todos los campeonatos.'
-              : 'Son la opción del panel, ya que no hay campeonatos configurados.'}{' '}
-            Cada ticket se nombra con su categoría y un número propio (p. ej. «Incidente de carrera 001»).
+            Son la opción del panel.{' '}
+            {campeonatos.length > 0 && 'Tras elegir una, se pregunta de qué campeonato es (más abajo). '}
+            Cada ticket se nombra con su categoría y un número propio (p. ej. «ERC-INCIDENTE-001», o «INCIDENTE-001» sin campeonato).
           </p>
           {types.map((t, i) => (
             <div key={t.id} className="space-y-2 rounded-lg border border-white/10 bg-black/30 p-3">
@@ -178,6 +177,13 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
                   Quitar
                 </button>
               </div>
+              <input
+                value={t.shortCode}
+                onChange={(e) => updateType(i, { shortCode: e.target.value.toUpperCase() })}
+                placeholder="Código corto para el nombre del ticket, p. ej. INCIDENTE (opcional, si no se usa el nombre completo)"
+                maxLength={20}
+                className={input}
+              />
               <input
                 value={t.description}
                 onChange={(e) => updateType(i, { description: e.target.value })}
@@ -190,7 +196,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
                 onChange={(e) => updateType(i, { welcome: e.target.value })}
                 placeholder="Mensaje de bienvenida propio de esta categoría (si lo dejas vacío se usa el general). Puede ser tan largo como haga falta, p. ej. el reglamento de reclamaciones."
                 rows={4}
-                maxLength={3500}
+                maxLength={6000}
                 className={input}
               />
               <input
@@ -228,7 +234,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
           {types.length === 0 && <p className={hint}>Sin categorías: el panel mostrará solo el título y la descripción, sin opciones.</p>}
           <button
             type="button"
-            onClick={() => setTypes((list) => [...list, { id: `t-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '', description: '', welcome: '', imageUrl: null, color: 'blue', pingRoleId: null }])}
+            onClick={() => setTypes((list) => [...list, { id: `t-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '', shortCode: '', description: '', welcome: '', imageUrl: null, color: 'blue', pingRoleId: null }])}
             className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold uppercase text-slate-300 hover:bg-white/5"
           >
             + Añadir categoría
@@ -238,15 +244,22 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
         <section className={card}>
           <h2 className={heading}>Campeonatos (opcional)</h2>
           <p className="text-xs text-slate-400">
-            Con al menos un campeonato, el panel pregunta primero cuál de estos es (se añade automáticamente la opción «General» para lo que no
-            sea de ninguno) y la categoría de la duda se pregunta después. Si le pones una categoría de Discord a uno, sus tickets se crean ahí en
-            vez de en la categoría general.
+            Con al menos un campeonato, tras elegir la categoría en el panel se pregunta de cuál de estos es. Si le pones una categoría de
+            Discord a uno, sus tickets se crean ahí en vez de en la categoría general. El código corto (p. ej. «ERC») va delante del nombre
+            del ticket; si lo dejas vacío se usa el nombre completo.
           </p>
           {campeonatos.map((c, i) => (
             <div key={c.id} className="space-y-2 rounded-lg border border-white/10 bg-black/30 p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <input value={c.emoji} onChange={(e) => updateCampeonato(i, { emoji: e.target.value })} placeholder="🏁" maxLength={8} className={`${input} w-16 text-center`} />
                 <input value={c.label} onChange={(e) => updateCampeonato(i, { label: e.target.value })} placeholder="Nombre del campeonato" maxLength={60} className={`${input} flex-1 min-w-[140px]`} />
+                <input
+                  value={c.shortCode}
+                  onChange={(e) => updateCampeonato(i, { shortCode: e.target.value.toUpperCase() })}
+                  placeholder="Código corto, p. ej. ERC"
+                  maxLength={20}
+                  className={`${input} w-40`}
+                />
                 <select className={`${input} flex-1 min-w-[160px]`} value={c.categoryId || ''} onChange={(e) => updateCampeonato(i, { categoryId: e.target.value || null })}>
                   <option value="">— Categoría general —</option>
                   {categories.map((cat) => (
@@ -275,7 +288,7 @@ export function TicketSettingsForm({ guild, config }: { guild: GuildDetails; con
           ))}
           <button
             type="button"
-            onClick={() => setCampeonatos((list) => [...list, { id: `c-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '', categoryId: null, color: 'blue' }])}
+            onClick={() => setCampeonatos((list) => [...list, { id: `c-${Math.random().toString(36).slice(2, 9)}`, emoji: '', label: '', shortCode: '', categoryId: null, color: 'blue' }])}
             className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold uppercase text-slate-300 hover:bg-white/5"
           >
             + Añadir campeonato

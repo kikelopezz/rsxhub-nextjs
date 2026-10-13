@@ -16,6 +16,8 @@ export type TicketType = {
   id: string
   emoji: string
   label: string
+  /** Código corto para el nombre del ticket (p. ej. "INCIDENTE"); vacío = se usa `label`. */
+  shortCode: string
   description: string
   welcome: string
   imageUrl: string | null
@@ -27,6 +29,8 @@ export type Campeonato = {
   id: string
   emoji: string
   label: string
+  /** Código corto para el nombre del ticket (p. ej. "ERC"); vacío = se usa `label`. */
+  shortCode: string
   categoryId: string | null
   color: ButtonColor
 }
@@ -51,6 +55,7 @@ function sanitizeTicketTypes(types: unknown): TicketType[] {
         id: text(raw?.id, 40) || `t-${randomBytes(4).toString('hex')}`,
         emoji: text(raw?.emoji, 8),
         label: text(raw?.label, 60),
+        shortCode: text(raw?.shortCode, 20),
         description: text(raw?.description, 100),
         welcome: text(raw?.welcome, 6000), // igual que panelDescription: hueco de sobra para el texto en inglés
         imageUrl: httpUrlOrNull(raw?.imageUrl),
@@ -72,6 +77,7 @@ function sanitizeCampeonatos(list: unknown): Campeonato[] {
         id: text(raw?.id, 40) || `c-${randomBytes(4).toString('hex')}`,
         emoji: text(raw?.emoji, 8),
         label: text(raw?.label, 60),
+        shortCode: text(raw?.shortCode, 20),
         categoryId: snowflakeOrNull(raw?.categoryId),
         color: (BUTTON_COLORS as readonly string[]).includes(raw?.color as string) ? (raw!.color as ButtonColor) : 'blue',
       }
