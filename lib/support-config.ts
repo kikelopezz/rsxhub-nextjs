@@ -52,7 +52,7 @@ function sanitizeTicketTypes(types: unknown): TicketType[] {
         emoji: text(raw?.emoji, 8),
         label: text(raw?.label, 60),
         description: text(raw?.description, 100),
-        welcome: text(raw?.welcome, 3500),
+        welcome: text(raw?.welcome, 6000), // igual que panelDescription: hueco de sobra para el texto en inglés
         imageUrl: httpUrlOrNull(raw?.imageUrl),
         color: (BUTTON_COLORS as readonly string[]).includes(raw?.color as string) ? (raw!.color as ButtonColor) : 'blue',
         pingRoleId: snowflakeOrNull(raw?.pingRoleId),
@@ -109,7 +109,9 @@ export function sanitizeSettings(body: SettingsInput): Omit<
 > & { ticketTypes: TicketType[]; campeonatos: Campeonato[] } {
   return {
     panelTitle: text(body.panelTitle, 100) || 'Soporte',
-    panelDescription: text(body.panelDescription, 500),
+    // 2000, no 500: con texto bilingüe (español + inglés en el mismo campo, separados por
+    // "---EN---") el límite viejo cortaba la mitad inglesa a medias.
+    panelDescription: text(body.panelDescription, 2000),
     panelChannelId: snowflakeOrNull(body.panelChannelId),
     categoryId: snowflakeOrNull(body.categoryId),
     transcriptChannelId: snowflakeOrNull(body.transcriptChannelId),
@@ -117,7 +119,7 @@ export function sanitizeSettings(body: SettingsInput): Omit<
     staffRoleIds: Array.isArray(body.staffRoleIds) ? Array.from(new Set(body.staffRoleIds.filter(isSnowflake))).slice(0, 25) : [],
     ticketTypes: sanitizeTicketTypes(body.ticketTypes),
     campeonatos: sanitizeCampeonatos(body.campeonatos),
-    welcomeMessage: text(body.welcomeMessage, 500) || 'Gracias por abrir un ticket, {user}. El equipo de staff te atenderá en breve.',
+    welcomeMessage: text(body.welcomeMessage, 1000) || 'Gracias por abrir un ticket, {user}. El equipo de staff te atenderá en breve.',
     embedColor: /^#[0-9a-fA-F]{6}$/.test(body.embedColor || '') ? (body.embedColor as string) : '#1274de',
     maxOpenTickets: Math.max(1, Math.min(10, Number(body.maxOpenTickets) || 1)),
     panelStyle: body.panelStyle === 'buttons' ? 'buttons' : 'menu',
