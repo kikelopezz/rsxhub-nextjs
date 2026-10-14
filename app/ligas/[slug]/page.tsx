@@ -5,6 +5,7 @@ import { getLeagueBySlug, getLeagueCars, getLeagueEvents, getRegistrations, getE
 import { getTeamsDashboard, getSkinReviewStatusByLeague } from '@/lib/team-data'
 import LeagueDetailPageContent from './page-content'
 import { getSimulators, simulatorName, simulatorLogo } from '@/lib/data/simulators'
+import { listCatalogFiles, catalogCategoryForLeague, type CatalogFile } from '@/lib/admin-catalog'
 
 export const revalidate = 0
 export const dynamic = 'force-dynamic'
@@ -79,6 +80,13 @@ export default async function LigaDetailPage({
 
   const simulators = await getSimulators()
 
+  // Contenido descargable (coches/circuitos) del catálogo de admin que le toca a esta liga
+  // según su campeonato — null si la liga no tiene categoría asignada (ver catalogCategoryForLeague).
+  const catalogCategory = catalogCategoryForLeague(league.slug)
+  const [catalogCars, catalogCircuits]: [CatalogFile[], CatalogFile[]] = catalogCategory
+    ? await Promise.all([listCatalogFiles('coches', catalogCategory), listCatalogFiles('circuitos', catalogCategory)])
+    : [[], []]
+
   // Map to serializable structures
   const serializableLeague = {
     id: league.id,
@@ -103,6 +111,8 @@ export default async function LigaDetailPage({
     youtubeUrl: (league as any).youtubeUrl || null,
     rulebookUrl: (league as any).rulebookUrl || null,
     driveUrl: (league as any).driveUrl || null,
+    catalogCars,
+    catalogCircuits,
   }
 
   const serializableEvents = events.map((e) => ({

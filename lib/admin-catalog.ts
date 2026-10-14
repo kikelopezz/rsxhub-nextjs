@@ -20,6 +20,21 @@ export const CATALOG_CATEGORIES = [
 
 export type CatalogCategorySlug = (typeof CATALOG_CATEGORIES)[number]['slug']
 
+/**
+ * Qué categoría del catálogo le toca a cada liga real — por su `slug` en la base de datos, que
+ * no tiene por qué coincidir con el slug de la carpeta de R2 (p. ej. la liga "ERC NG" tiene ese
+ * slug tal cual, con espacio). Lo normal es que haya como mucho un puñado de ligas, así que una
+ * tabla explícita es más clara y fiable que intentar adivinarlo por el nombre.
+ */
+const LEAGUE_SLUG_TO_CATALOG_CATEGORY: Record<string, CatalogCategorySlug> = {
+  'endurance-real-championship': 'erc',
+  'ERC NG': 'erc-next-gen',
+}
+
+export function catalogCategoryForLeague(leagueSlug: string): CatalogCategorySlug | null {
+  return LEAGUE_SLUG_TO_CATALOG_CATEGORY[leagueSlug] ?? null
+}
+
 // Uploaded keys look like "<folder>/<original-name>_<timestamp36>.<ext>" (see the presign
 // route) — strip the generated suffix back off so the admin sees the file's real name.
 function parseFileName(key: string): string {

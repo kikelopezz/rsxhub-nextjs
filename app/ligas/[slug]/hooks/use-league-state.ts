@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateCarPhotoAction } from '@/app/ligas/actions'
+import type { CatalogFile } from '@/lib/admin-catalog'
 
 export type League = {
   id: string
@@ -25,6 +26,9 @@ export type League = {
   youtubeUrl?: string | null
   rulebookUrl?: string | null
   driveUrl?: string | null
+  /** Coches/circuitos del catálogo de admin que le tocan a esta liga según su campeonato (puede venir vacío). */
+  catalogCars?: CatalogFile[]
+  catalogCircuits?: CatalogFile[]
 }
 
 export type LeagueEvent = {

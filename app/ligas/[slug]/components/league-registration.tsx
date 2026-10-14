@@ -162,18 +162,75 @@ export function LeagueRegistration({
         </div>
       )}
 
-      {league.driveUrl && (
-        <a
-          href={league.driveUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={t.downloadContentTitle}
-          className="flex shrink-0 items-center gap-2 rounded-lg border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.08)] px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-[#4ea1ff] transition-colors hover:bg-[rgba(78,161,255,.18)]"
-        >
-          <Download className="h-3.5 w-3.5" />
-          {t.downloadContent}
-        </a>
-      )}
+      <DownloadContentMenu league={league} label={t.downloadContent} title={t.downloadContentTitle} />
     </div>
+  )
+}
+
+const downloadButtonClass =
+  'flex shrink-0 items-center gap-2 rounded-lg border border-[#4ea1ff]/40 bg-[rgba(78,161,255,.08)] px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-[#4ea1ff] transition-colors hover:bg-[rgba(78,161,255,.18)]'
+
+/**
+ * Coches/circuitos del catálogo de admin para el campeonato de esta liga (ver catalogCategoryForLeague
+ * en lib/admin-catalog.ts), más el enlace de Drive si lo hay. Con solo una opción disponible, un
+ * enlace directo; con varias, un desplegable — usando <details> para no montar lógica de
+ * clic-fuera-para-cerrar a mano, el navegador ya la da gratis.
+ */
+function DownloadContentMenu({ league, label, title }: { league: League; label: string; title: string }) {
+  const cars = league.catalogCars || []
+  const circuits = league.catalogCircuits || []
+  const items = [
+    ...cars.map((f) => ({ ...f, group: 'Coches' })),
+    ...circuits.map((f) => ({ ...f, group: 'Circuitos' })),
+  ]
+
+  if (items.length === 0) {
+    if (!league.driveUrl) return null
+    return (
+      <a href={league.driveUrl} target="_blank" rel="noopener noreferrer" title={title} className={downloadButtonClass}>
+        <Download className="h-3.5 w-3.5" />
+        {label}
+      </a>
+    )
+  }
+
+  let lastGroup = ''
+  return (
+    <details className="group relative shrink-0">
+      <summary title={title} className={`${downloadButtonClass} list-none [&::-webkit-details-marker]:hidden`}>
+        <Download className="h-3.5 w-3.5" />
+        {label}
+      </summary>
+      <div className="absolute right-0 top-[calc(100%+6px)] z-20 w-64 space-y-1 rounded-lg border border-shell-line bg-[#0a0a0c] p-2 shadow-xl">
+        {items.map((file) => {
+          const showHeading = file.group !== lastGroup
+          lastGroup = file.group
+          return (
+            <div key={file.key}>
+              {showHeading && <p className="px-1.5 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">{file.group}</p>}
+              <a
+                href={file.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block truncate rounded-md px-1.5 py-1 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/5 hover:text-[#4ea1ff]"
+                title={file.name}
+              >
+                {file.name}
+              </a>
+            </div>
+          )
+        })}
+        {league.driveUrl && (
+          <a
+            href={league.driveUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 block truncate rounded-md border-t border-shell-line px-1.5 pt-2 text-xs font-semibold text-slate-400 transition-colors hover:text-[#4ea1ff]"
+          >
+            Más contenido en Google Drive
+          </a>
+        )}
+      </div>
+    </details>
   )
 }
