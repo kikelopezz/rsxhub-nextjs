@@ -221,6 +221,9 @@ model SupportTicket {
   typeLabel       String?             @map("type_label")
   campeonatoId    String?             @map("campeonato_id")
   campeonatoLabel String?             @map("campeonato_label")
+  /// Nombre de la carrera/ronda, puesto por el staff al cerrar o transcribir el ticket (p. ej.
+  /// "Ronda 5 - Spa"). Sirve para agrupar los tickets de un campeonato por carrera en el Hub.
+  raceName        String?             @map("race_name")
   openerId        String              @map("opener_id")
   openerTag       String?             @map("opener_tag")
   claimedBy       String?             @map("claimed_by")
@@ -243,6 +246,7 @@ model SupportTicket {
 
   @@index([guildId, status])
   @@index([openerId])
+  @@index([guildId, campeonatoId, raceName])
   @@map("support_tickets")
 }
 

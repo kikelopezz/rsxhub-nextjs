@@ -23,6 +23,36 @@ function formatDate(date: Date) {
   return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date)
 }
 
+const NO_CAMPEONATO = '— Sin campeonato —'
+const NO_RACE = '— Sin carrera —'
+
+/**
+ * Agrupa por campeonato y, dentro de cada uno, por carrera — para encontrar de un vistazo
+ * "todos los tickets de ERC de la Ronda 5" en vez de desenterrarlos de una lista plana. El orden
+ * de entrada de `tickets` (más reciente primero) se conserva dentro de cada grupo.
+ */
+function groupByCampeonatoAndRace<T extends { campeonatoLabel: string | null; raceName: string | null }>(tickets: T[]) {
+  const byCampeonato = new Map<string, Map<string, T[]>>()
+  for (const t of tickets) {
+    const campeonato = t.campeonatoLabel || NO_CAMPEONATO
+    const race = t.raceName || NO_RACE
+    if (!byCampeonato.has(campeonato)) byCampeonato.set(campeonato, new Map())
+    const byRace = byCampeonato.get(campeonato)!
+    if (!byRace.has(race)) byRace.set(race, [])
+    byRace.get(race)!.push(t)
+  }
+  // Sin campeonato y sin carrera van al final de sus respectivos niveles — lo que sí se ha
+  // categorizado se ve primero.
+  return [...byCampeonato.entries()]
+    .sort(([a], [b]) => (a === NO_CAMPEONATO ? 1 : b === NO_CAMPEONATO ? -1 : a.localeCompare(b)))
+    .map(([campeonato, byRace]) => ({
+      campeonato,
+      races: [...byRace.entries()]
+        .sort(([a], [b]) => (a === NO_RACE ? 1 : b === NO_RACE ? -1 : a.localeCompare(b)))
+        .map(([race, items]) => ({ race, items })),
+    }))
+}
+
 export default async function SoportePage({
   searchParams,
 }: {
@@ -73,6 +103,10 @@ export default async function SoportePage({
   const countByStatus = Object.fromEntries(counts.map((c) => [c.status, c._count._all]))
   const total = counts.reduce((sum, c) => sum + c._count._all, 0)
   const openTickets = tickets.filter((t) => t.status === 'open' || t.status === 'claimed')
+
+  // Solo la vista de lista se agrupa así — el tablero es para ver el estado en vivo, no para
+  // bucear en el histórico por campeonato/carrera.
+  const grouped = groupByCampeonatoAndRace(tickets)
 
   const buildUrl = (next: Partial<{ guild: string; status: string; view: string }>) => {
     const qs = new URLSearchParams({
@@ -155,45 +189,56 @@ export default async function SoportePage({
           No hay tickets con este filtro.
         </div>
       ) : (
-        <div className="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0c]">
-          {tickets.map((ticket) => (
-            <details key={ticket.id} className="group">
-              <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 px-4 py-3 hover:bg-white/[0.03]">
-                <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
-                <span className="font-bold text-white">
-                  {ticket.status === 'closed' ? '✅ ' : ''}
-                  {ticket.code}
-                </span>
-                {ticket.campeonatoLabel && <span className="text-xs text-slate-400">{ticket.campeonatoLabel}</span>}
-                <span className="text-xs text-slate-500">{ticket.openerTag || ticket.openerId}</span>
-                {ticket.claimedByTag && ticket.status === 'claimed' && (
-                  <span className="text-[10px] uppercase text-amber-400">Reclamado por {ticket.claimedByTag}</span>
-                )}
-                <StatusSteps ticket={ticket} mode="compact" />
-                <span className="ml-auto flex items-center gap-3 text-[10px] text-slate-500">
-                  {formatDate(ticket.createdAt)}
-                  <DiscordChannelLink guildId={guildId} channelId={ticket.channelId} />
-                </span>
-              </summary>
-              <div className="border-t border-white/10 bg-black/10 px-4 py-4">
-                <StatusSteps ticket={ticket} mode="full" />
-              </div>
-              <TicketChat guildId={guildId} ticketId={ticket.id} />
-              <TicketActions
-                ticket={{ id: ticket.id, status: ticket.status, internalNotes: ticket.internalNotes }}
-                guildId={guildId}
-                returnStatus={params.status || ''}
-                mergeTargets={openTickets.filter((t) => t.id !== ticket.id).map((t) => ({ id: t.id, code: t.code, status: t.status }))}
-                initialNotes={ticket.internalNotes || ''}
-              />
-              {ticket.transcriptUrl && (
-                <div className="border-t border-white/10 bg-black/20 px-4 py-2">
-                  <a href={ticket.transcriptUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[#4ea1ff] hover:underline">
-                    Ver transcripción →
-                  </a>
+        <div className="space-y-6">
+          {grouped.map(({ campeonato, races }) => (
+            <div key={campeonato} className="space-y-3">
+              <h2 className="font-display-condensed text-xs font-bold uppercase tracking-wider text-slate-400">{campeonato}</h2>
+              {races.map(({ race, items }) => (
+                <div key={race} className="space-y-1.5">
+                  {races.length > 1 && <h3 className="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">{race}</h3>}
+                  <div className="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0c]">
+                    {items.map((ticket) => (
+                      <details key={ticket.id} className="group">
+                        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 px-4 py-3 hover:bg-white/[0.03]">
+                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
+                          <span className="font-bold text-white">
+                            {ticket.status === 'closed' ? '✅ ' : ''}
+                            {ticket.code}
+                          </span>
+                          <span className="text-xs text-slate-500">{ticket.openerTag || ticket.openerId}</span>
+                          {ticket.claimedByTag && ticket.status === 'claimed' && (
+                            <span className="text-[10px] uppercase text-amber-400">Reclamado por {ticket.claimedByTag}</span>
+                          )}
+                          <StatusSteps ticket={ticket} mode="compact" />
+                          <span className="ml-auto flex items-center gap-3 text-[10px] text-slate-500">
+                            {formatDate(ticket.createdAt)}
+                            <DiscordChannelLink guildId={guildId} channelId={ticket.channelId} />
+                          </span>
+                        </summary>
+                        <div className="border-t border-white/10 bg-black/10 px-4 py-4">
+                          <StatusSteps ticket={ticket} mode="full" />
+                        </div>
+                        <TicketChat guildId={guildId} ticketId={ticket.id} />
+                        <TicketActions
+                          ticket={{ id: ticket.id, status: ticket.status, internalNotes: ticket.internalNotes }}
+                          guildId={guildId}
+                          returnStatus={params.status || ''}
+                          mergeTargets={openTickets.filter((t) => t.id !== ticket.id).map((t) => ({ id: t.id, code: t.code, status: t.status }))}
+                          initialNotes={ticket.internalNotes || ''}
+                        />
+                        {ticket.transcriptUrl && (
+                          <div className="border-t border-white/10 bg-black/20 px-4 py-2">
+                            <a href={ticket.transcriptUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[#4ea1ff] hover:underline">
+                              Ver transcripción →
+                            </a>
+                          </div>
+                        )}
+                      </details>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </details>
+              ))}
+            </div>
           ))}
         </div>
       )}

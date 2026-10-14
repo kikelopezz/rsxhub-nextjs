@@ -70,6 +70,9 @@ export function TicketBoard({ tickets, guildId }: { tickets: SupportTicket[]; gu
                         {t.campeonatoLabel}
                       </span>
                     )}
+                    {t.raceName && (
+                      <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">{t.raceName}</span>
+                    )}
                   </div>
                   <p className="text-[13px] font-semibold text-white">
                     {t.status === 'closed' ? '✅ ' : ''}
