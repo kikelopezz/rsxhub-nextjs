@@ -7,6 +7,7 @@ import {
   ARCHIVE_NAME_PATTERN,
   MAX_IMAGE_BYTES,
   MAX_PRESIGNED_ARCHIVE_BYTES,
+  MAX_PRESIGNED_CATALOG_BYTES,
   IMAGE_NAME_PATTERN,
   archiveContentType,
   imageContentType,
@@ -88,14 +89,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ uploadUrl, publicUrl: getR2PublicUrl(key), contentType: image.contentType })
     }
 
-    if (size > MAX_PRESIGNED_ARCHIVE_BYTES) {
-      return NextResponse.json({ error: 'El archivo supera el límite de 200 MB.' }, { status: 413 })
-    }
-
     // startsWith, no includes: "coches"/"circuitos" cubre también sus subcarpetas de categoría
     // (coches/erc, coches/erc-next-gen...) — con solo el match exacto de antes, esas subidas se
     // habrían colado sin pasar por la comprobación de admin de abajo.
-    if (ADMIN_ONLY_FOLDERS.some((f) => folder === f || folder.startsWith(`${f}/`))) {
+    const isCatalogFolder = ADMIN_ONLY_FOLDERS.some((f) => folder === f || folder.startsWith(`${f}/`))
+
+    // Los packs de contenido (coches/circuitos) pesan bastante más que un skin de equipo —
+    // llevan su propio límite, mucho más alto.
+    const maxBytes = isCatalogFolder ? MAX_PRESIGNED_CATALOG_BYTES : MAX_PRESIGNED_ARCHIVE_BYTES
+    if (size > maxBytes) {
+      return NextResponse.json({ error: `El archivo supera el límite de ${Math.round(maxBytes / (1024 * 1024))} MB.` }, { status: 413 })
+    }
+
+    if (isCatalogFolder) {
       const access = await getAdminAccessContext(currentUser.userId)
       if (!access.canAccessPlatformAdmin) {
         return NextResponse.json({ error: 'Forbidden: platform admins only' }, { status: 403 })
@@ -118,7 +124,9 @@ export async function POST(req: Request) {
     // The stored Content-Type is ours (from the extension), not whatever the client claims —
     // it's part of the signature, so the browser must send exactly this one on the PUT.
     const contentType = archiveContentType(filename)
-    const uploadUrl = await createPresignedUploadUrl(key, contentType)
+    // Los 600s (10 min) por defecto bastan para un skin, pero un pack de varios GB puede tardar
+    // más que eso en subir con una conexión normal — 2 horas de margen para el catálogo.
+    const uploadUrl = await createPresignedUploadUrl(key, contentType, isCatalogFolder ? 7200 : undefined)
     const publicUrl = getR2PublicUrl(key)
 
     return NextResponse.json({ uploadUrl, publicUrl, contentType })

@@ -9,6 +9,13 @@ export const MAX_IMAGE_BYTES = 6 * 1024 * 1024
 export const MAX_SERVER_SKIN_BYTES = 4.2 * 1024 * 1024
 /** Skin archives uploaded straight to R2 with a presigned URL. */
 export const MAX_PRESIGNED_ARCHIVE_BYTES = 200 * 1024 * 1024
+/**
+ * Packs de contenido del catálogo (coches/circuitos) — pesan bastante más que un skin de equipo,
+ * así que llevan su propio límite, mucho más alto. 5 GiB es el techo real de una subida PUT
+ * directa (sin multipart) tanto en R2 como en S3; si algún día hace falta más que eso habría que
+ * pasar a subida multiparte.
+ */
+export const MAX_PRESIGNED_CATALOG_BYTES = 5 * 1024 * 1024 * 1024
 /** Request-body ceiling for POST /api/uploads, checked from Content-Length before parsing. */
 export const MAX_UPLOAD_REQUEST_BYTES = 12 * 1024 * 1024
 

@@ -30,7 +30,7 @@ export function CatalogUploader({ folder }: { folder: string }) {
       const { uploadUrl, publicUrl, contentType } = await presignRes.json()
 
       // Este PUT va directo al bucket de R2 (nunca pasa por nuestro servidor, necesario para
-      // archivos de hasta 200 MB) — si el bucket no tiene el origen del sitio en su política
+      // archivos de hasta varios GB) — si el bucket no tiene el origen del sitio en su política
       // CORS, el navegador lo bloquea con un "Failed to fetch" genérico que no dice por qué.
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',
