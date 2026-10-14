@@ -12,11 +12,14 @@ import {
   imageContentType,
 } from '@/lib/upload-validation'
 import { isTrustedRequestOrigin } from '@/lib/csrf'
+import { CATALOG_CATEGORIES } from '@/lib/admin-catalog'
 
-// coches/ and circuitos/ are the admin content catalog (platform_admin only). skins/ (flat,
-// or skins/<category>/<league-slug> once a car's category+league are known) is where team
-// managers upload their own car skins — any logged-in user may write there. uploads/ holds
-// the images (logos, banners, simulator photos) and is open to any logged-in user too.
+// coches/ and circuitos/ are the admin content catalog (platform_admin only) — either flat
+// (legacy uploads) or under a campeonato subfolder, coches/<categoria> / circuitos/<categoria>,
+// see CATALOG_CATEGORIES. skins/ (flat, or skins/<category>/<league-slug> once a car's
+// category+league are known) is where team managers upload their own car skins — any logged-in
+// user may write there. uploads/ holds the images (logos, banners, simulator photos) and is
+// open to any logged-in user too.
 const ADMIN_ONLY_FOLDERS = ['coches', 'circuitos']
 const SKIN_CATEGORIES = ['GT3', 'HYPERCAR', 'LMP2']
 
@@ -25,6 +28,8 @@ function resolveFolder(rawFolder: unknown): string | null {
   if (rawFolder === 'skins' || rawFolder === 'uploads' || ADMIN_ONLY_FOLDERS.includes(rawFolder)) return rawFolder
   const skinsMatch = rawFolder.match(/^skins\/([A-Z0-9]+)\/([a-z0-9-]+)$/)
   if (skinsMatch && SKIN_CATEGORIES.includes(skinsMatch[1])) return rawFolder
+  const catalogMatch = rawFolder.match(/^(coches|circuitos)\/([a-z0-9-]+)$/)
+  if (catalogMatch && CATALOG_CATEGORIES.some((c) => c.slug === catalogMatch[2])) return rawFolder
   return null
 }
 
@@ -84,10 +89,13 @@ export async function POST(req: Request) {
     }
 
     if (size > MAX_PRESIGNED_ARCHIVE_BYTES) {
-      return NextResponse.json({ error: 'Skin file exceeds maximum allowed limit (200 MB).' }, { status: 413 })
+      return NextResponse.json({ error: 'El archivo supera el límite de 200 MB.' }, { status: 413 })
     }
 
-    if (ADMIN_ONLY_FOLDERS.includes(folder)) {
+    // startsWith, no includes: "coches"/"circuitos" cubre también sus subcarpetas de categoría
+    // (coches/erc, coches/erc-next-gen...) — con solo el match exacto de antes, esas subidas se
+    // habrían colado sin pasar por la comprobación de admin de abajo.
+    if (ADMIN_ONLY_FOLDERS.some((f) => folder === f || folder.startsWith(`${f}/`))) {
       const access = await getAdminAccessContext(currentUser.userId)
       if (!access.canAccessPlatformAdmin) {
         return NextResponse.json({ error: 'Forbidden: platform admins only' }, { status: 403 })

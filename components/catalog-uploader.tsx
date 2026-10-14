@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Upload } from 'lucide-react'
 
-export function CatalogUploader({ folder }: { folder: 'coches' | 'circuitos' }) {
+export function CatalogUploader({ folder }: { folder: string }) {
   const router = useRouter()
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
@@ -29,12 +29,17 @@ export function CatalogUploader({ folder }: { folder: 'coches' | 'circuitos' }) 
       }
       const { uploadUrl, publicUrl, contentType } = await presignRes.json()
 
+      // Este PUT va directo al bucket de R2 (nunca pasa por nuestro servidor, necesario para
+      // archivos de hasta 200 MB) — si el bucket no tiene el origen del sitio en su política
+      // CORS, el navegador lo bloquea con un "Failed to fetch" genérico que no dice por qué.
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': contentType },
         body: file,
+      }).catch(() => {
+        throw new Error('No se pudo conectar con el almacenamiento (posible bloqueo de CORS en el bucket). Avisa a un admin técnico.')
       })
-      if (!putRes.ok) throw new Error('Fallo al subir el archivo.')
+      if (!putRes.ok) throw new Error(`Fallo al subir el archivo (error ${putRes.status}).`)
 
       // The PUT went straight to R2, so the server hasn't checked the actual bytes yet —
       // confirm re-reads just the file header and deletes it if it isn't really an archive.
@@ -75,10 +80,16 @@ export function CatalogUploader({ folder }: { folder: 'coches' | 'circuitos' }) 
           onChange={(e) => {
             const f = e.target.files?.[0]
             if (f) handleUpload(f)
+            e.target.value = ''
           }}
         />
       </label>
-      {error && <p className="text-[11px] font-semibold text-rose-400">{error}</p>}
+      {/* Antes esto era un texto de 11px casi del mismo color que el fondo — un fallo real (403
+          de permisos, CORS del bucket, archivo demasiado grande...) pasaba fácilmente desapercibido
+          y el admin solo veía "no ha pasado nada". Ahora es un aviso que no se puede ignorar. */}
+      {error && (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-950/30 px-2.5 py-1.5 text-xs font-semibold text-rose-300">{error}</p>
+      )}
     </div>
   )
 }

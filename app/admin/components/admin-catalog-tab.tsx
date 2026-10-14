@@ -1,10 +1,10 @@
 import { FileArchive, Trash2, Download } from 'lucide-react'
-import { listCatalogFiles, type CatalogFile } from '@/lib/admin-catalog'
+import { listCatalogFiles, listUncategorizedCatalogFiles, CATALOG_CATEGORIES, type CatalogFile, type CatalogFolder } from '@/lib/admin-catalog'
 import { hasR2 } from '@/lib/r2'
 import { CatalogUploader } from '@/components/catalog-uploader'
 import { deleteCatalogFileAction } from '../actions'
 
-function CatalogSection({ title, folder, files }: { title: string; folder: 'coches' | 'circuitos'; files: CatalogFile[] }) {
+function CatalogSection({ title, folder, files }: { title: string; folder: string; files: CatalogFile[] }) {
   return (
     <div className="space-y-3 rounded-lg border border-shell-line bg-black/20 p-4">
       <h3 className="text-xs font-bold uppercase tracking-wide text-white">{title}</h3>
@@ -48,6 +48,26 @@ function CatalogSection({ title, folder, files }: { title: string; folder: 'coch
   )
 }
 
+/** Una subcarpeta por campeonato dentro de "coches" o "circuitos", más lo que se subió antes de tener categorías. */
+async function CatalogFolderGroup({ title, folder }: { title: string; folder: CatalogFolder }) {
+  const [perCategory, uncategorized] = await Promise.all([
+    Promise.all(CATALOG_CATEGORIES.map((c) => listCatalogFiles(folder, c.slug))),
+    listUncategorizedCatalogFiles(folder),
+  ])
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-white">{title}</h3>
+      {CATALOG_CATEGORIES.map((c, i) => (
+        <CatalogSection key={c.slug} title={c.label} folder={`${folder}/${c.slug}`} files={perCategory[i]} />
+      ))}
+      {uncategorized.length > 0 && (
+        <CatalogSection title="Sin categoría (subido antes de separar por campeonato)" folder={folder} files={uncategorized} />
+      )}
+    </div>
+  )
+}
+
 export async function AdminCatalogTab() {
   if (!hasR2) {
     return (
@@ -59,21 +79,18 @@ export async function AdminCatalogTab() {
     )
   }
 
-  const [coches, circuitos] = await Promise.all([
-    listCatalogFiles('coches'),
-    listCatalogFiles('circuitos'),
-  ])
-
   return (
     <section className="space-y-4 rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
       <div className="border-b border-shell-line pb-3">
         <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">Catálogo de contenido</h2>
-        <p className="text-xs text-slate-400">Sube y gestiona los archivos ZIP de coches y circuitos disponibles en el servidor de almacenamiento.</p>
+        <p className="text-xs text-slate-400">
+          Sube y gestiona los archivos ZIP de coches y circuitos, separados por campeonato, disponibles en el servidor de almacenamiento.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <CatalogSection title="Coches" folder="coches" files={coches} />
-        <CatalogSection title="Circuitos" folder="circuitos" files={circuitos} />
+        <CatalogFolderGroup title="Coches" folder="coches" />
+        <CatalogFolderGroup title="Circuitos" folder="circuitos" />
       </div>
     </section>
   )
