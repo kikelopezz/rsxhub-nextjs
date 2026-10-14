@@ -15,7 +15,7 @@ import { DeleteLeagueButton } from '@/components/delete-league-button'
 import { DeleteTeamButtonDouble } from '@/components/delete-team-button-double'
 import { DeleteUserButtonDouble } from '@/components/delete-user-button-double'
 import { AdminGallery } from '@/components/admin-gallery'
-import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, FileArchive, GitMerge, Palette, Ticket, ArchiveRestore, Gavel, Wallet } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, Trophy, Shield, Store, Image as ImageIcon, Trash2, Users, User, Newspaper, GitMerge, Palette, Ticket, ArchiveRestore, Gavel, Wallet } from 'lucide-react'
 import {
   adminDeleteMarketListing,
   quickUpdateLeagueStatusAction,
@@ -34,7 +34,6 @@ import { deleteTeamAction } from '@/app/equipos/actions'
 import { getSimulators } from '@/lib/data/simulators'
 import { AdminLeaguesTab } from './components/admin-leagues-tab'
 import { AdminTeamsTab } from './components/admin-teams-tab'
-import { AdminCatalogTab } from './components/admin-catalog-tab'
 import { AdminAdminsTab } from './components/admin-admins-tab'
 import { AdminNewsTab } from './components/admin-news-tab'
 import { AdminSkinsTab } from './components/admin-skins-tab'
@@ -327,17 +326,6 @@ export default async function AdminPage({
         >
           <ImageIcon className="h-3.5 w-3.5 text-cyan-400" />
           {t.tabGallery}
-        </Link>
-        <Link
-          href="/admin?tab=catalog"
-          className={`px-5 py-2 text-xs font-black tracking-wide uppercase transition-colors rounded-lg flex items-center gap-2 ${
-            activeTab === 'catalog'
-              ? 'bg-[#1274de] text-white shadow-[0_0_16px_rgba(18,116,222,0.5)]'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <FileArchive className="h-3.5 w-3.5 text-cyan-400" />
-          Catálogo
         </Link>
         <Link
           href="/admin?tab=admins"
@@ -713,9 +701,6 @@ export default async function AdminPage({
           <AdminGallery />
         </section>
       )}
-
-      {/* TAB CONTENT: CATALOG (car/circuit content) */}
-      {activeTab === 'catalog' && <AdminCatalogTab />}
 
       {/* TAB CONTENT: ADMINS */}
       {activeTab === 'admins' && (
