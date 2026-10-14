@@ -30,7 +30,27 @@ export async function confirmAttendanceAction(formData: FormData): Promise<Atten
     return { ok: false, message: 'Faltan datos para confirmar la asistencia.' }
   }
 
-  // 0. Verify car has assigned drivers, and collect this car's driver ids
+  // 0. En ligas de pago, un coche sin el pago aprobado no puede apuntarse a carreras —
+  // da igual si está "pendiente" (todavía sin revisar) o "rechazado".
+  const league0 = await db.league.findUnique({ where: { id: leagueId }, select: { requiresPayment: true } })
+  if (league0?.requiresPayment) {
+    const paymentRows = await db.leagueRegistration.findMany({
+      where: { leagueId, teamId, classTag, assignedNumber: carNumber },
+      select: { status: true },
+    })
+    const approved = paymentRows.some((r) => r.status === 'approved')
+    if (!approved) {
+      const rejected = paymentRows.length > 0 && paymentRows.every((r) => r.status === 'rejected')
+      return {
+        ok: false,
+        message: rejected
+          ? 'El pago de este coche fue rechazado — no puede apuntarse a carreras hasta que se confirme el pago.'
+          : 'El pago de este coche todavía no está confirmado — no puede apuntarse a carreras hasta que un admin lo apruebe.',
+      }
+    }
+  }
+
+  // 0b. Verify car has assigned drivers, and collect this car's driver ids
   const team = await db.team.findUnique({ where: { id: teamId }, include: { cars: { include: { drivers: true } } } })
   const car = team?.cars.find((c) => {
     const sameClass = c.category.toUpperCase() === classTag

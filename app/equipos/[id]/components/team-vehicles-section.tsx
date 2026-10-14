@@ -19,6 +19,15 @@ type TeamVehiclesSectionProps = {
   leaguesOptions: LeagueOption[]
   teamMembersOptions: TeamMemberOption[]
   leagues: Array<{ id: string; slug: string; title: string }>
+  /** `${leagueId}::${CLASSTAG}::${dorsal}` -> estado de pago, solo para ligas de pago (ver app/equipos/[id]/page.tsx). */
+  paymentStatusByCarKey?: Record<string, 'pending' | 'approved' | 'waitlist' | 'rejected'>
+}
+
+const PAYMENT_BADGE: Record<'pending' | 'approved' | 'waitlist' | 'rejected', { label: string; className: string }> = {
+  approved: { label: 'PAGADO', className: 'border-emerald-500/40 bg-emerald-950/60 text-emerald-300' },
+  pending: { label: 'PAGO PENDIENTE', className: 'border-amber-500/40 bg-amber-950/60 text-amber-300' },
+  rejected: { label: 'PAGO RECHAZADO', className: 'border-rose-500/40 bg-rose-950/60 text-rose-300' },
+  waitlist: { label: 'LISTA DE ESPERA', className: 'border-sky-500/40 bg-sky-950/60 text-sky-300' },
 }
 
 const CATEGORY_THEMES: Record<string, {
@@ -77,6 +86,7 @@ export async function TeamVehiclesSection({
   leaguesOptions,
   teamMembersOptions,
   leagues,
+  paymentStatusByCarKey = {},
 }: TeamVehiclesSectionProps) {
   const t = getDictionary(await getLocale()).equipos.vehiclesSection
   return (
@@ -152,6 +162,11 @@ export async function TeamVehiclesSection({
                   {categoryCars.map((car: any) => {
                     const exceedsLimit = excessCarIds.has(car.id)
                     const carLeague = car.leagueId ? leagues.find((l) => l.id === car.leagueId || l.slug === car.leagueId) : null
+                    const dorsalNum = Number(car.dorsal)
+                    const paymentStatus =
+                      carLeague && car.dorsal != null && Number.isFinite(dorsalNum)
+                        ? paymentStatusByCarKey[`${carLeague.id}::${String(car.category || '').toUpperCase()}::${dorsalNum}`]
+                        : undefined
                     const maxSlots = MAX_DRIVERS_PER_CAR
                     const effectiveLeagueKey = car.leagueId || carLeague?.id || carLeague?.slug || 'general'
                     const byLeague = car.driverUserIdsByLeague || car.driver_user_ids_by_league || {}
@@ -230,6 +245,13 @@ export async function TeamVehiclesSection({
                                 >
                                   <ShieldAlert className="h-3 w-3" />
                                   {t.wontRace}
+                                </span>
+                              )}
+                              {paymentStatus && (
+                                <span
+                                  className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${PAYMENT_BADGE[paymentStatus].className}`}
+                                >
+                                  {PAYMENT_BADGE[paymentStatus].label}
                                 </span>
                               )}
                             </div>

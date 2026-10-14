@@ -165,6 +165,28 @@ export async function notifyLeagueRegistrationStatus({
   }
 }
 
+export async function notifyCarPaymentApproved({
+  userId,
+  leagueTitle,
+  leagueSlug,
+  classTag,
+  carNumber,
+}: {
+  userId: string
+  leagueTitle: string
+  leagueSlug?: string
+  classTag?: string | null
+  carNumber?: number | null
+}) {
+  const carLabel = classTag && carNumber != null ? ` for your ${classTag} #${carNumber}` : ''
+  await createNotification({
+    userId,
+    title: `Payment Confirmed: ${leagueTitle}`,
+    message: `Your payment${carLabel} in ${leagueTitle} has been confirmed. The car is now marked as PAID and ready to race.`,
+    link: leagueSlug ? `/ligas/${leagueSlug}` : '/ligas',
+  })
+}
+
 export async function notifySkinReviewed({
   userId,
   teamName,

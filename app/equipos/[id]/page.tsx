@@ -146,6 +146,24 @@ export default async function TeamProfilePage({
     steamId: p.steamId || '',
   }))
 
+  // ── Estado de pago por coche (solo ligas de pago) ───────────────────────────
+  // getRegistrations() está cacheado por petición (React cache()), así que llamarlo otra
+  // vez aquí no repite la consulta — ya se usó dentro de fetchTeamProfileData.
+  const paidLeagueIds = new Set(leagues.filter((l) => l.requiresPayment).map((l) => l.id))
+  const paymentStatusByCarKey: Record<string, 'pending' | 'approved' | 'waitlist' | 'rejected'> = {}
+  if (paidLeagueIds.size > 0) {
+    const allRegs = await getRegistrations()
+    for (const r of allRegs) {
+      if (r.teamId !== team.id || !paidLeagueIds.has(r.leagueId) || !r.classTag || r.assignedNumber == null) continue
+      const key = `${r.leagueId}::${r.classTag.toUpperCase()}::${r.assignedNumber}`
+      // Un coche con varios pilotos puede tener varias filas de inscripción: si alguna ya
+      // salió del "pendiente" se refleja esa, en vez de quedarse con la primera que llegue.
+      if (!paymentStatusByCarKey[key] || paymentStatusByCarKey[key] === 'pending') {
+        paymentStatusByCarKey[key] = r.status
+      }
+    }
+  }
+
   return (
     <div className="space-y-4 text-white">
       <ClearStatusQuery />
@@ -214,6 +232,7 @@ export default async function TeamProfilePage({
           leaguesOptions={leaguesOptions}
           teamMembersOptions={teamMembersOptions}
           leagues={leagues}
+          paymentStatusByCarKey={paymentStatusByCarKey}
         />
       </section>
 

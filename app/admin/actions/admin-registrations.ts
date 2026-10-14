@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { guardLeaguePermission } from './admin-league'
+import { notifyCarPaymentApproved } from '@/lib/notifications-data'
 
 export async function updateRegistrationStatus(formData: FormData) {
   const registrationId = String(formData.get('registrationId') || '')
@@ -66,22 +67,48 @@ export async function updateTeamRegistrationStatus(formData: FormData) {
   redirect(returnTo)
 }
 
-// Pagos-tab only: confirms/rejects payment for every car a team has entered in a league
-// at once, unlike updateTeamRegistrationStatus which is scoped to one car (class+number)
-// for the per-league race-entry approval flow.
-export async function updateTeamPaymentStatus(formData: FormData) {
+// Pagos-tab only: confirma/rechaza el pago de UN coche concreto (clase+dorsal) de un equipo en
+// una liga — antes aprobaba el equipo entero de golpe (updateTeamPaymentStatus, retirada). Si se
+// aprueba, avisa al dueño del equipo con una notificación.
+export async function updateCarPaymentStatus(formData: FormData) {
   const leagueId = String(formData.get('leagueId') || '')
   const teamId = String(formData.get('teamId') || '')
+  const classTagRaw = String(formData.get('classTag') || '')
+  const classTag = classTagRaw === '__NULL__' ? null : classTagRaw
+  const carNumberRaw = String(formData.get('carNumber') ?? '')
   const status = String(formData.get('status') || 'pending')
   const returnTo = String(formData.get('returnTo') || '') || `/admin/ligas/${leagueId}?updated=1`
 
   await guardLeaguePermission(leagueId, 'steward')
-  if (!leagueId || !teamId) redirect(`/admin/ligas/${leagueId}?updated=0`)
+  if (!leagueId || !teamId || carNumberRaw === '') redirect(`/admin/ligas/${leagueId}?updated=0`)
 
-  await db.leagueRegistration.updateMany({
-    where: { leagueId, teamId },
-    data: { status: status as any },
-  }).catch((error) => console.error('Failed to update team payment status:', error))
+  const carNumber = Number(carNumberRaw)
+  if (!Number.isFinite(carNumber)) redirect(`/admin/ligas/${leagueId}?updated=0`)
+
+  try {
+    await db.leagueRegistration.updateMany({
+      where: { leagueId, teamId, classTag, assignedNumber: carNumber },
+      data: { status: status as any },
+    })
+
+    if (status === 'approved') {
+      const [team, league] = await Promise.all([
+        db.team.findUnique({ where: { id: teamId }, select: { ownerUserId: true } }),
+        db.league.findUnique({ where: { id: leagueId }, select: { title: true, slug: true } }),
+      ])
+      if (team?.ownerUserId && league) {
+        await notifyCarPaymentApproved({
+          userId: team.ownerUserId,
+          leagueTitle: league.title,
+          leagueSlug: league.slug,
+          classTag,
+          carNumber,
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Failed to update car payment status:', error)
+  }
 
   invalidateCache(['registrations_', 'event_confirmations_'])
   revalidatePath('/admin')
