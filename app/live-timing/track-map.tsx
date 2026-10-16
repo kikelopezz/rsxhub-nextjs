@@ -62,7 +62,25 @@ const wrap01 = (v: number) => v - Math.floor(v)
 const wrapDelta = (d: number) => d - Math.round(d)
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
-/** Posición del juego en el tramo de progreso `p`, interpolando con los tramos vecinos (si no hay ninguno, null). */
+/** Bin poblado más cercano a `start` yendo en la dirección `dir`, hasta `maxSteps` tramos. */
+function nearestBin(bins: Array<Bin | undefined>, start: number, dir: 1 | -1, maxSteps: number): { bin: Bin; steps: number } | null {
+  for (let s = 0; s <= maxSteps; s++) {
+    const idx = ((start + dir * s) % BINS + BINS) % BINS
+    const b = bins[idx]
+    if (b) return { bin: b, steps: s }
+  }
+  return null
+}
+
+/**
+ * Posición del juego en el tramo de progreso `p`.
+ * Si los dos bins inmediatamente vecinos ya están aprendidos, interpola entre ellos (caso normal).
+ * Si el tramo todavía no se conoce del todo (típico en los primeros minutos de sesión, antes de que
+ * haya pasado suficiente tráfico por ahí), busca el bin poblado más cercano a cada lado — hasta un
+ * cuarto de vuelta — e interpola entre esos dos. Antes, con solo un vecino poblado, el coche se
+ * quedaba clavado en ese único punto y saltaba a trompicones al entrar en el siguiente tramo: ahora
+ * el movimiento sigue siendo continuo mientras la tabla se va rellenando.
+ */
 function worldAt(bins: Array<Bin | undefined>, p: number): Bin | null {
   const f = wrap01(p) * BINS
   const i0 = Math.floor(f) % BINS
@@ -70,7 +88,16 @@ function worldAt(bins: Array<Bin | undefined>, p: number): Bin | null {
   const a = bins[i0]
   const b = bins[(i0 + 1) % BINS]
   if (a && b) return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t }
-  return a ?? b ?? null
+
+  const maxSteps = Math.floor(BINS / 4)
+  const prev = nearestBin(bins, i0, -1, maxSteps)
+  const next = nearestBin(bins, (i0 + 1) % BINS, 1, maxSteps)
+  if (prev && next) {
+    const span = prev.steps + 1 + next.steps
+    const ratio = span > 0 ? (prev.steps + t) / span : 0
+    return { x: prev.bin.x + (next.bin.x - prev.bin.x) * ratio, z: prev.bin.z + (next.bin.z - prev.bin.z) * ratio }
+  }
+  return prev?.bin ?? next?.bin ?? null
 }
 
 function learn(bins: Array<Bin | undefined>, progress: number, x: number, z: number) {
@@ -106,6 +133,10 @@ export const TrackMap = memo(function TrackMap({
   const bins = useRef<Array<Bin | undefined>>([])
   const anims = useRef<Map<string, CarAnim>>(new Map())
   const nodes = useRef<Map<string, { g: SVGGElement | null; arrow: SVGGElement | null }>>(new Map())
+  // Callbacks de ref estables por coche: una función `ref={...}` nueva en cada render hace que React
+  // desmonte y vuelva a montar la referencia del nodo SVG aunque el elemento no cambie, en cada
+  // sondeo (cada 6s). Cacheándolas por clave se evita ese churn y el nodo del DOM se reutiliza tal cual.
+  const refCache = useRef<Map<string, (el: SVGGElement | null) => void>>(new Map())
   const trailEl = useRef<SVGPathElement | null>(null)
   const selectedRef = useRef<string | null>(selectedKey)
   const lastUpdate = useRef(0)
@@ -178,6 +209,10 @@ export const TrackMap = memo(function TrackMap({
       }
     }
     for (const key of Array.from(anims.current.keys())) if (!seen.has(key)) anims.current.delete(key)
+    // Un coche que se va (desconecta, sale de la sesión) no vuelve a aparecer en `samples`: sin esto
+    // sus referencias de nodo y sus ref-callbacks cacheados se quedarían para siempre en memoria.
+    for (const key of Array.from(nodes.current.keys())) if (!seen.has(key)) nodes.current.delete(key)
+    for (const cacheKey of Array.from(refCache.current.keys())) if (!seen.has(cacheKey.split(':')[0])) refCache.current.delete(cacheKey)
   }, [samples, meta])
 
   // Bucle de animación: mueve los marcadores en el DOM, sin repintar React en cada fotograma
@@ -250,10 +285,18 @@ export const TrackMap = memo(function TrackMap({
   const viewH = rotated ? meta.width : meta.height
   const unit = viewW / 900
 
-  const setNode = (key: string, part: 'g' | 'arrow', el: SVGGElement | null) => {
-    const node = nodes.current.get(key) || { g: null, arrow: null }
-    node[part] = el
-    nodes.current.set(key, node)
+  const getNodeRef = (key: string, part: 'g' | 'arrow') => {
+    const cacheKey = `${key}:${part}`
+    let fn = refCache.current.get(cacheKey)
+    if (!fn) {
+      fn = (el: SVGGElement | null) => {
+        const node = nodes.current.get(key) || { g: null, arrow: null }
+        node[part] = el
+        nodes.current.set(key, node)
+      }
+      refCache.current.set(cacheKey, fn)
+    }
+    return fn
   }
 
   // Los coches se pintan de atrás hacia delante para que el líder y el seleccionado queden por encima
@@ -290,12 +333,12 @@ export const TrackMap = memo(function TrackMap({
           return (
             <g
               key={car.key}
-              ref={(el) => setNode(car.key, 'g', el)}
+              ref={getNodeRef(car.key, 'g')}
               style={{ opacity: car.dim ? 0.28 : 1, cursor: 'pointer' }}
               onClick={() => onSelect(car.key)}
             >
               <title>{car.label}</title>
-              <g ref={(el) => setNode(car.key, 'arrow', el)} visibility="hidden">
+              <g ref={getNodeRef(car.key, 'arrow')} visibility="hidden">
                 <path d={`M ${r + 9 * unit} 0 L ${r - 1 * unit} ${-6 * unit} L ${r - 1 * unit} ${6 * unit} Z`} fill={car.color} stroke="#04070d" strokeWidth={1 * unit} />
               </g>
               {isSelected && (
