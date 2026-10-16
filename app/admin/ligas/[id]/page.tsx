@@ -24,6 +24,7 @@ import {
   updateTeamRegistrationStatus,
 } from '../../actions'
 import { getSimulators } from '@/lib/data/simulators'
+import { getCarCategories } from '@/lib/data/categories'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
@@ -97,9 +98,10 @@ export default async function AdminLeaguePage({
 
   if (!canManage && !canReview) redirect('/admin')
 
-  const [leagues, simulators] = await Promise.all([getLeagues(), getSimulators()])
+  const [leagues, simulators, carCategories] = await Promise.all([getLeagues(), getSimulators(), getCarCategories()])
   const league = leagues.find((item) => item.id === id)
   if (!league) notFound()
+  const activeCategoryKeys = carCategories.filter((c) => c.active).map((c) => c.key)
 
   const [events, leagueCars, registrations, circuits] = await Promise.all([
     getLeagueEvents(league.id),
@@ -218,7 +220,7 @@ export default async function AdminLeaguePage({
             <div className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white md:col-span-2 rounded-lg">
               <p className="mb-2 text-xs text-slate-300">{t.classesLabel}</p>
               <div className="flex flex-wrap gap-2">
-                {['GT3', 'HYPERCAR', 'LMP2', 'GTE', 'F1', 'GT4'].map((tag) => (
+                {activeCategoryKeys.map((tag) => (
                   <label key={tag} className="inline-flex cursor-pointer items-center gap-1 border border-white/20 bg-white/5 px-2 py-1 text-xs rounded-lg">
                     <input
                       type="checkbox"
@@ -234,7 +236,7 @@ export default async function AdminLeaguePage({
               <p className="mt-3 mb-1 text-xs text-slate-300">{t.addClassesLabel}</p>
               <input
                 name="customClassTags"
-                defaultValue={(league.classTags || []).filter((tag) => !['GT3', 'HYPERCAR', 'LMP2', 'GTE', 'F1', 'GT4'].includes(tag)).join(', ')}
+                defaultValue={(league.classTags || []).filter((tag) => !activeCategoryKeys.includes(tag)).join(', ')}
                 placeholder={t.addClassesPlaceholder}
                 className="w-full border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg"
               />
@@ -247,6 +249,7 @@ export default async function AdminLeaguePage({
               <option value="finished">{t.statusFinished}</option>
             </select>
             <label className="flex items-center gap-2 border border-shell-line bg-black/20 px-3 py-2 text-xs text-slate-200 rounded-lg"><input type="checkbox" name="featured" defaultChecked={Boolean(league.featured)} /> {t.featured}</label>
+            <label className="flex items-center gap-2 border border-shell-line bg-black/20 px-3 py-2 text-xs text-slate-200 rounded-lg"><input type="checkbox" name="hidden" defaultChecked={Boolean(league.hidden)} /> Oculto (no se ve en /ligas)</label>
             <label className="flex items-center gap-2 border border-shell-line bg-black/20 px-3 py-2 text-xs text-slate-200 rounded-lg"><input type="checkbox" name="registrationOpen" defaultChecked={Boolean(league.registrationOpen)} /> {t.openRegistration}</label>
             <label className="flex items-center gap-2 border border-shell-line bg-black/20 px-3 py-2 text-xs text-slate-200 rounded-lg"><input type="checkbox" name="requiresPayment" defaultChecked={Boolean(league.requiresPayment)} /> {t.requiresPayment}</label>
             <select name="registrationMode" defaultValue={league.registrationMode || 'individual'} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg">

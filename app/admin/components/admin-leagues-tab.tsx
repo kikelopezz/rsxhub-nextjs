@@ -6,22 +6,28 @@ import { DeleteLeagueButton } from '@/components/delete-league-button'
 import {
   quickUpdateLeagueStatusAction,
   quickToggleLeagueFeaturedAction,
+  quickToggleLeagueHiddenAction,
   deleteLeagueAction,
   createSimulatorAction,
   updateSimulatorAction,
   deleteSimulatorAction,
+  createCategoryAction,
+  updateCategoryAction,
+  toggleCategoryActiveAction,
+  deleteCategoryAction,
 } from '../actions'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
 type AdminLeaguesTabProps = {
   simulators: Array<{ key: string; name: string; logoUrl: string | null }>
+  categories: Array<{ key: string; name: string; active: boolean }>
   visibleLeagues: any[]
   visibleRegistrations: any[]
   visibleEvents: any[]
 }
 
-export async function AdminLeaguesTab({ simulators, visibleLeagues, visibleRegistrations, visibleEvents }: AdminLeaguesTabProps) {
+export async function AdminLeaguesTab({ simulators, categories, visibleLeagues, visibleRegistrations, visibleEvents }: AdminLeaguesTabProps) {
   const t = getDictionary(await getLocale()).admin.leaguesTab
   return (
     <div className="space-y-6">
@@ -41,6 +47,7 @@ export async function AdminLeaguesTab({ simulators, visibleLeagues, visibleRegis
                 <th className="p-3">{t.colSimulator}</th>
                 <th className="p-3">{t.colStatus}</th>
                 <th className="p-3">{t.colFeatured}</th>
+                <th className="p-3">Visibilidad</th>
                 <th className="p-3 text-center">{t.colRounds}</th>
                 <th className="p-3 text-center">{t.colRegistered}</th>
                 <th className="p-3 text-right">{t.colActions}</th>
@@ -49,7 +56,7 @@ export async function AdminLeaguesTab({ simulators, visibleLeagues, visibleRegis
             <tbody className="divide-y divide-white/5 text-xs text-slate-300">
               {visibleLeagues.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-500 italic">{t.noLeagues}</td>
+                  <td colSpan={8} className="p-8 text-center text-slate-500 italic">{t.noLeagues}</td>
                 </tr>
               ) : (
                 visibleLeagues.map((league) => {
@@ -102,6 +109,18 @@ export async function AdminLeaguesTab({ simulators, visibleLeagues, visibleRegis
                               : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'
                           }`}>
                             {league.featured ? t.featured : t.standard}
+                          </button>
+                        </form>
+                      </td>
+                      <td className="p-3">
+                        <form action={quickToggleLeagueHiddenAction}>
+                          <input type="hidden" name="leagueId" value={league.id} />
+                          <button type="submit" className={`px-2 py-1 text-[9px] font-black uppercase border rounded-lg cursor-pointer transition-colors ${
+                            league.hidden
+                              ? 'border-rose-500/35 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
+                              : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                          }`}>
+                            {league.hidden ? 'Oculto' : 'Visible'}
                           </button>
                         </form>
                       </td>
@@ -166,6 +185,60 @@ export async function AdminLeaguesTab({ simulators, visibleLeagues, visibleRegis
               className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
             />
             <ImagePicker name="logoUrl" label="Logo del juego" entityName="simulador" square hideGallery />
+            <button type="submit" className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer">
+              Añadir
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4">
+        <div className="border-b border-shell-line pb-3">
+          <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">Categorías de coches</h2>
+          <p className="text-xs text-slate-400">
+            Las categorías disponibles al crear un campeonato (GT3, Hypercar, LMP2...). Desactivar una categoría la oculta de los selectores sin borrar los campeonatos que ya la usan.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {categories.map((cat) => (
+            <div key={cat.key} className={`space-y-2 rounded-xl border p-3 ${cat.active ? 'border-white/10 bg-black/30' : 'border-white/5 bg-black/10 opacity-60'}`}>
+              <form action={updateCategoryAction} className="flex gap-2">
+                <input type="hidden" name="key" value={cat.key} />
+                <input
+                  name="name"
+                  defaultValue={cat.name}
+                  className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm font-bold text-white outline-none"
+                />
+                <button type="submit" className="shrink-0 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-[#1274de] cursor-pointer">
+                  {t.save}
+                </button>
+              </form>
+              <div className="flex items-center justify-between">
+                <form action={toggleCategoryActiveAction}>
+                  <input type="hidden" name="key" value={cat.key} />
+                  <button type="submit" className="text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:text-white cursor-pointer">
+                    {cat.active ? 'Desactivar' : 'Activar'}
+                  </button>
+                </form>
+                <form action={deleteCategoryAction}>
+                  <input type="hidden" name="key" value={cat.key} />
+                  <button type="submit" className="text-[10px] font-bold uppercase tracking-wider text-rose-400 hover:text-rose-300 cursor-pointer">
+                    Eliminar (solo si no se usa)
+                  </button>
+                </form>
+              </div>
+            </div>
+          ))}
+
+          <form action={createCategoryAction} className="space-y-2 rounded-xl border border-dashed border-[#4ea1ff]/40 bg-[#4ea1ff]/5 p-3">
+            <p className="text-xs font-black uppercase tracking-wider text-[#4ea1ff]">Añadir categoría</p>
+            <input
+              name="name"
+              required
+              placeholder="Ej: GT2, Super Turismo…"
+              className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+            />
             <button type="submit" className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer">
               Añadir
             </button>

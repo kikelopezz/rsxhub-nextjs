@@ -32,6 +32,7 @@ import {
 } from './actions'
 import { deleteTeamAction } from '@/app/equipos/actions'
 import { getSimulators } from '@/lib/data/simulators'
+import { getCarCategories } from '@/lib/data/categories'
 import { AdminLeaguesTab } from './components/admin-leagues-tab'
 import { AdminTeamsTab } from './components/admin-teams-tab'
 import { AdminAdminsTab } from './components/admin-admins-tab'
@@ -425,6 +426,7 @@ export default async function AdminPage({
       {activeTab === 'leagues' && (
         <AdminLeaguesTab
           simulators={await getSimulators()}
+          categories={await getCarCategories()}
           visibleLeagues={visibleLeagues}
           visibleRegistrations={visibleRegistrations}
           visibleEvents={visibleEvents}

@@ -62,6 +62,20 @@ model SimulatorConfig {
   @@map("simulators")
 }
 
+// Categorías de coches para campeonatos (GT3, Hypercar, LMP2...). Es solo el catálogo gestionable
+// desde el admin — `classTag` en League/LeagueRegistration/LeagueResult/etc. sigue siendo texto
+// libre (sin FK aquí) para no forzar una migración de datos existentes; esto solo reemplaza la
+// lista fija que había harcodeada en app/admin/ligas/[id]/page.tsx.
+model CarCategory {
+  key       String   @id
+  name      String
+  sortOrder Int      @default(0) @map("sort_order")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("car_categories")
+}
+
 model Profile {
   userId              String   @id @map("user_id")
   displayName         String   @map("display_name")
