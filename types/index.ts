@@ -116,7 +116,8 @@ export interface LeagueResult {
   id: string
   leagueId: string
   eventId: string
-  userId: string
+  // null: resultado manual para un coche/equipo sin piloto registrado en la plataforma.
+  userId: string | null
   position: number
   points?: number | null
   createdAt: string

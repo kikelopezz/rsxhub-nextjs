@@ -22,6 +22,9 @@ import {
   updateLeague,
   updateRegistrationStatus,
   updateTeamRegistrationStatus,
+  updateLeagueResultAction,
+  deleteLeagueResultAction,
+  createManualLeagueResultAction,
 } from '../../actions'
 import { getSimulators } from '@/lib/data/simulators'
 import { getCarCategories } from '@/lib/data/categories'
@@ -103,12 +106,15 @@ export default async function AdminLeaguePage({
   if (!league) notFound()
   const activeCategoryKeys = carCategories.filter((c) => c.active).map((c) => c.key)
 
-  const [events, leagueCars, registrations, circuits] = await Promise.all([
+  const [events, leagueCars, registrations, circuits, leagueResults] = await Promise.all([
     getLeagueEvents(league.id),
     getLeagueCars(league.id),
     getRegistrations(league.id),
     getCircuits(),
+    db.leagueResult.findMany({ where: { leagueId: league.id }, orderBy: [{ sessionType: 'asc' }, { position: 'asc' }] }),
   ])
+  const resultsByEvent = new Map<string, typeof leagueResults>()
+  for (const r of leagueResults) resultsByEvent.set(r.eventId, [...(resultsByEvent.get(r.eventId) || []), r])
   const teamInfoById = new Map<string, { name: string; primaryColor: string | null }>()
   const registrationTeamIds = Array.from(new Set(registrations.map((item) => item.teamId).filter(Boolean))) as string[]
 
@@ -483,6 +489,53 @@ export default async function AdminLeaguePage({
                             {t.replace}
                           </label>
                           <button className="bg-shell-accent px-3 py-1.5 text-xs font-bold text-white rounded-lg">{t.uploadResultsJson}</button>
+                        </form>
+                      ) : null}
+                      {canReview && (resultsByEvent.get(event.id) || []).length > 0 ? (
+                        <div className="mt-3 space-y-1.5 rounded-lg border border-shell-line bg-black/20 p-2">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Resultados publicados — editar o descalificar</p>
+                          {(resultsByEvent.get(event.id) || []).map((r) => (
+                            <form key={r.id} action={updateLeagueResultAction} className="grid grid-cols-2 gap-1.5 md:grid-cols-8">
+                              <input type="hidden" name="leagueId" value={league.id} />
+                              <input type="hidden" name="resultId" value={r.id} />
+                              <span className="col-span-1 flex items-center px-1 text-[9px] uppercase font-bold text-slate-500">{r.sessionType === 'race' ? 'Carrera' : 'Clasif.'}</span>
+                              <input name="position" type="number" min={1} defaultValue={r.position ?? ''} placeholder="Pos." className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg" />
+                              <input name="driverName" defaultValue={r.driverName ?? ''} placeholder="Piloto" className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg" />
+                              <input name="teamName" defaultValue={r.teamName ?? ''} placeholder="Equipo" className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg" />
+                              <input name="dorsal" defaultValue={r.dorsal ?? ''} placeholder="Dorsal" className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg" />
+                              <input name="points" type="number" defaultValue={r.points ?? ''} placeholder="Pts." className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg" />
+                              <select name="status" defaultValue={r.status} className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg">
+                                <option value="finished">Finalizado</option>
+                                <option value="dnf">DNF</option>
+                                <option value="dsq">DSQ</option>
+                              </select>
+                              <div className="flex gap-1">
+                                <button className="flex-1 rounded-lg bg-shell-accent px-2 py-1 text-[10px] font-bold text-white">{t.save}</button>
+                                <button formAction={deleteLeagueResultAction} className="rounded-lg border border-rose-500/35 bg-rose-500/10 px-2 py-1 text-[10px] font-bold text-rose-300">✕</button>
+                              </div>
+                            </form>
+                          ))}
+                        </div>
+                      ) : null}
+                      {canReview ? (
+                        <form action={createManualLeagueResultAction} className="mt-2 grid grid-cols-2 gap-1.5 rounded-lg border border-dashed border-[#4ea1ff]/40 bg-[#4ea1ff]/5 p-2 md:grid-cols-8">
+                          <input type="hidden" name="leagueId" value={league.id} />
+                          <input type="hidden" name="eventId" value={event.id} />
+                          <select name="sessionType" defaultValue="race" className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg">
+                            <option value="race">Carrera</option>
+                            <option value="qualifying">Clasif.</option>
+                          </select>
+                          <input name="position" type="number" min={1} placeholder="Pos." className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg" />
+                          <input name="driverName" required placeholder="Piloto / coche" className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg" />
+                          <input name="teamName" placeholder="Equipo" className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg" />
+                          <input name="dorsal" placeholder="Dorsal" className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg" />
+                          <input name="points" type="number" placeholder="Pts." className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg" />
+                          <select name="status" defaultValue="finished" className="border border-shell-line bg-black/30 px-2 py-1 text-xs text-white outline-none rounded-lg">
+                            <option value="finished">Finalizado</option>
+                            <option value="dnf">DNF</option>
+                            <option value="dsq">DSQ</option>
+                          </select>
+                          <button className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-2 py-1 text-[10px] font-bold text-white">+ Resultado manual</button>
                         </form>
                       ) : null}
                     </div>

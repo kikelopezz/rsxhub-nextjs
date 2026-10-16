@@ -600,7 +600,10 @@ model LeagueResult {
   id          String       @id @default(cuid())
   leagueId    String       @map("league_id")
   eventId     String       @map("event_id")
-  userId      String       @map("user_id")
+  // Opcional: un resultado puede introducirse a mano para un coche/equipo sin piloto registrado
+  // en la plataforma (ver admin-results-editor.ts) — en ese caso se usan solo los campos "snapshot"
+  // de texto libre (driverName, teamName, dorsal...) de abajo.
+  userId      String?      @map("user_id")
   sessionType SessionType  @default(race) @map("session_type")
   position    Int?
   points      Int?

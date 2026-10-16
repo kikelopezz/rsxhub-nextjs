@@ -206,9 +206,9 @@ export async function buildSnapshot(base: string) {
  * Equipos (los archivos de carrera suelen traer el número inventado y el equipo abreviado o vacío).
  */
 async function withCorrelatedCars<
-  T extends { userId: string; steamId: string | null; driverName: string | null; classTag: string | null; teamName: string | null; dorsal: string | null },
+  T extends { userId: string | null; steamId: string | null; driverName: string | null; classTag: string | null; teamName: string | null; dorsal: string | null },
 >(leagueId: string, eventId: string, sessionType: 'qualifying' | 'race', rows: T[]) {
-  const userIds = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean)))
+  const userIds = Array.from(new Set(rows.map((r) => r.userId).filter((v): v is string => Boolean(v))))
   const [ctx, accounts] = await Promise.all([
     loadCorrelationContext(leagueId, eventId, sessionType),
     userIds.length > 0 ? db.steamAccount.findMany({ where: { userId: { in: userIds } }, select: { userId: true, steamId: true } }) : Promise.resolve([]),
@@ -218,7 +218,7 @@ async function withCorrelatedCars<
     row,
     car: correlateRow(ctx, {
       userId: row.userId,
-      steamId: steamByUser.get(row.userId) || row.steamId,
+      steamId: (row.userId ? steamByUser.get(row.userId) : undefined) || row.steamId,
       driverName: row.driverName,
       classTag: row.classTag,
       teamName: row.teamName,

@@ -35,8 +35,8 @@ export async function applyEventPointsToSeasonTotal(leagueId: string, eventId: s
 
   // Un piloto normalmente solo tiene una inscripción; si tuviera varias (una por categoría), se
   // prefiere la de la categoría en la que corrió esa carrera.
-  const findRegistration = (userId: string, classTag: string | null) => {
-    const list = regsByUser.get(userId)
+  const findRegistration = (userId: string | null, classTag: string | null) => {
+    const list = userId ? regsByUser.get(userId) : undefined
     if (!list || list.length === 0) return null
     const wanted = (classTag || '').trim().toUpperCase()
     return list.find((r) => (r.classTag || '').trim().toUpperCase() === wanted) || list[0]

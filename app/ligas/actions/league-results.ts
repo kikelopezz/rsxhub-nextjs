@@ -32,7 +32,7 @@ async function buildResults(leagueId: string, eventId: string, sessionType: 'qua
   const rows = await db.leagueResult.findMany({ where: { eventId, sessionType } })
   if (rows.length === 0) return []
 
-  const userIds = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean)))
+  const userIds = Array.from(new Set(rows.map((r) => r.userId).filter((v): v is string => Boolean(v))))
   const [{ teams }, profiles, steamAccounts, ctx] = await Promise.all([
     getTeamsDashboard(),
     userIds.length > 0 ? db.profile.findMany({ where: { userId: { in: userIds } } }) : Promise.resolve([]),
@@ -44,8 +44,8 @@ async function buildResults(leagueId: string, eventId: string, sessionType: 'qua
   const steamMap = new Map(steamAccounts.map((s) => [s.userId, { steamId: s.steamId, name: s.steamDisplayName }]))
 
   const built = rows.map((row) => {
-    const profName = profilesMap.get(row.userId)
-    const stm = steamMap.get(row.userId)
+    const profName = row.userId ? profilesMap.get(row.userId) : undefined
+    const stm = row.userId ? steamMap.get(row.userId) : undefined
     const dName = profName || stm?.name || row.driverName || (row.userId ? `Driver ${row.userId.slice(0, 4)}` : 'Driver')
     const sId = stm?.steamId || row.steamId || ''
 
