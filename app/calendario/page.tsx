@@ -69,7 +69,12 @@ export default async function CalendarioPage({
   const view: ViewMode = params.view === 'programme' ? 'programme' : 'month'
   const anchorDate = parseDateInput(params.date)
 
-  const [events, leagues, notes, simulators] = await Promise.all([getLeagueEvents(), getLeagues(), getCalendarNotes(), getSimulators()])
+  const [allEvents, allLeagues, notes, simulators] = await Promise.all([getLeagueEvents(), getLeagues(), getCalendarNotes(), getSimulators()])
+  // Los campeonatos ocultos (botón "Mostrar/Ocultar" del admin) no deben aparecer en el calendario
+  // público, ni sus carreras — solo quien puede administrarlos los sigue viendo.
+  const hiddenLeagueIds = new Set(allLeagues.filter((l) => l.hidden).map((l) => l.id))
+  const leagues = isAdmin ? allLeagues : allLeagues.filter((l) => !l.hidden)
+  const events = isAdmin ? allEvents : allEvents.filter((e) => !hiddenLeagueIds.has(e.leagueId))
 
   const monthStart = startOfMonthUTC(anchorDate)
   const monthEnd = endOfMonthUTC(anchorDate)

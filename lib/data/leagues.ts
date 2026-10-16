@@ -43,6 +43,7 @@ export const getLeagues = cache(async (): Promise<League[]> => {
         startsAt: (data.startsAt ?? new Date()).toISOString(),
         endsAt: (data.endsAt ?? new Date()).toISOString(),
         featured: data.isFeatured,
+        hidden: data.hidden,
         registrationOpen: data.status === 'open',
         registrationMode: data.registrationMode,
         requiresPayment: data.requiresPayment,

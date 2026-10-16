@@ -323,6 +323,9 @@ model League {
   startsAt         DateTime?        @map("starts_at")
   endsAt           DateTime?        @map("ends_at")
   isFeatured       Boolean          @default(false) @map("is_featured")
+  /// Botón "Mostrar/Ocultar" del admin: distinto de `status`, para poder ocultar un campeonato de
+  /// las páginas públicas sin tocar su estado del flujo (draft/open/ongoing/...).
+  hidden           Boolean          @default(false)
   registrationOpen Boolean          @default(false) @map("registration_open")
   registrationMode RegistrationMode @default(individual) @map("registration_mode")
   /// Si es true, las inscripciones nuevas entran como "pending" en vez de aprobarse

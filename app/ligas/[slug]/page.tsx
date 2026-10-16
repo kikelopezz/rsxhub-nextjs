@@ -36,9 +36,13 @@ export default async function LigaDetailPage({
 
   if (!league) return notFound()
 
+  // Se comprueba antes del resto de datos: un campeonato oculto (botón "Mostrar/Ocultar" del
+  // admin) debe dar 404 a quien no pueda administrarlo, igual que si no existiera.
+  const access = await getAdminAccessContext(session?.userId)
+  if (league.hidden && !access.canAccessPlatformAdmin) return notFound()
+
   // All of these only depend on `league`/`session` above, not on each other — run concurrently.
-  const [access, events, leagueCars, registrations, confirmations, initialPointsOverrides, initialCarPhotos, teamsDashboard, skinReviewStatus] = await Promise.all([
-    getAdminAccessContext(session?.userId),
+  const [events, leagueCars, registrations, confirmations, initialPointsOverrides, initialCarPhotos, teamsDashboard, skinReviewStatus] = await Promise.all([
     getLeagueEvents(league.id),
     getLeagueCars(league.id),
     getRegistrations(league.id),

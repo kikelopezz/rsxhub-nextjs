@@ -65,6 +65,7 @@ export interface League {
   startsAt: string
   endsAt: string
   featured: boolean
+  hidden?: boolean
   registrationOpen?: boolean
   registrationMode?: LeagueRegistrationMode
   requiresPayment?: boolean

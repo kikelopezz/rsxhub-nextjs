@@ -33,7 +33,7 @@ export default async function LigasPage({ searchParams }: Props) {
   const isAdmin = access.canAccessPlatformAdmin
 
   const params = await searchParams
-  const [leagues, registrations, teamsDashboard, teamIdRows] = await Promise.all([
+  const [allLeagues, registrations, teamsDashboard, teamIdRows] = await Promise.all([
     getLeagues(),
     getRegistrations(),
     getTeamsDashboard(),
@@ -42,6 +42,9 @@ export default async function LigasPage({ searchParams }: Props) {
       return []
     }),
   ])
+  // Los campeonatos ocultos (botón "Mostrar/Ocultar" del admin) solo se ven a quien puede
+  // administrarlos — para el resto de visitantes ni siquiera aparecen en el listado.
+  const leagues = isAdmin ? allLeagues : allLeagues.filter((league) => !league.hidden)
   const teamById = new Map(teamsDashboard.teams.map((team) => [team.id, team]))
 
   // Get all valid team IDs in the system to filter out orphan registrations

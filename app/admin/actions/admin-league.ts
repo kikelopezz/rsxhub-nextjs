@@ -102,6 +102,7 @@ export async function updateLeague(formData: FormData) {
         status: String(formData.get('status') || 'draft') as any,
         bannerUrl: String(formData.get('bannerUrl') || '') || null,
         isFeatured: formData.get('featured') === 'on',
+        hidden: formData.get('hidden') === 'on',
         registrationMode: String(formData.get('registrationMode') || 'individual') as any,
         requiresPayment: formData.get('requiresPayment') === 'on',
         classTags: parseClassTags(formData),
@@ -169,6 +170,26 @@ export async function quickToggleLeagueFeaturedAction(formData: FormData) {
   if (league) {
     await db.league.update({ where: { id: leagueId }, data: { isFeatured: !league.isFeatured } }).catch((error) =>
       console.error('Failed to toggle featured:', error)
+    )
+  }
+
+  invalidateCache(['platform_leagues', 'leagues', 'teams_dashboard'])
+  revalidatePath('/admin')
+  revalidatePath('/ligas')
+  revalidatePath(`/admin/ligas/${leagueId}`)
+  redirect('/admin?tab=leagues&updated=1')
+}
+
+export async function quickToggleLeagueHiddenAction(formData: FormData) {
+  await guardPlatformAdmin()
+  const leagueId = String(formData.get('leagueId') || '')
+
+  if (!leagueId) redirect('/admin?error=missing-fields')
+
+  const league = await db.league.findUnique({ where: { id: leagueId }, select: { hidden: true } })
+  if (league) {
+    await db.league.update({ where: { id: leagueId }, data: { hidden: !league.hidden } }).catch((error) =>
+      console.error('Failed to toggle hidden:', error)
     )
   }
 
