@@ -5,6 +5,7 @@ import { getLeagueBySlug, getLeagueCars, getLeagueEvents, getRegistrations, getE
 import { getTeamsDashboard, getSkinReviewStatusByLeague } from '@/lib/team-data'
 import LeagueDetailPageContent from './page-content'
 import { getSimulators, simulatorName, simulatorLogo } from '@/lib/data/simulators'
+import { getCarCategories } from '@/lib/data/categories'
 import { listCatalogFiles, catalogCategoryForLeague, type CatalogFile } from '@/lib/admin-catalog'
 
 export const revalidate = 0
@@ -83,6 +84,7 @@ export default async function LigaDetailPage({
   }
 
   const simulators = await getSimulators()
+  const categories = (await getCarCategories()).filter((c) => c.active).map((c) => c.key)
 
   // Contenido descargable (coches/circuitos) del catálogo de admin que le toca a esta liga
   // según su campeonato — null si la liga no tiene categoría asignada (ver catalogCategoryForLeague).
@@ -204,6 +206,7 @@ export default async function LigaDetailPage({
   return (
     <LeagueDetailPageContent
       simulators={simulators}
+      categories={categories}
       league={serializableLeague}
       initialEvents={serializableEvents}
       isAdmin={isAdmin}

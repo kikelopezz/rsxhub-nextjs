@@ -41,6 +41,7 @@ function hexToRgba(hex: string, alpha: number) {
 
 type Props = {
   simulators?: Array<{ key: string; name: string; logoUrl: string | null }>
+  categories?: string[]
   league: League
   initialEvents: LeagueEvent[]
   isAdmin: boolean
@@ -59,6 +60,7 @@ type Props = {
 
 export default function LeagueDetailPageContent({
   simulators = [],
+  categories = [],
   league,
   initialEvents,
   isAdmin,
@@ -511,6 +513,7 @@ export default function LeagueDetailPageContent({
       {isAdmin && (
         <LeagueEditModal
           simulators={simulators}
+          categories={categories}
           league={league}
           isOpen={isEditLeagueOpen}
           onClose={() => setIsEditLeagueOpen(false)}

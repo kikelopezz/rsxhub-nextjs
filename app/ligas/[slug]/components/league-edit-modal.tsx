@@ -8,12 +8,13 @@ import { updateLeagueDetailsAction, deleteLeagueAction } from '@/app/ligas/actio
 import { useDictionary } from '@/lib/i18n/locale-provider'
 type LeagueEditModalProps = {
   simulators?: Array<{ key: string; name: string; logoUrl: string | null }>
+  categories?: string[]
   league: any
   isOpen: boolean
   onClose: () => void
 }
 
-export function LeagueEditModal({ simulators = [], league, isOpen, onClose }: LeagueEditModalProps) {
+export function LeagueEditModal({ simulators = [], categories = [], league, isOpen, onClose }: LeagueEditModalProps) {
   const router = useRouter()
   const dict = useDictionary()
   const t = dict.ligas.createModal
@@ -253,7 +254,7 @@ export function LeagueEditModal({ simulators = [], league, isOpen, onClose }: Le
               <div className="space-y-3">
                 <label className="block text-xs text-slate-300 uppercase font-semibold">{t.categoriesAndSlots}</label>
                 <div className="grid grid-cols-1 gap-2.5 bg-black/40 p-3 border border-white/10 rounded-lg">
-                  {['GT3', 'HYPERCAR', 'LMP2'].map((cat) => {
+                  {categories.map((cat) => {
                     const currentCats = formClassTags
                       .split(',')
                       .map((s: string) => s.trim().toUpperCase())

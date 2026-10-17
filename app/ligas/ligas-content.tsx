@@ -28,6 +28,7 @@ type League = {
 
 type Props = {
   simulators: Array<{ key: string; name: string; logoUrl: string | null }>
+  categories: string[]
   initialLeagues: League[]
   registeredByLeague: Record<string, number>
   isAdmin: boolean
@@ -41,6 +42,7 @@ type Props = {
 
 export default function LigasPageContent({
   simulators,
+  categories,
   initialLeagues,
   registeredByLeague,
   isAdmin,
@@ -58,7 +60,7 @@ export default function LigasPageContent({
     setMounted(true)
   }, [])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedTags, setSelectedTags] = useState<string[]>(['GT3', 'LMP2', 'HYPERCAR'])
+  const [selectedTags, setSelectedTags] = useState<string[]>(categories)
   const [formAccentColor, setFormAccentColor] = useState('#1274de')
 
   const handleTagToggle = (tag: string) => {
@@ -367,7 +369,7 @@ export default function LigasPageContent({
                       <div className="space-y-3">
                         <label className="block text-xs font-semibold uppercase text-slate-300">{t.createModal.categoriesAndSlots}</label>
                         <div className="grid grid-cols-1 gap-2.5 rounded-lg border border-white/10 bg-black/40 p-3">
-                          {['GT3', 'HYPERCAR', 'LMP2'].map((cat) => {
+                          {categories.map((cat) => {
                             const isChecked = selectedTags.includes(cat)
                             return (
                               <label
