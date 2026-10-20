@@ -36,6 +36,9 @@ export function LeagueEditModal({ simulators = [], categories = [], league, isOp
   const [formBannerUrl, setFormBannerUrl] = useState(league.bannerUrl || '')
   const [formLogoUrl, setFormLogoUrl] = useState((league as any).logoUrl || '')
   const [formDriveUrl, setFormDriveUrl] = useState((league as any).driveUrl || '')
+  const [formDiscordUrl, setFormDiscordUrl] = useState((league as any).discordUrl || '')
+  const [formYoutubeUrl, setFormYoutubeUrl] = useState((league as any).youtubeUrl || '')
+  const [formRulebookUrl, setFormRulebookUrl] = useState((league as any).rulebookUrl || '')
   const [isLeagueSubmitting, setIsLeagueSubmitting] = useState(false)
 
   if (!isOpen) return null
@@ -72,6 +75,9 @@ export function LeagueEditModal({ simulators = [], categories = [], league, isOp
       formData.set('bannerUrl', String(formData.get('bannerUrl') || formBannerUrl))
       formData.set('logoUrl', String(formData.get('logoUrl') || formLogoUrl))
       formData.set('driveUrl', formDriveUrl)
+      formData.set('discordUrl', formDiscordUrl)
+      formData.set('youtubeUrl', formYoutubeUrl)
+      formData.set('rulebookUrl', formRulebookUrl)
 
       await updateLeagueDetailsAction(formData)
       onClose()
@@ -360,6 +366,42 @@ export function LeagueEditModal({ simulators = [], categories = [], league, isOp
                 className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-mono"
               />
               <p className="mt-1 text-[10px] text-slate-500">{t.driveUrlHint}</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="mb-1 block text-xs text-slate-300 uppercase font-semibold">Servidor de Discord</label>
+                <input
+                  type="url"
+                  value={formDiscordUrl}
+                  onChange={(e) => setFormDiscordUrl(e.target.value)}
+                  placeholder="https://discord.gg/..."
+                  className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-mono"
+                />
+                <p className="mt-1 text-[10px] text-slate-500">Botón "Discord" en la cabecera de la liga. Vacío = oculto.</p>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-300 uppercase font-semibold">Canal de YouTube</label>
+                <input
+                  type="url"
+                  value={formYoutubeUrl}
+                  onChange={(e) => setFormYoutubeUrl(e.target.value)}
+                  placeholder="https://youtube.com/..."
+                  className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-mono"
+                />
+                <p className="mt-1 text-[10px] text-slate-500">Botón "YouTube" en la cabecera de la liga. Vacío = oculto.</p>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-300 uppercase font-semibold">Reglamento</label>
+                <input
+                  type="url"
+                  value={formRulebookUrl}
+                  onChange={(e) => setFormRulebookUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff] font-mono"
+                />
+                <p className="mt-1 text-[10px] text-slate-500">Botón "Reglamento" en la cabecera de la liga. Vacío = oculto.</p>
+              </div>
             </div>
           </div>
 
