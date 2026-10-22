@@ -108,6 +108,11 @@ export async function updateLeagueDetailsAction(formData: FormData) {
   const youtubeUrl = String(formData.get('youtubeUrl') || '').trim()
   const rulebookUrl = String(formData.get('rulebookUrl') || '').trim()
   const driveUrl = String(formData.get('driveUrl') || '').trim()
+  const liveTimingSource = String(formData.get('liveTimingSource') || '').trim() || null
+  const cutoffMinLapsRaw = String(formData.get('cutoffMinLaps') || '').trim()
+  const cutoffMinLaps = cutoffMinLapsRaw ? Number(cutoffMinLapsRaw) : null
+  const cutoffPercentRaw = String(formData.get('cutoffPercentOverBest') || '').trim()
+  const cutoffPercentOverBest = cutoffPercentRaw ? Number(cutoffPercentRaw) : null
 
   if (!leagueId || !startsAt || !endsAt) {
     throw new Error('League ID, Start Date, and End Date are required.')
@@ -130,6 +135,9 @@ export async function updateLeagueDetailsAction(formData: FormData) {
       youtubeUrl: youtubeUrl || null,
       rulebookUrl: rulebookUrl || null,
       driveUrl: driveUrl || null,
+      liveTimingSource,
+      cutoffMinLaps,
+      cutoffPercentOverBest,
       ...(title && { title }),
       ...(slug && { slug }),
       ...(simulator && { simulator: simulator as any }),

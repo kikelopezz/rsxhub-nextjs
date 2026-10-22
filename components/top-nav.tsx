@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, ChevronDown } from 'lucide-react'
 import { SteamLoginButton } from './steam-login-button'
 import { NotificationsNav, type NotificationItem } from './notifications-nav'
 import { LanguageSwitcher } from './language-switcher'
@@ -50,6 +50,8 @@ export function TopNav({ signedIn, showAdmin, showSupport = false, showSanciones
   const dict = useDictionary()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showSignInHint, setShowSignInHint] = useState(false)
+  const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false)
+  const adminMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (signedIn) return
@@ -75,17 +77,35 @@ export function TopNav({ signedIn, showAdmin, showSupport = false, showSanciones
     { href: '/live-timing', label: dict.nav.liveTiming },
     { href: '/about', label: dict.nav.about },
   ]
-  const links = [
-    ...baseLinks,
+  // Separado de baseLinks: en portátiles pequeños (ancho por debajo del desktop pero por encima
+  // del hamburguesa móvil) meter estos 1-3 enlaces extra en la misma fila hacía que se envolviera,
+  // empujando el logo fuera de su columna y dejando la barra pegada arriba. Los admins los ven
+  // agrupados en un desplegable aparte; los pilotos no notan el cambio (links = baseLinks para ellos).
+  const adminLinks = [
     ...(showAdmin ? [{ href: '/admin', label: dict.nav.admin }] : []),
     ...(showSupport ? [{ href: '/soporte', label: 'Soporte' }] : []),
     ...(showSanciones ? [{ href: '/sanciones', label: 'Sanciones' }] : []),
   ]
+  const links = [...baseLinks, ...adminLinks]
+  const adminMenuActive = adminLinks.some((item) => isActive(pathname, item.href))
 
-  // Close the mobile menu on route change
+  // Close the mobile menu / admin dropdown on route change
   useEffect(() => {
     setIsMenuOpen(false)
+    setIsAdminMenuOpen(false)
   }, [pathname])
+
+  // Close the admin dropdown when clicking outside it
+  useEffect(() => {
+    if (!isAdminMenuOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (adminMenuRef.current && !adminMenuRef.current.contains(e.target as Node)) {
+        setIsAdminMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isAdminMenuOpen])
 
   return (
     <div className="relative">
@@ -102,7 +122,7 @@ export function TopNav({ signedIn, showAdmin, showSupport = false, showSanciones
 
         {/* Nav links */}
         <nav className="flex flex-wrap items-center justify-center gap-1 p-1.5 text-[12px] font-bold uppercase tracking-wider text-white">
-          {links.map((item) => (
+          {baseLinks.map((item) => (
             <Link
               key={item.label}
               href={item.href}
@@ -120,6 +140,45 @@ export function TopNav({ signedIn, showAdmin, showSupport = false, showSanciones
               )}
             </Link>
           ))}
+
+          {/* Enlaces de admin/soporte/sanciones agrupados aparte: metidos sueltos en la fila
+              de arriba, en portátiles pequeños la envolvían y empujaban el logo fuera de su
+              columna (ver Trello "Arreglar menús de encabezado"). */}
+          {adminLinks.length > 0 && (
+            <div className="relative" ref={adminMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsAdminMenuOpen((open) => !open)}
+                aria-expanded={isAdminMenuOpen}
+                className={`flex items-center gap-1 rounded-md border px-4 py-2 transition-all duration-200 active:scale-90 ${
+                  adminMenuActive
+                    ? 'border-[#4ea1ff] bg-[#1274de] text-white shadow-[0_0_20px_rgba(78,161,255,0.7)]'
+                    : 'border-transparent text-slate-300 hover:-translate-y-1 hover:scale-105 hover:border-[#4ea1ff] hover:bg-white/10 hover:text-white hover:shadow-[0_0_18px_rgba(78,161,255,0.65)]'
+                }`}
+              >
+                {dict.nav.admin}
+                <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${isAdminMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isAdminMenuOpen && (
+                <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-44 animate-dropdown-in rounded-lg border border-white/10 bg-[#090d16] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.6)]">
+                  {adminLinks.map((item) => (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className={`block rounded-md border px-3 py-2 text-[11px] normal-case tracking-normal transition-all duration-200 ${
+                        isActive(pathname, item.href)
+                          ? 'border-[#4ea1ff] bg-[#1274de] text-white'
+                          : 'border-transparent text-slate-300 hover:border-[#4ea1ff] hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </nav>
 
         {/* Right side: user widget or sign-in */}

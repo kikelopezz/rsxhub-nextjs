@@ -27,6 +27,9 @@ export function LeagueEditModal({ simulators = [], categories = [], league, isOp
   const [formFormat, setFormFormat] = useState(league.format || 'sprint')
   const [formStatus, setFormStatus] = useState(league.status || 'open')
   const [formRegistrationMode, setFormRegistrationMode] = useState((league as any).registrationMode || 'team')
+  const [formLiveTimingSource, setFormLiveTimingSource] = useState((league as any).liveTimingSource || '')
+  const [formCutoffMinLaps, setFormCutoffMinLaps] = useState((league as any).cutoffMinLaps ?? '')
+  const [formCutoffPercentOverBest, setFormCutoffPercentOverBest] = useState((league as any).cutoffPercentOverBest ?? 105)
   const [formClassTags, setFormClassTags] = useState((league.classTags || []).join(', '))
   const [formStartsAt, setFormStartsAt] = useState(league.startsAt.split('T')[0])
   const [formEndsAt, setFormEndsAt] = useState(league.endsAt.split('T')[0])
@@ -66,6 +69,9 @@ export function LeagueEditModal({ simulators = [], categories = [], league, isOp
       formData.set('format', formFormat)
       formData.set('status', formStatus)
       formData.set('registrationMode', formRegistrationMode)
+      formData.set('liveTimingSource', formLiveTimingSource)
+      formData.set('cutoffMinLaps', String(formCutoffMinLaps))
+      formData.set('cutoffPercentOverBest', String(formCutoffPercentOverBest))
       formData.set('classTags', formClassTags)
       formData.set('startsAt', formStartsAt)
       formData.set('endsAt', formEndsAt)
@@ -206,6 +212,45 @@ export function LeagueEditModal({ simulators = [], categories = [], league, isOp
                   <option value="team">{t.registrationModeTeam}</option>
                   <option value="individual">{t.registrationModeIndividual}</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-slate-300 uppercase font-semibold">{t.lineupCutoffLabel}</label>
+                <div className="grid grid-cols-1 gap-2 rounded-lg border border-white/10 bg-black/40 p-2.5 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-[10px] text-slate-400 uppercase">{t.lineupCutoffSource}</label>
+                    <select
+                      value={formLiveTimingSource}
+                      onChange={(e) => setFormLiveTimingSource(e.target.value)}
+                      className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff]"
+                    >
+                      <option value="">{t.lineupCutoffNone}</option>
+                      <option value="erc">ERC</option>
+                      <option value="erc-next-gen">ERC NEXT GEN</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] text-slate-400 uppercase">{t.lineupCutoffMinLaps}</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={formCutoffMinLaps}
+                      onChange={(e) => setFormCutoffMinLaps(e.target.value)}
+                      className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff]"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] text-slate-400 uppercase">{t.lineupCutoffPercent}</label>
+                    <input
+                      type="number"
+                      min={100}
+                      step={0.1}
+                      value={formCutoffPercentOverBest}
+                      onChange={(e) => setFormCutoffPercentOverBest(e.target.value)}
+                      className="w-full border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none rounded-lg focus:border-[#4ea1ff]"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>
