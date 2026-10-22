@@ -10,7 +10,7 @@ import { guardLeaguePermission } from './admin-league'
 // `startsAt` comes from an `<input type="datetime-local">` as a naive `YYYY-MM-DDTHH:mm`
 // string — always Spanish wall-clock time as typed by the admin — so it's converted via
 // the league timezone rather than `new Date()`, which would parse it in whatever timezone
-// the Node process happens to run under (UTC on Vercel).
+// the Node process happens to run under.
 function parseSessionStart(startsAt: string): Date {
   const [dateStr, timeStr] = startsAt.split('T')
   return zonedWallTimeToUtc(dateStr, timeStr)

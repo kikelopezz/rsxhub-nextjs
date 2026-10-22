@@ -318,6 +318,12 @@ model League {
   format           LeagueFormat
   classTags        String[]         @map("class_tags")
   status           LeagueStatus     @default(draft)
+  /// Fuente de live timing para el corte de alineaciones ('erc' | 'erc-next-gen', ver CHAMPIONSHIPS
+  /// en app/live-timing/page.tsx). Null = la liga no usa el corte de vueltas mínimas/105%.
+  liveTimingSource      String? @map("live_timing_source")
+  cutoffMinLaps         Int?    @map("cutoff_min_laps")
+  /// Porcentaje sobre la mejor vuelta real de la clase en la sesión actual (ej. 105 = 105%).
+  cutoffPercentOverBest Float?  @map("cutoff_percent_over_best")
   bannerUrl        String?          @map("banner_url")
   logoUrl          String?          @map("logo_url")
   startsAt         DateTime?        @map("starts_at")

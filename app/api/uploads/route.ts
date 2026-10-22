@@ -196,10 +196,10 @@ export async function POST(req: Request) {
         )
       }
 
-      // Max file size check for direct upload: 4.2MB (Vercel serverless body limit is 4.5MB)
+      // Max file size check for direct upload: 4.2MB (keeps request bodies small for the proxy in front)
       if (file.size > MAX_SERVER_SKIN_BYTES) {
         return NextResponse.json(
-          { error: 'Skin file is larger than 4.2 MB (Vercel serverless upload limit). Please paste a Google Drive, Mega, or MediaFire download link instead.' },
+          { error: 'Skin file is larger than 4.2 MB. Please paste a Google Drive, Mega, or MediaFire download link instead.' },
           { status: 400 }
         )
       }
@@ -410,7 +410,7 @@ export async function DELETE(req: Request) {
       await fs.unlink(targetPath)
     } catch (unlinkErr: any) {
       console.warn('fs.unlink failed, falling back to soft delete:', unlinkErr)
-      // Even if file deletion fails on read-only environments (Vercel, Git-tracked),
+      // Even if file deletion fails on a read-only or ephemeral filesystem,
       // we still proceed with soft-deleting it from the list!
     }
 

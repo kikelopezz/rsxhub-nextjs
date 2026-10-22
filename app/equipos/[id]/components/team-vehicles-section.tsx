@@ -9,6 +9,7 @@ import { MAX_DRIVERS_PER_CAR } from '@/components/team-cars-editor/types'
 import { MAX_CARS_PER_CATEGORY } from '@/components/team-cars-editor/car-validation'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
+import type { LineupCutoffSnapshot } from '@/lib/lineup-cutoff'
 
 type TeamVehiclesSectionProps = {
   team: any
@@ -18,7 +19,16 @@ type TeamVehiclesSectionProps = {
   takenDorsals: Array<{ teamId: string; teamName: string; category: string; dorsal: string; leagueId?: string | null }>
   leaguesOptions: LeagueOption[]
   teamMembersOptions: TeamMemberOption[]
-  leagues: Array<{ id: string; slug: string; title: string }>
+  leagues: Array<{
+    id: string
+    slug: string
+    title: string
+    liveTimingSource?: string | null
+    cutoffMinLaps?: number | null
+    cutoffPercentOverBest?: number | null
+  }>
+  /** Corte de alineaciones (vueltas mínimas + 105%) por liga, solo para las que lo tienen configurado. */
+  cutoffSnapshots?: Record<string, LineupCutoffSnapshot>
   /** `${leagueId}::${CLASSTAG}::${dorsal}` -> estado de pago, solo para ligas de pago (ver app/equipos/[id]/page.tsx). */
   paymentStatusByCarKey?: Record<string, 'pending' | 'approved' | 'waitlist' | 'rejected'>
 }
@@ -86,6 +96,7 @@ export async function TeamVehiclesSection({
   leaguesOptions,
   teamMembersOptions,
   leagues,
+  cutoffSnapshots = {},
   paymentStatusByCarKey = {},
 }: TeamVehiclesSectionProps) {
   const t = getDictionary(await getLocale()).equipos.vehiclesSection
@@ -189,6 +200,15 @@ export async function TeamVehiclesSection({
                       })
                       .filter(Boolean)
 
+                    // Corte de alineaciones: el botón de copiar en bloque solo incluye a quien cumple
+                    // vueltas mínimas y 105% — para copiar la de alguien que no cumple hay que
+                    // desplegar "Ver Steam IDs" (steamIdEntries, sin filtrar) y copiarla suelta ahí.
+                    const carCutoffSnapshot = carLeague ? cutoffSnapshots[carLeague.id] : undefined
+                    const cutoffActive = Boolean(carCutoffSnapshot?.live)
+                    const qualifyingDriverSteamIds = cutoffActive
+                      ? carDriverSteamIds.filter((sid) => carCutoffSnapshot!.bySteamId.get(sid)?.qualifies)
+                      : carDriverSteamIds
+
                     const steamIdEntries: CarSteamIdEntry[] = !isAdmin ? [] : carDriverUserIds
                       .slice(0, maxSlots)
                       .map((dId: string) => {
@@ -270,7 +290,7 @@ export async function TeamVehiclesSection({
                           </div>
                           <CarSteamIdControls
                             entries={steamIdEntries}
-                            driverSteamIds={carDriverSteamIds}
+                            driverSteamIds={qualifyingDriverSteamIds}
                             className={theme.skinBtn}
                             labels={{ show: t.viewSteamIds, hide: t.hideSteamIds, reserve: t.reserve, copied: t.copiedShort }}
                           >
@@ -308,18 +328,32 @@ export async function TeamVehiclesSection({
                               const driverObj = cleanDriverId ? teamMembersOptions.find((m) => m.userId === cleanDriverId) : null
                               const driverName = driverObj?.name || null
 
+                              const cutoffEntry =
+                                cutoffActive && driverObj?.steamId ? carCutoffSnapshot!.bySteamId.get(driverObj.steamId) : undefined
+                              const cutoffFails = cutoffActive && driverName ? !cutoffEntry?.qualifies : false
+
                               return (
                                 <div
                                   key={idx}
-                                  className={`px-2.5 py-1.5 text-[10px] rounded-lg border flex items-center justify-between gap-1.5 min-w-0 ${
+                                  className={`px-2.5 py-1.5 text-[10px] rounded-lg border flex flex-col gap-0.5 min-w-0 ${
                                     driverName
                                       ? `${theme.driverActive} font-semibold`
                                       : 'border-dashed border-slate-800 bg-transparent text-slate-500 italic'
                                   }`}
                                 >
-                                  <span className="truncate">
+                                  <span className={`truncate ${cutoffFails ? 'text-rose-400' : ''}`}>
                                     {driverName || t.vacant}
                                   </span>
+                                  {cutoffActive && driverName && (
+                                    <span
+                                      className={`truncate text-[9px] font-mono normal-case ${
+                                        cutoffFails ? 'text-rose-400/80' : 'text-emerald-400/80'
+                                      }`}
+                                    >
+                                      {cutoffEntry?.lapsCompleted ?? 0}/{carLeague?.cutoffMinLaps} {t.cutoffLapsShort} ·{' '}
+                                      {cutoffEntry?.meetsCutoff ? t.cutoffOk : t.cutoffFail}
+                                    </span>
+                                  )}
                                 </div>
                               )
                             })}

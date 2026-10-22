@@ -31,8 +31,8 @@ export function formatDateTime(dateString: string) {
 }
 
 // All race session times are entered by admins/stewards looking at Spanish wall-clock
-// time, regardless of where the Node process actually runs (Vercel defaults its
-// serverless functions to UTC) — so naive `new Date("2026-08-08T20:15:00")` parsing on
+// time, regardless of what timezone the Node process actually runs under (often UTC on
+// a server) — so naive `new Date("2026-08-08T20:15:00")` parsing on
 // the server silently shifts every session by the Madrid/UTC offset (1-2h depending on
 // DST). These two helpers pin that conversion to a specific IANA zone instead of
 // whatever timezone the host happens to be in.

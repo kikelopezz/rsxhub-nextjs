@@ -5,11 +5,9 @@ import { useDictionary } from '@/lib/i18n/locale-provider'
 import { HelpCircle, Signal, SignalZero, ArrowUp, ArrowDown } from 'lucide-react'
 import {
   CLASS_COLORS,
-  fetchOfficialStints,
   formatNanos,
   formatSeconds,
   formatTrackName,
-  formatStintMs,
   getCarStats,
   getClassTagFromModel,
   type CarStats,
@@ -95,14 +93,6 @@ const ALL_SERVERS = CHAMPIONSHIPS.flatMap((c) => c.servers.map((server) => ({ ch
 // (los servidores siguientes nunca se llegan a consultar) o el poll principal (y con él el tablero).
 const LIVE_FETCH_TIMEOUT_MS = 10_000
 const liveFetch = (url: string) => fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(LIVE_FETCH_TIMEOUT_MS) })
-
-function withFallback<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const limit = new Promise<T>((resolve) => {
-    timer = setTimeout(() => resolve(fallback), ms)
-  })
-  return Promise.race([promise.catch(() => fallback), limit]).finally(() => clearTimeout(timer))
-}
 
 function isServerLive(json: LeaderboardResponse | null) {
   return Boolean(json && (json.ServerName || json.ConnectedDrivers || json.DisconnectedDrivers))
@@ -285,7 +275,7 @@ function LiveClock() {
   return <span>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
 }
 
-const LEGEND_COLUMNS =['pos', 'cls', 'classPos', 'number', 'name', 'team', 'tyre', 'gap', 'interval', 'last', 'best', 'laps', 'pits', 'stint', 'state'] as const
+const LEGEND_COLUMNS =['pos', 'cls', 'classPos', 'number', 'name', 'team', 'tyre', 'gap', 'interval', 'last', 'best', 'laps', 'pits', 'state'] as const
 
 type LT = ReturnType<typeof useDictionary>['liveTiming']
 
@@ -298,7 +288,6 @@ function LiveRow({
   classPos,
   interval,
   stats,
-  stintMs,
   isClassBest,
   isOverallBest,
   moveDelta,
@@ -313,7 +302,6 @@ function LiveRow({
   classPos: number | undefined
   interval: string
   stats: CarStats
-  stintMs: number
   isClassBest: boolean
   isOverallBest: boolean
   moveDelta: number | null
@@ -386,7 +374,6 @@ function LiveRow({
       <td className="px-2 py-2.5 text-center tabular-nums text-[#c9ced6]" title={`${normalPits} ${labels.col.normalPits} · ${longPits} ${labels.col.longPits}${d.LastPitStop ? ` · ${labels.col.lastPit}: ${d.LastPitStop}` : ''}`}>
         {totalPits}
       </td>
-      <td className="px-2 py-2.5 text-center font-bold tabular-nums text-[#f59e0b]">{formatStintMs(stintMs)}</td>
       <td className="px-2 py-2.5 text-center">
         {d.IsInPits ? (
           <span className="animate-pulse bg-[#f59e0b] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-black">{labels.pit}</span>
@@ -404,17 +391,14 @@ function ResultRow({
   car,
   cls,
   stats,
-  stintMs,
   sectors,
   seen,
-  
 }: {
   d: LiveDriver
   idx: number
   car: { team: string; number: string | null; driver: string }
   cls: string
   stats: CarStats
-  stintMs: number
   sectors: { text: string; tone: string }[]
   seen: string
 }) {
@@ -445,7 +429,6 @@ function ResultRow({
       <td className="px-2 py-2.5 text-center font-bold tabular-nums text-white">{d.TotalNumLaps || 0}</td>
       <td className="px-2 py-2.5 text-center tabular-nums text-[#c9ced6]">{longPits}</td>
       <td className="px-2 py-2.5 text-center tabular-nums text-[#6b7280]">{normalPits}</td>
-      <td className="px-2 py-2.5 text-center font-bold tabular-nums text-[#f59e0b]">{formatStintMs(stintMs)}</td>
       <td className="px-2 py-2.5 text-right text-[#6b7280]">{seen}</td>
     </tr>
   )
@@ -460,7 +443,6 @@ export default function LiveTimingPage() {
   const [selectedServer, setSelectedServer] = useState(activeServers[0])
   const [data, setData] = useState<LeaderboardResponse | null>(null)
   const [serverStatus, setServerStatus] = useState<Record<string, boolean>>({})
-  const [stints, setStints] = useState<Record<string, number>>({})
   // Equipo y dorsal según el apartado de Equipos del Hub, por Steam ID
   const [hubEntries, setHubEntries] = useState<Record<string, HubEntry[]>>({})
   // Nombre de cada piloto en el Hub, por Steam ID (si la cuenta de Steam está vinculada)
@@ -533,24 +515,7 @@ export default function LiveTimingPage() {
     }
   }, [championship, selectedServer])
 
-  // Los stints oficiales cambian despacio y vienen de otra base de datos: se piden una vez al minuto,
-  // no en cada sondeo de la carrera.
-  useEffect(() => {
-    let alive = true
-    const load = async () => {
-      if (document.hidden) return
-      const map = await withFallback<Record<string, number> | null>(fetchOfficialStints(), LIVE_FETCH_TIMEOUT_MS, null)
-      if (alive && map) setStints(map)
-    }
-    load()
-    const id = setInterval(load, 60_000)
-    return () => {
-      alive = false
-      clearInterval(id)
-    }
-  }, [])
-
-  // Estado de los demás servidores para las tarjetas de selección. Usa la ruta de sesión (114 bytes) y no el
+// Estado de los demás servidores para las tarjetas de selección. Usa la ruta de sesión (114 bytes) y no el
   // leaderboard completo (hasta 12 MB): con el leaderboard, cinco servidores cada 30 s saturaban al origen.
   const sweepInFlight = useRef(false)
   const pollAllStatuses = useCallback(async () => {
@@ -1078,14 +1043,13 @@ export default function LiveTimingPage() {
                   <Th className="text-center">S3</Th>
                   <Th sortKey="Laps" onSort={handleSort} sort={sort} className="text-center">{t.col.laps}</Th>
                   <Th className="text-center">{t.col.pits}</Th>
-                  <Th className="text-center text-[#f59e0b]">{t.col.stint}</Th>
                   <Th className="text-center">{t.col.state}</Th>
                 </tr>
               </thead>
               <tbody>
                 {liveRows.length === 0 ? (
                   <tr>
-                    <td colSpan={17} className="px-4 py-16 text-center text-xs text-[#4b5563]">{t.noDrivers}</td>
+                    <td colSpan={16} className="px-4 py-16 text-center text-xs text-[#4b5563]">{t.noDrivers}</td>
                   </tr>
                 ) : (
                   liveRows.map((d) => {
@@ -1107,7 +1071,6 @@ export default function LiveTimingPage() {
                         classPos={rowMeta.get(key)?.classPos}
                         interval={rowMeta.get(key)?.interval ?? '-'}
                         stats={stats}
-                        stintMs={info.DriverGUID ? stints[info.DriverGUID] || 0 : 0}
                         isClassBest={Boolean(stats.BestLap && classBest && stats.BestLap <= classBest)}
                         isOverallBest={Boolean(stats.BestLap && fastest.overall && stats.BestLap <= fastest.overall.time)}
                         moveDelta={moveActive ? moveActive.delta : null}
@@ -1135,14 +1098,13 @@ export default function LiveTimingPage() {
                   <Th className="text-center">{t.col.laps}</Th>
                   <Th className="text-center">{t.col.longPits}</Th>
                   <Th className="text-center">{t.col.normalPits}</Th>
-                  <Th className="text-center text-[#f59e0b]">{t.col.stint}</Th>
                   <Th className="text-right">{t.col.lastSeen}</Th>
                 </tr>
               </thead>
               <tbody>
                 {resultRows.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="px-4 py-16 text-center text-xs text-[#4b5563]">{t.noResults}</td>
+                    <td colSpan={13} className="px-4 py-16 text-center text-xs text-[#4b5563]">{t.noResults}</td>
                   </tr>
                 ) : (
                   resultRows.map((d, idx) => {
@@ -1160,7 +1122,6 @@ export default function LiveTimingPage() {
                         car={resolveCar(d)}
                         cls={cls}
                         stats={getCarStats(d)}
-                        stintMs={info.DriverGUID ? stints[info.DriverGUID] || 0 : 0}
                         sectors={[0, 1, 2].map((i) => bestLapSplit(d, i, resultBestSplits))}
                         seen={seen}
                       />

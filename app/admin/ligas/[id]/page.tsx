@@ -262,6 +262,33 @@ export default async function AdminLeaguePage({
               <option value="individual">{t.registrationModeIndividual}</option>
               <option value="team">{t.registrationModeTeam}</option>
             </select>
+            <div className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white md:col-span-2 xl:col-span-4 rounded-lg">
+              <p className="mb-2 text-xs text-slate-300">{t.lineupCutoffLabel}</p>
+              <div className="grid gap-2 md:grid-cols-3">
+                <select name="liveTimingSource" defaultValue={league.liveTimingSource || ''} className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg">
+                  <option value="">{t.lineupCutoffNone}</option>
+                  <option value="erc">ERC</option>
+                  <option value="erc-next-gen">ERC NEXT GEN</option>
+                </select>
+                <input
+                  name="cutoffMinLaps"
+                  type="number"
+                  min={1}
+                  defaultValue={league.cutoffMinLaps ?? ''}
+                  placeholder={t.lineupCutoffMinLaps}
+                  className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg"
+                />
+                <input
+                  name="cutoffPercentOverBest"
+                  type="number"
+                  min={100}
+                  step={0.1}
+                  defaultValue={league.cutoffPercentOverBest ?? 105}
+                  placeholder={t.lineupCutoffPercent}
+                  className="border border-shell-line bg-black/20 px-3 py-2 text-sm text-white outline-none rounded-lg"
+                />
+              </div>
+            </div>
             <button className="bg-shell-accent px-4 py-2 text-sm font-bold text-white rounded-lg">{t.saveLeague}</button>
           </form>
         )}

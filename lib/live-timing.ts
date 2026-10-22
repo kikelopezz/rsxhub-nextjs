@@ -1,6 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
-
 export type Split = { SplitIndex: number; SplitTime: number }
+
+/** El GUID del leaderboard puede traer solo el SteamID64 o venir mezclado con más texto. */
+export function extractSteamId64(guid: string | undefined): string | null {
+  return String(guid || '').match(/\d{17}/)?.[0] ?? null
+}
 
 export type CarStats = {
   BestLap?: number
@@ -45,22 +48,6 @@ export type LeaderboardResponse = {
   ElapsedMilliseconds?: number
   ConnectedDrivers?: LiveDriver[]
   DisconnectedDrivers?: LiveDriver[]
-}
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-export const supabaseLiveTiming =
-  SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null
-
-export async function fetchOfficialStints(): Promise<Record<string, number>> {
-  if (!supabaseLiveTiming) return {}
-  const { data, error } = await supabaseLiveTiming.from('driver_stints').select('guid, total_ms')
-  if (error || !data) return {}
-  return data.reduce((acc: Record<string, number>, row: any) => {
-    acc[row.guid] = row.total_ms
-    return acc
-  }, {})
 }
 
 export function getCarStats(driver: LiveDriver): CarStats {
@@ -155,14 +142,6 @@ export function formatSeconds(s: number): string {
   const sec = Math.floor(s % 60)
   const t = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`
   return d > 0 ? `${d}d ${t}` : t
-}
-
-export function formatStintMs(ms: number): string {
-  const sec = Math.floor(ms / 1000)
-  const h = Math.floor(sec / 3600)
-  const m = Math.floor((sec % 3600) / 60)
-  const s = sec % 60
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
 /** Nombre legible del circuito a partir de la carpeta del simulador ("jr_road_atlanta_2022" → "Road Atlanta"). */

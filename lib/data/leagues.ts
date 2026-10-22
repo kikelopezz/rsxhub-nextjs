@@ -54,6 +54,9 @@ export const getLeagues = cache(async (): Promise<League[]> => {
         rulebookUrl: data.rulebookUrl,
         driveUrl: data.driveUrl,
         classLimits: limitsByLeague.get(data.id) || null,
+        liveTimingSource: data.liveTimingSource,
+        cutoffMinLaps: data.cutoffMinLaps,
+        cutoffPercentOverBest: data.cutoffPercentOverBest,
       }))
     } catch (error) {
       console.error('Failed to get leagues:', error)

@@ -9,6 +9,7 @@ import { ClearStatusQuery } from '@/components/clear-status-query'
 import { StatusBanner } from '@/components/status-banner'
 import { getCurrentUser, getAdminAccessContext } from '@/lib/auth'
 import { getLeagues, getRegistrations, getLeagueEvents, getTeamPointsOverrides } from '@/lib/platform-data'
+import { getLeagueCutoffSnapshot, LINEUP_CUTOFF_SERVERS, type LineupCutoffSnapshot } from '@/lib/lineup-cutoff'
 import { getTeamsDashboard } from '@/lib/team-data'
 import { profileStatusMessage, hexToRgba } from './team-utils'
 import type { TeamStats, TeamPilot, LeagueParticipation, RecentResult, PendingApplication } from './team-utils'
@@ -83,6 +84,21 @@ export default async function TeamProfilePage({
     title: l.title,
     classTags: l.classTags || [],
   }))
+
+  // Corte de alineaciones (vueltas mínimas + 105%): solo para las ligas que usa este equipo y que
+  // lo tengan configurado (liveTimingSource/cutoffMinLaps/cutoffPercentOverBest). Calculado al
+  // vuelo en cada visita, sin tabla ni proceso en segundo plano — ver lib/lineup-cutoff.ts.
+  const cutoffLeagueIds = Array.from(new Set((team.cars || []).map((c: any) => c.leagueId).filter(Boolean))) as string[]
+  const cutoffSnapshots: Record<string, LineupCutoffSnapshot> = {}
+  await Promise.all(
+    cutoffLeagueIds.map(async (leagueId) => {
+      const l = leagues.find((x) => x.id === leagueId)
+      if (!l?.liveTimingSource || !l.cutoffMinLaps || !l.cutoffPercentOverBest) return
+      const servers = LINEUP_CUTOFF_SERVERS[l.liveTimingSource]
+      if (!servers) return
+      cutoffSnapshots[leagueId] = await getLeagueCutoffSnapshot(l.liveTimingSource, servers, l.cutoffMinLaps, l.cutoffPercentOverBest)
+    })
+  )
 
   const isPlatformAdmin = access.canAccessPlatformAdmin
 
@@ -232,6 +248,7 @@ export default async function TeamProfilePage({
           leaguesOptions={leaguesOptions}
           teamMembersOptions={teamMembersOptions}
           leagues={leagues}
+          cutoffSnapshots={cutoffSnapshots}
           paymentStatusByCarKey={paymentStatusByCarKey}
         />
       </section>

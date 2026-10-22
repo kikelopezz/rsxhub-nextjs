@@ -22,7 +22,7 @@ function originOf(value: string | null | undefined): string | null {
  * signed assertion against this site's callback. Now only these origins are ever used or accepted.
  *
  * Add the public domain to NEXT_PUBLIC_APP_URL (or list extra ones, comma-separated, in
- * ALLOWED_AUTH_ORIGINS). On Vercel the production/deployment URLs are included automatically.
+ * ALLOWED_AUTH_ORIGINS).
  */
 export function getTrustedOrigins(): Set<string> {
   const trusted = new Set<string>()
@@ -37,8 +37,6 @@ export function getTrustedOrigins(): Set<string> {
   add(process.env.STEAM_RETURN_URL)
   add(process.env.COMPETITION_PUBLIC_URL)
   for (const extra of (process.env.ALLOWED_AUTH_ORIGINS || '').split(',')) add(extra.trim())
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) add(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`)
-  if (process.env.VERCEL_URL) add(`https://${process.env.VERCEL_URL}`)
   if (process.env.NODE_ENV !== 'production') {
     add('http://localhost:3000')
     add('http://127.0.0.1:3000')

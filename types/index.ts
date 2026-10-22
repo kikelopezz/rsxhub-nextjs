@@ -76,6 +76,10 @@ export interface League {
   rulebookUrl?: string | null
   driveUrl?: string | null
   classLimits?: Record<string, number> | null
+  /** Corte de alineaciones (vueltas mínimas + % sobre la mejor vuelta real). Null = liga sin configurar. */
+  liveTimingSource?: string | null
+  cutoffMinLaps?: number | null
+  cutoffPercentOverBest?: number | null
 }
 
 export interface Profile {

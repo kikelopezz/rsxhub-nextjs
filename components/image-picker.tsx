@@ -218,8 +218,9 @@ function RepositionModal({
   )
 }
 
-// La respuesta de error no siempre es JSON: Vercel corta antes de llegar a la app las peticiones
-// de más de ~4,5 MB con un 413 en texto plano, así que no se puede dar por hecho el "error" del JSON.
+// La respuesta de error no siempre es JSON: el proxy delante de la app puede cortar peticiones
+// grandes con un 413 en texto plano antes de que lleguen aquí, así que no se puede dar por hecho
+// el "error" del JSON.
 async function readUploadError(res: Response, fallback: string): Promise<string> {
   const text = await res.text().catch(() => '')
   try {
@@ -230,9 +231,9 @@ async function readUploadError(res: Response, fallback: string): Promise<string>
   return `${fallback} (error ${res.status}).`
 }
 
-// Sube directamente del navegador a R2 con una URL firmada: así la foto no pasa por Vercel, cuyo
-// límite de tamaño por petición es mucho menor que el de las fotos de móvil. Devuelve null si R2
-// no está configurado, para que el llamador use la ruta del servidor como alternativa.
+// Sube directamente del navegador a R2 con una URL firmada: así la foto no pasa por el servidor de
+// la app, cuyo límite de tamaño por petición es mucho menor que el de las fotos de móvil. Devuelve
+// null si R2 no está configurado, para que el llamador use la ruta del servidor como alternativa.
 async function uploadDirectToR2(blob: Blob, entityName: string): Promise<string | null> {
   const presignRes = await fetch('/api/uploads/presign', {
     method: 'POST',

@@ -7,8 +7,8 @@ export async function generateMetadata() {
   return pageMetadata({
     title: en ? 'Live timing' : 'Live timing en directo',
     description: en
-      ? 'Live timing for RSX races: positions, lap times, stints and results in real time.'
-      : 'Live timing de las carreras de RSX: posiciones, tiempos por vuelta, stints y resultados en tiempo real.',
+      ? 'Live timing for RSX races: positions, lap times and results in real time.'
+      : 'Live timing de las carreras de RSX: posiciones, tiempos por vuelta y resultados en tiempo real.',
     path: '/live-timing',
   })
 }

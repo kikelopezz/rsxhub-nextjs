@@ -15,7 +15,6 @@ export function SteamLoginButton({ className, children, redirectUrl = '/perfil' 
       if (
         origin !== window.location.origin &&
         !origin.endsWith('.run.app') &&
-        !origin.endsWith('.vercel.app') &&
         !origin.includes('localhost') &&
         !origin.includes('127.0.0.1')
       ) {

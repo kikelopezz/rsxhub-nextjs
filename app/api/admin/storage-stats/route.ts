@@ -5,7 +5,7 @@ import { getPlatformRole } from '@/lib/auth'
 import { hasR2, getR2StorageStats } from '@/lib/r2'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
-const LOCAL_SOFT_LIMIT_BYTES = 500 * 1024 * 1024 // Vercel/Git-tracked disk is only realistic up to a few hundred MB
+const LOCAL_SOFT_LIMIT_BYTES = 500 * 1024 * 1024 // Local disk uploads are only realistic up to a few hundred MB
 
 async function getLocalDiskStats(): Promise<{ usedBytes: number; objectCount: number }> {
   let usedBytes = 0

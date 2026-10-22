@@ -106,6 +106,9 @@ export async function updateLeague(formData: FormData) {
         registrationMode: String(formData.get('registrationMode') || 'individual') as any,
         requiresPayment: formData.get('requiresPayment') === 'on',
         classTags: parseClassTags(formData),
+        liveTimingSource: String(formData.get('liveTimingSource') || '') || null,
+        cutoffMinLaps: formData.get('cutoffMinLaps') ? Number(formData.get('cutoffMinLaps')) : null,
+        cutoffPercentOverBest: formData.get('cutoffPercentOverBest') ? Number(formData.get('cutoffPercentOverBest')) : null,
       },
     })
   } catch (error) {

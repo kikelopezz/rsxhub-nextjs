@@ -65,7 +65,7 @@ export async function TeamBannerStats({
           <>
             {/* A plain CSS background-image here would always fetch straight from the
                 original host on every view. Routing it through next/image instead lets
-                Vercel's edge cache the optimized result (minimumCacheTTL in next.config.js),
+                the server cache the optimized result (minimumCacheTTL in next.config.js),
                 so only the very first request pays for a slow/uncached origin. */}
             <Image
               src={heroImage}

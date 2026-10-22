@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { getCarStats, getClassTagFromModel, type LiveDriver } from '@/lib/live-timing'
+import { extractSteamId64, getCarStats, getClassTagFromModel, type LiveDriver } from '@/lib/live-timing'
 
 /**
  * Licencias por categoría: se consiguen en el servidor dedicado de licencias (servidor 3 de la
@@ -68,11 +68,6 @@ async function getAssettoCorsaHours(steamId: string): Promise<number | null> {
   } catch {
     return null
   }
-}
-
-/** El GUID del leaderboard puede traer solo el SteamID64 o venir mezclado con más texto. */
-function extractSteamId64(guid: string | undefined): string | null {
-  return String(guid || '').match(/\d{17}/)?.[0] ?? null
 }
 
 export async function runLicenseCheck(userId: string, steamId: string): Promise<LicenseCheckSummary> {
