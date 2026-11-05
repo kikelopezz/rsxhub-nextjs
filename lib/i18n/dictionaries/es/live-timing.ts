@@ -14,6 +14,7 @@ const liveTiming = {
   lap: 'VUELTA',
   cars: 'COCHES',
   fastestLaps: 'MEJORES VUELTAS',
+  cutoffLabel: 'CORTE ({pct}%)',
   countdown: 'CUENTA ATRÁS',
   clockOver: 'TIEMPO AGOTADO',
   lapsRemaining: 'VUELTAS RESTANTES',

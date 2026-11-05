@@ -838,18 +838,14 @@ model TeamCar {
 // leagueId = null -> lista de pilotos por defecto del coche (driverUserIds original).
 // leagueId set -> override especifico de esa liga (driverUserIdsByLeague original).
 model TeamCarDriver {
-  id        String  @id @default(cuid())
-  carId     String  @map("car_id")
-  userId    String  @map("user_id")
-  leagueId  String? @map("league_id")
-  // A reserve driver is part of the car's lineup but doesn't occupy one of the regular
-  // driving slots — kept as the same kind of row (car+league+user) as a regular driver,
-  // just flagged, rather than a separate table.
-  isReserve Boolean @default(false) @map("is_reserve")
+  id       String  @id @default(cuid())
+  carId    String  @map("car_id")
+  userId   String  @map("user_id")
+  leagueId String? @map("league_id")
 
   car TeamCar @relation(fields: [carId], references: [id], onDelete: Cascade)
 
-  @@unique([carId, userId, leagueId, isReserve])
+  @@unique([carId, userId, leagueId])
   @@index([userId])
   @@map("team_car_league_drivers")
 }

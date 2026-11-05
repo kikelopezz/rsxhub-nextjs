@@ -15,6 +15,7 @@ import {
 } from './entry-list-utils'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 import { DeadlineCountdown } from '@/components/deadline-countdown'
+import type { SerializedCutoffSnapshot } from '../page-content'
 
 type EventEntryListModalProps = {
   event: LeagueEvent
@@ -25,6 +26,9 @@ type EventEntryListModalProps = {
   teamInfo?: Record<string, { name: string; primaryColor: string | null; logoUrl: string | null; cars?: any[]; members?: any[]; skinAssignments?: any[] }>
   standings?: Record<string, TeamStanding[]>
   skinReviewStatus?: Record<string, 'pending' | 'approved' | 'rejected'>
+  /** Corte de alineaciones (vueltas mínimas + 105%): si está activo y en vivo, "Copiar IDs" solo
+      incluye a los pilotos que cumplen ambas condiciones. null = liga sin configurar. */
+  cutoffSnapshot?: SerializedCutoffSnapshot | null
   isAdmin: boolean
   onClose: () => void
 }
@@ -38,6 +42,7 @@ export function EventEntryListModal({
   teamInfo = {},
   standings,
   skinReviewStatus = {},
+  cutoffSnapshot = null,
   isAdmin,
   onClose,
 }: EventEntryListModalProps) {
@@ -258,9 +263,14 @@ export function EventEntryListModal({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  // Si el corte está activo y hay datos en vivo, solo se copian los
+                                  // pilotos que cumplen vueltas mínimas y 105% — para el resto hay que
+                                  // copiar su Steam ID suelta desde la ficha del equipo ("Ver Steam IDs").
+                                  const cutoffActive = Boolean(cutoffSnapshot?.live)
                                   const ids = t.drivers
                                     .map((d) => d.steamId)
                                     .filter((id) => Boolean(id) && /^\d{15,18}$/.test(id))
+                                    .filter((id) => !cutoffActive || cutoffSnapshot!.bySteamId[id]?.qualifies)
                                   const copyText = ids.join(';')
                                   if (copyText) {
                                     navigator.clipboard.writeText(copyText)

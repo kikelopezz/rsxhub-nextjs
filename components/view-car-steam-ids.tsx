@@ -7,7 +7,6 @@ import { CopyVehicleDriverIdsButton } from '@/components/copy-vehicle-driver-ids
 export type CarSteamIdEntry = {
   name: string
   steamId: string
-  reserve?: boolean
 }
 
 /**
@@ -25,7 +24,7 @@ export function CarSteamIdControls({
 }: {
   entries: CarSteamIdEntry[]
   driverSteamIds: string[]
-  labels: { show: string; hide: string; reserve: string; copied: string }
+  labels: { show: string; hide: string; copied: string }
   className?: string
   children?: ReactNode
 }) {
@@ -63,16 +62,11 @@ export function CarSteamIdControls({
         <ul className="w-full space-y-1">
           {entries.map((e) => (
             <li
-              key={`${e.steamId}-${e.reserve ? 'r' : 'd'}`}
+              key={e.steamId}
               className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 text-[10px]"
             >
               <span className="truncate font-semibold text-slate-200">
                 {e.name}
-                {e.reserve && (
-                  <span className="ml-1.5 rounded border border-amber-500/40 bg-amber-950/30 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-300">
-                    {labels.reserve}
-                  </span>
-                )}
               </span>
               <button
                 type="button"

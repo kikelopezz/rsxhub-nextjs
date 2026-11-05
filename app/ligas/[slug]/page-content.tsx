@@ -10,6 +10,9 @@ import { useLeagueState, League, LeagueEvent, Registration, ManagedTeam, LeagueC
 import { LeagueBanner } from './components/league-banner'
 import { LeagueRegistration } from './components/league-registration'
 import { LeagueSchedule } from './components/league-schedule'
+import type { LineupCutoffEntry } from '@/lib/lineup-cutoff'
+
+export type SerializedCutoffSnapshot = { live: boolean; track: string | null; bySteamId: Record<string, LineupCutoffEntry> }
 import { LeagueStandings } from './components/league-standings'
 
 // These three are modals only ever mounted after a click (two of them admin-only) — loading
@@ -56,6 +59,7 @@ type Props = {
   initialPointsOverrides?: Record<string, number>
   initialCarPhotos?: Record<string, string>
   skinReviewStatus?: Record<string, 'pending' | 'approved' | 'rejected'>
+  cutoffSnapshot?: SerializedCutoffSnapshot | null
 }
 
 export default function LeagueDetailPageContent({
@@ -74,7 +78,8 @@ export default function LeagueDetailPageContent({
   initialConfirmations = [],
   initialPointsOverrides = {},
   initialCarPhotos = {},
-  skinReviewStatus = {}
+  skinReviewStatus = {},
+  cutoffSnapshot = null
 }: Props) {
   const router = useRouter()
   const tr = useDictionary().ligas.detailPage
@@ -469,6 +474,7 @@ export default function LeagueDetailPageContent({
           teamInfo={teamInfo}
           standings={standings}
           skinReviewStatus={skinReviewStatus}
+          cutoffSnapshot={cutoffSnapshot}
           onOpenEventModal={handleOpenEventModal}
           onDeleteEvent={handleEventDelete}
           onFinishRound={(ev, initialSessionType) => setFinishingEventData({ event: ev, initialSessionType })}

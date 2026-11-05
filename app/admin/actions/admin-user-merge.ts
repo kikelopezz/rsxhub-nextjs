@@ -98,7 +98,7 @@ export async function mergeUserAccountsAction(formData: FormData) {
     const carDrivers = await tx.teamCarDriver.findMany({ where: { userId: fromUserId } })
     for (const row of carDrivers) {
       const exists = await tx.teamCarDriver.findFirst({
-        where: { userId: toUserId, carId: row.carId, leagueId: row.leagueId, isReserve: row.isReserve },
+        where: { userId: toUserId, carId: row.carId, leagueId: row.leagueId },
       })
       if (exists) await tx.teamCarDriver.delete({ where: { id: row.id } })
       else await tx.teamCarDriver.update({ where: { id: row.id }, data: { userId: toUserId } })

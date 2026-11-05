@@ -91,16 +91,12 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
 
         const cars = t.cars.map((car) => {
           const driverUserIdsByLeague: Record<string, string[]> = {}
-          const reserveDriverUserIdsByLeague: Record<string, string[]> = {}
           const defaultDrivers: string[] = []
-          const defaultReserveDrivers: string[] = []
           for (const d of car.drivers) {
-            const byLeague = d.isReserve ? reserveDriverUserIdsByLeague : driverUserIdsByLeague
-            const defaultBucket = d.isReserve ? defaultReserveDrivers : defaultDrivers
             if (d.leagueId) {
-              ;(byLeague[d.leagueId] ||= []).push(d.userId)
+              ;(driverUserIdsByLeague[d.leagueId] ||= []).push(d.userId)
             } else {
-              defaultBucket.push(d.userId)
+              defaultDrivers.push(d.userId)
             }
           }
           return {
@@ -113,8 +109,6 @@ export const getTeamsDashboard = cache(async (currentUserId?: string) => {
             skinName: car.skinName || '',
             driverUserIds: defaultDrivers,
             driverUserIdsByLeague,
-            reserveDriverUserIds: defaultReserveDrivers,
-            reserveDriverUserIdsByLeague,
             leagueId: car.leagueId,
           }
         })

@@ -205,8 +205,6 @@ export async function updateTeam(formData: FormData) {
     skinName: string
     driverUserIds: string[]
     driverUserIdsByLeague: Record<string, string[]>
-    reserveDriverUserIds: string[]
-    reserveDriverUserIdsByLeague: Record<string, string[]>
     leagueId: string | null
   }
 
@@ -230,8 +228,6 @@ export async function updateTeam(formData: FormData) {
               skinName: car.skinName || car.skin_name || '',
               driverUserIds: (car.driverUserIds || car.driver_user_ids || []).map((d: any) => String(d || '').trim()).filter(Boolean),
               driverUserIdsByLeague: car.driverUserIdsByLeague || car.driver_user_ids_by_league || {},
-              reserveDriverUserIds: (car.reserveDriverUserIds || car.reserve_driver_user_ids || []).map((d: any) => String(d || '').trim()).filter(Boolean),
-              reserveDriverUserIdsByLeague: car.reserveDriverUserIdsByLeague || car.reserve_driver_user_ids_by_league || {},
               leagueId: car.leagueId || car.league_id || null,
             }
           })
@@ -309,12 +305,7 @@ export async function updateTeam(formData: FormData) {
 
       const newDrivers = Array.from(
         new Set(
-          [
-            ...car.driverUserIds,
-            ...Object.values(car.driverUserIdsByLeague).flat(),
-            ...car.reserveDriverUserIds,
-            ...Object.values(car.reserveDriverUserIdsByLeague).flat(),
-          ].filter(Boolean),
+          [...car.driverUserIds, ...Object.values(car.driverUserIdsByLeague).flat()].filter(Boolean),
         ),
       )
 
@@ -406,13 +397,9 @@ export async function updateTeam(formData: FormData) {
                 leagueId: car.leagueId,
                 drivers: {
                   create: [
-                    ...car.driverUserIds.map((userId) => ({ userId, leagueId: null, isReserve: false })),
+                    ...car.driverUserIds.map((userId) => ({ userId, leagueId: null })),
                     ...Object.entries(car.driverUserIdsByLeague).flatMap(([leagueId, userIds]) =>
-                      (userIds || []).filter(Boolean).map((userId) => ({ userId, leagueId, isReserve: false })),
-                    ),
-                    ...car.reserveDriverUserIds.map((userId) => ({ userId, leagueId: null, isReserve: true })),
-                    ...Object.entries(car.reserveDriverUserIdsByLeague).flatMap(([leagueId, userIds]) =>
-                      (userIds || []).filter(Boolean).map((userId) => ({ userId, leagueId, isReserve: true })),
+                      (userIds || []).filter(Boolean).map((userId) => ({ userId, leagueId })),
                     ),
                   ],
                 },

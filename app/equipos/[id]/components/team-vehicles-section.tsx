@@ -216,20 +216,6 @@ export async function TeamVehiclesSection({
                         return { name: m?.name || '', steamId: m?.steamId || m?.userId?.replace('steam_', '') || '' }
                       })
                       .filter((x: CarSteamIdEntry) => x.steamId)
-                    {
-                      const reserveByLeagueIds = car.reserveDriverUserIdsByLeague || car.reserve_driver_user_ids_by_league || {}
-                      const reserveIds =
-                        reserveByLeagueIds[effectiveLeagueKey] ||
-                        reserveByLeagueIds[carLeague?.id || ''] ||
-                        reserveByLeagueIds[carLeague?.slug || ''] ||
-                        car.reserveDriverUserIds ||
-                        car.reserve_driver_user_ids ||
-                        []
-                      const rId = Array.isArray(reserveIds) && reserveIds[0] ? String(reserveIds[0]).trim() : null
-                      const rm = rId ? teamMembersOptions.find((x) => x.userId === rId) : null
-                      const rSteam = rm ? rm.steamId || rm.userId?.replace('steam_', '') || '' : ''
-                      if (isAdmin && rm && rSteam) steamIdEntries.push({ name: rm.name, steamId: rSteam, reserve: true })
-                    }
 
                     return (
                       <div
@@ -292,7 +278,7 @@ export async function TeamVehiclesSection({
                             entries={steamIdEntries}
                             driverSteamIds={qualifyingDriverSteamIds}
                             className={theme.skinBtn}
-                            labels={{ show: t.viewSteamIds, hide: t.hideSteamIds, reserve: t.reserve, copied: t.copiedShort }}
+                            labels={{ show: t.viewSteamIds, hide: t.hideSteamIds, copied: t.copiedShort }}
                           >
                             {car.skinUrl && (
                               <a
@@ -358,28 +344,6 @@ export async function TeamVehiclesSection({
                               )
                             })}
                           </div>
-
-                          {(() => {
-                            const reserveByLeague = car.reserveDriverUserIdsByLeague || car.reserve_driver_user_ids_by_league || {}
-                            const reserveList =
-                              reserveByLeague[effectiveLeagueKey] ||
-                              reserveByLeague[carLeague?.id || ''] ||
-                              reserveByLeague[carLeague?.slug || ''] ||
-                              car.reserveDriverUserIds ||
-                              car.reserve_driver_user_ids ||
-                              []
-                            const reserveId = Array.isArray(reserveList) && reserveList[0] ? String(reserveList[0]).trim() : null
-                            const reserveDriver = reserveId ? teamMembersOptions.find((m) => m.userId === reserveId) : null
-                            if (!reserveDriver) return null
-                            return (
-                              <div className="mt-2 flex items-center gap-1.5">
-                                <span className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-300">
-                                  {t.reserve}
-                                </span>
-                                <span className="truncate text-[10px] font-semibold text-amber-200/90">{reserveDriver.name}</span>
-                              </div>
-                            )
-                          })()}
                         </div>
                       </div>
                     )

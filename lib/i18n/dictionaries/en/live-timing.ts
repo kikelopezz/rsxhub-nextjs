@@ -16,6 +16,7 @@ const liveTiming: typeof es = {
   lap: 'LAP',
   cars: 'CARS',
   fastestLaps: 'FASTEST LAPS',
+  cutoffLabel: 'CUTOFF ({pct}%)',
   countdown: 'COUNTDOWN',
   clockOver: 'TIME UP',
   lapsRemaining: 'LAPS REMAINING',

@@ -22,7 +22,6 @@ async function loadEntries(): Promise<Record<string, HubEntry[]>> {
   const teamSelect = { name: true, logoUrl: true, status: true } as const
   const [carDrivers, members] = await Promise.all([
     db.teamCarDriver.findMany({
-      where: { isReserve: false },
       select: { userId: true, car: { select: { dorsal: true, category: true, modelName: true, team: { select: teamSelect } } } },
     }),
     db.teamMember.findMany({ select: { userId: true, steamId: true, team: { select: teamSelect } } }),

@@ -453,6 +453,12 @@ export default function LiveTimingPage() {
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'Position', dir: 'asc' })
   const [showLegend, setShowLegend] = useState(false)
+  // Corte de alineaciones de la liga que use este campeonato (vueltas mínimas + % sobre la mejor
+  // vuelta) — null si esa liga no lo tiene configurado.
+  const [cutoffConfig, setCutoffConfig] = useState<{ minLaps: number | null; cutoffPercent: number | null }>({
+    minLaps: null,
+    cutoffPercent: null,
+  })
   // Cambios de posición recientes (flechas verde/roja que se apagan solas a los 12 s)
   const [moves, setMoves] = useState<Record<string, { delta: number; at: number }>>({})
   const prevPositions = useRef<Map<string, number>>(new Map())
@@ -491,6 +497,21 @@ export default function LiveTimingPage() {
       return !v
     })
   }
+
+  // Config del corte de alineaciones de la liga de este campeonato: cambia poco, basta con
+  // pedirla cada vez que se cambia de campeonato (no en cada sondeo de la carrera).
+  useEffect(() => {
+    let alive = true
+    fetch(`/api/live-timing/cutoff?source=${championship}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (alive && json) setCutoffConfig({ minLaps: json.minLaps ?? null, cutoffPercent: json.cutoffPercent ?? null })
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [championship])
 
   // Evita que dos polls se solapen: si una petición tarda más que el intervalo, el siguiente tick se salta
   // en vez de lanzar otra en paralelo, para que una respuesta vieja no pise a una nueva.
@@ -912,6 +933,11 @@ export default function LiveTimingPage() {
                   <div className="text-right">
                     <p className="text-[9px] font-black uppercase tracking-wider" style={{ color: classColor(cls) }}>{CLASS_SHORT[cls] || cls}</p>
                     <p className={`font-mono-data text-base font-bold tabular-nums ${isOverall ? 'text-[#d946ef]' : 'text-white'}`}>{formatNanos(item.time)}</p>
+                    {cutoffConfig.cutoffPercent != null && (
+                      <p className="font-mono-data text-[10px] font-bold tabular-nums text-[#f59e0b]">
+                        {t.cutoffLabel.replace('{pct}', String(cutoffConfig.cutoffPercent))}: {formatNanos(Math.round(item.time * (cutoffConfig.cutoffPercent / 100)))}
+                      </p>
+                    )}
                   </div>
                 </div>
               )

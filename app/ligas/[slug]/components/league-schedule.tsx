@@ -14,6 +14,7 @@ import { EventEntryListModal } from './event-entry-list-modal'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 import { DeadlineCountdown } from '@/components/deadline-countdown'
 import { sameCarNumber } from './car-number-match'
+import type { SerializedCutoffSnapshot } from '../page-content'
 
 interface LeagueScheduleProps {
   league: League
@@ -27,6 +28,7 @@ interface LeagueScheduleProps {
   teamInfo?: Record<string, { name: string; primaryColor: string | null; logoUrl: string | null; cars?: any[]; skinAssignments?: any[] }>
   standings?: Record<string, TeamStanding[]>
   skinReviewStatus?: Record<string, 'pending' | 'approved' | 'rejected'>
+  cutoffSnapshot?: SerializedCutoffSnapshot | null
   onOpenEventModal: (event?: LeagueEvent) => void
   onDeleteEvent: (eventId: string) => void
   onFinishRound?: (event: LeagueEvent, initialSessionType?: 'qualifying' | 'race') => void
@@ -45,6 +47,7 @@ export function LeagueSchedule({
   teamInfo,
   standings,
   skinReviewStatus,
+  cutoffSnapshot = null,
   onOpenEventModal,
   onDeleteEvent,
   onFinishRound,
@@ -503,6 +506,7 @@ export function LeagueSchedule({
           teamInfo={teamInfo}
           standings={standings}
           skinReviewStatus={skinReviewStatus}
+          cutoffSnapshot={cutoffSnapshot}
           isAdmin={isAdmin}
           onClose={() => setViewingEntryListEvent(null)}
         />

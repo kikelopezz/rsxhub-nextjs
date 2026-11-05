@@ -7,6 +7,7 @@ import LeagueDetailPageContent from './page-content'
 import { getSimulators, simulatorName, simulatorLogo } from '@/lib/data/simulators'
 import { getCarCategories } from '@/lib/data/categories'
 import { listCatalogFiles, catalogCategoryForLeague, type CatalogFile } from '@/lib/admin-catalog'
+import { getLeagueCutoffSnapshot, LINEUP_CUTOFF_SERVERS } from '@/lib/lineup-cutoff'
 
 export const revalidate = 0
 export const dynamic = 'force-dynamic'
@@ -191,6 +192,21 @@ export default async function LigaDetailPage({
     serializableTeamInfo[key] = val
   })
 
+  // Corte de alineaciones (vueltas mínimas + 105%): el Map no es serializable entre server y
+  // client components, se pasa como objeto plano. null si la liga no lo tiene configurado.
+  const leagueLiveTimingSource = (league as any).liveTimingSource as string | null
+  const leagueCutoffMinLaps = (league as any).cutoffMinLaps as number | null
+  const leagueCutoffPercent = (league as any).cutoffPercentOverBest as number | null
+  const cutoffServers = leagueLiveTimingSource ? LINEUP_CUTOFF_SERVERS[leagueLiveTimingSource] : null
+  const cutoffSnapshot =
+    cutoffServers && leagueCutoffMinLaps && leagueCutoffPercent
+      ? await getLeagueCutoffSnapshot(leagueLiveTimingSource!, cutoffServers, leagueCutoffMinLaps, leagueCutoffPercent).then((s) => ({
+          live: s.live,
+          track: s.track,
+          bySteamId: Object.fromEntries(s.bySteamId),
+        }))
+      : null
+
   const serializableConfirmations = confirmations.map((c) => ({
     id: c.id,
     eventId: c.eventId,
@@ -221,6 +237,7 @@ export default async function LigaDetailPage({
       initialPointsOverrides={initialPointsOverrides}
       initialCarPhotos={initialCarPhotos}
       skinReviewStatus={skinReviewStatus}
+      cutoffSnapshot={cutoffSnapshot}
     />
   )
 }
