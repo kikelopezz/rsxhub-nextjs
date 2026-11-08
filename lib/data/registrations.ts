@@ -9,6 +9,7 @@ import { cache } from 'react'
 import { db } from '@/lib/db'
 import { fetchWithTTLCache } from '@/lib/ttl-cache'
 import { getTeamsDashboard } from '@/lib/team-data'
+import { sameClassTag, canonicalClassTag } from '@/lib/class-tag-match'
 import type { LeagueMember, LeagueRegistration } from '@/types'
 
 export const getRegistrations = cache(async (leagueId?: string): Promise<LeagueRegistration[]> => {
@@ -70,7 +71,7 @@ export const getRegistrations = cache(async (leagueId?: string): Promise<LeagueR
           !r.userId
         if (!isOwnerOrMember) return false
         const car = (team.cars || []).find((c: any) => {
-          const sameClass = !r.classTag || String(c.category || '').toUpperCase() === String(r.classTag || '').toUpperCase()
+          const sameClass = !r.classTag || sameClassTag(c.category, r.classTag)
           const sameDorsal = !r.assignedNumber || String(c.dorsal || '') === String(r.assignedNumber || '') || Number(c.dorsal) === Number(r.assignedNumber)
           const carLeagueId = c.leagueId || c.league_id
           const sameLeague = !carLeagueId || carLeagueId === r.leagueId
@@ -289,7 +290,7 @@ export const getTeamPointsOverrides = cache(async (leagueId: string): Promise<Re
   try {
     const rows = await db.leagueTeamPoints.findMany({ where: { leagueId } })
     for (const row of rows) {
-      pointsMap[`${row.classTag.toUpperCase()}_${row.teamId}_${row.carNumber}`] = row.points
+      pointsMap[`${canonicalClassTag(row.classTag)}_${row.teamId}_${row.carNumber}`] = row.points
     }
   } catch (err) {
     console.error('Failed to get team points:', err)
@@ -304,7 +305,7 @@ export const getCarPhotoOverrides = cache(async (leagueId: string): Promise<Reco
   try {
     const rows = await db.leagueCarPhoto.findMany({ where: { leagueId } })
     for (const row of rows) {
-      photoMap[`${row.classTag.toUpperCase()}_${row.teamId}_${row.carNumber}`] = row.imageUrl
+      photoMap[`${canonicalClassTag(row.classTag)}_${row.teamId}_${row.carNumber}`] = row.imageUrl
     }
   } catch (err) {
     console.error('Failed to get car photos:', err)

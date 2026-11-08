@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getRegistrations, getLeagueBySlug } from '@/lib/platform-data'
 import { invalidateCache } from '@/lib/ttl-cache'
+import { sameClassTag } from '@/lib/class-tag-match'
 
 function parseCarNumber(dorsal: any): number {
   if (dorsal == null) return 0
@@ -56,12 +57,8 @@ export async function registerTeamAction(formData: FormData) {
   // Find all cars in the team's workshop that match the league's classTags
   const matchingCars = (team?.cars || []).filter((car) => {
     if (!car.category) return false
-    const c1 = car.category.toUpperCase()
     if (car.leagueId && car.leagueId !== leagueId) return false
-    return leagueClassTags.some((tag) => {
-      const c2 = tag.toUpperCase()
-      return c1 === c2 || (c1.startsWith('LMP') && c2.startsWith('LMP'))
-    })
+    return leagueClassTags.some((tag) => sameClassTag(car.category, tag))
   })
 
   type CarToRegister = {
@@ -101,7 +98,7 @@ export async function registerTeamAction(formData: FormData) {
     // already run this same category elsewhere. Reuse that car's default roster
     // so every driver already racing this class for the team gets entered here
     // too, instead of only whoever clicked "Register team".
-    const templateCar = (team?.cars || []).find((c) => c.category.toUpperCase() === fallbackClassTag)
+    const templateCar = (team?.cars || []).find((c) => sameClassTag(c.category, fallbackClassTag))
     const templateDrivers = templateCar
       ? templateCar.drivers.filter((d) => !d.leagueId).map((d) => d.userId)
       : []
@@ -192,7 +189,7 @@ export async function registerTeamAction(formData: FormData) {
     // drop it everywhere (it'd show as "approved" in the DB but invisible in the UI).
     // Make sure this league always has its own bound car to match against.
     const existingLeagueCar = (team?.cars || []).find(
-      (c) => c.leagueId === leagueId && c.category.toUpperCase() === carToReg.classTag.toUpperCase()
+      (c) => c.leagueId === leagueId && sameClassTag(c.category, carToReg.classTag)
     )
     if (existingLeagueCar) {
       if (existingLeagueCar.dorsal !== String(regCarNumber)) {

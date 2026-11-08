@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateCarPhotoAction } from '@/app/ligas/actions'
 import type { CatalogFile } from '@/lib/admin-catalog'
+import { sameClassTag, canonicalClassTag } from '@/lib/class-tag-match'
 
 export type League = {
   id: string
@@ -158,7 +159,7 @@ export function useLeagueState({
       const list: TeamStanding[] = []
 
       initialRegistrations.forEach((reg) => {
-        if (reg.classTag === tag && reg.teamId && reg.status !== 'rejected') {
+        if (sameClassTag(reg.classTag, tag) && reg.teamId && reg.status !== 'rejected') {
           const teamDetails = teamInfo[reg.teamId] || myManagedTeams.find((t) => t.id === reg.teamId) || {
             name: reg.displayName,
             logoUrl: `https://placehold.co/40x40/0a1220/ffffff?text=${reg.displayName.slice(0, 3).toUpperCase()}`
@@ -174,7 +175,7 @@ export function useLeagueState({
             const carImageUrl = (teamDetails as any).carImageUrl || (teamDetails as any).lateralImageUrl || '/branding/lateral-car.png'
             // Points belong to this specific car (dorsal), not the team as a whole — a team
             // with two cars in the same class must score them independently.
-            const savedPoints = initialPointsOverrides?.[`${tag}_${reg.teamId}_${dorsal != null ? dorsal : ''}`] ?? 0
+            const savedPoints = initialPointsOverrides?.[`${canonicalClassTag(tag)}_${reg.teamId}_${dorsal != null ? dorsal : ''}`] ?? 0
 
             list.push({
               id: uniqueKey,
@@ -208,7 +209,7 @@ export function useLeagueState({
   }, [initialCarPhotos])
 
   const handleCarImageUpload = async (tag: string, teamId: string, carNumber: string, file: File) => {
-    const carKey = `${tag}_${teamId}_${carNumber}`
+    const carKey = `${canonicalClassTag(tag)}_${teamId}_${carNumber}`
 
     // Instant local preview via a data URL while the real upload is in flight, so the
     // admin doesn't stare at the old photo during the round-trip.
