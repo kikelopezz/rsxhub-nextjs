@@ -70,14 +70,22 @@ export const getRegistrations = cache(async (leagueId?: string): Promise<LeagueR
           r.userId === team.id ||
           !r.userId
         if (!isOwnerOrMember) return false
-        const car = (team.cars || []).find((c: any) => {
+        const matches = (c: any, requireSameLeague: boolean) => {
           const sameClass = !r.classTag || sameClassTag(c.category, r.classTag)
           const sameDorsal = !r.assignedNumber || String(c.dorsal || '') === String(r.assignedNumber || '') || Number(c.dorsal) === Number(r.assignedNumber)
           const carLeagueId = c.leagueId || c.league_id
-          const sameLeague = !carLeagueId || carLeagueId === r.leagueId
+          const sameLeague = !requireSameLeague || !carLeagueId || carLeagueId === r.leagueId
           const drivers = Array.isArray(c.driverUserIds) ? c.driverUserIds : []
           return sameClass && sameDorsal && sameLeague && (drivers.length === 0 || drivers.includes(r.userId) || r.userId === team.ownerUserId || r.userId === team.id)
-        })
+        }
+        // A car's leagueId binds it to whichever league it first registered for. For a
+        // team's second+ league that binding can be stale/wrong (legacy data from before
+        // that binding existed, or the car simply hasn't re-bound yet) — rather than drop
+        // a registration that otherwise matches perfectly on class+dorsal+driver, fall back
+        // to ignoring the league binding when no car satisfies it strictly.
+        const car =
+          (team.cars || []).find((c: any) => matches(c, true)) ||
+          (team.cars || []).find((c: any) => matches(c, false))
         return Boolean(car) || (team.cars || []).length === 0
       })
     } catch (error) {
