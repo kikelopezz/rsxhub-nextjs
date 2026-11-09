@@ -9,6 +9,7 @@ import { getSimulators } from '@/lib/data/simulators'
 import { getCarCategories } from '@/lib/data/categories'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { pageMetadata } from '@/lib/seo'
+import { sameClassTag, canonicalClassTag } from '@/lib/class-tag-match'
 
 export async function generateMetadata() {
   const en = (await getLocale()) === 'en'
@@ -98,13 +99,13 @@ export default async function LigasPage({ searchParams }: Props) {
         let best: { name: string; logoUrl: string | null; points: number } | null = null
         for (const reg of registrations) {
           if (reg.leagueId !== league.id || reg.status === 'rejected') continue
-          if (reg.classTag && reg.classTag.trim().toUpperCase() !== classTag) continue
+          if (reg.classTag && !sameClassTag(reg.classTag, classTag)) continue
           if (!reg.teamId || !validTeamIds.has(reg.teamId)) continue
           const dorsal = reg.assignedNumber != null ? String(reg.assignedNumber) : ''
           const carKey = `${reg.teamId}_${dorsal}`
           if (seenCars.has(carKey)) continue
           seenCars.add(carKey)
-          const points = pointsMap[`${classTag}_${reg.teamId}_${dorsal}`] || 0
+          const points = pointsMap[`${canonicalClassTag(classTag)}_${reg.teamId}_${dorsal}`] || 0
           const team = teamById.get(reg.teamId)
           if (!team) continue
           if (!best || points > best.points) {
