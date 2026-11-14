@@ -101,7 +101,7 @@ export async function TeamVehiclesSection({
 }: TeamVehiclesSectionProps) {
   const t = getDictionary(await getLocale()).equipos.vehiclesSection
   return (
-    <article className="col-span-1 rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:col-span-2 md:p-5">
+    <article className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5">
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <h2 className="font-display-league text-2xl text-white">{t.title}</h2>

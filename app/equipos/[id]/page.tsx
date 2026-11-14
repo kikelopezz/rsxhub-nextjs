@@ -228,32 +228,30 @@ export default async function TeamProfilePage({
         ))}
       </section>
 
-      {/* Drivers + Vehicles */}
-      <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <TeamDriversSection
-          team={clientTeam}
-          canManage={canManage}
-          currentUserId={session?.userId ?? null}
-          teamPilots={teamPilots}
-          pendingApplications={pendingApplications}
-          inviteCandidates={inviteCandidates}
-          pilotStatsByUserId={pilotStatsByUserId}
-          accentSoft={accentSoft}
-          accentHard={accentHard}
-        />
-        <TeamVehiclesSection
-          team={clientTeam}
-          canManage={canManage}
-          isAdmin={isPlatformAdmin}
-          accentHard={accentHard}
-          takenDorsals={takenDorsals}
-          leaguesOptions={leaguesOptions}
-          teamMembersOptions={teamMembersOptions}
-          leagues={leagues}
-          cutoffSnapshots={cutoffSnapshots}
-          paymentStatusByCarKey={paymentStatusByCarKey}
-        />
-      </section>
+      {/* Drivers + Vehicles — full width each, not squeezed into a side-by-side column */}
+      <TeamDriversSection
+        team={clientTeam}
+        canManage={canManage}
+        currentUserId={session?.userId ?? null}
+        teamPilots={teamPilots}
+        pendingApplications={pendingApplications}
+        inviteCandidates={inviteCandidates}
+        pilotStatsByUserId={pilotStatsByUserId}
+        accentSoft={accentSoft}
+        accentHard={accentHard}
+      />
+      <TeamVehiclesSection
+        team={clientTeam}
+        canManage={canManage}
+        isAdmin={isPlatformAdmin}
+        accentHard={accentHard}
+        takenDorsals={takenDorsals}
+        leaguesOptions={leaguesOptions}
+        teamMembersOptions={teamMembersOptions}
+        leagues={leagues}
+        cutoffSnapshots={cutoffSnapshots}
+        paymentStatusByCarKey={paymentStatusByCarKey}
+      />
 
       {/* Leagues + Results */}
       <TeamLeaguesSection
