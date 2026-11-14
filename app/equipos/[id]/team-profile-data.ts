@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { getRegistrations, getLeagues, getLeagueEvents, getTeamPointsOverrides } from '@/lib/platform-data'
-import type { TeamStats, TeamPilot, LeagueParticipation, RecentResult, PendingApplication, PilotStats } from './team-utils'
+import type { TeamStats, TeamPilot, LeagueParticipation, RecentResult, PendingApplication } from './team-utils'
 
 export type TeamProfileData = {
   teamPilots: TeamPilot[]
@@ -9,7 +9,6 @@ export type TeamProfileData = {
   recentResults: RecentResult[]
   leagueParticipation: LeagueParticipation[]
   stats: TeamStats
-  pilotStatsByUserId: Record<string, PilotStats>
 }
 
 export async function fetchTeamProfileData(
@@ -21,7 +20,6 @@ export async function fetchTeamProfileData(
   const teamPilots: TeamPilot[] = []
   const recentResults: RecentResult[] = []
   const leagueParticipation: LeagueParticipation[] = []
-  const pilotStatsByUserId: Record<string, PilotStats> = {}
 
   let stats: TeamStats = {
     leagues: 0, activeLeagues: 0, approvedEntries: 0, pendingEntries: 0,
@@ -153,83 +151,33 @@ export async function fetchTeamProfileData(
       }
     }
 
-    // Results are attributed through the locked-in lineup (LeagueEventConfirmation + its
-    // drivers), not by matching LeagueResult.userId — a manual results import only resolves a
-    // userId when the steamId happens to match, so plenty of real race results would otherwise
-    // never reach a driver's stats even though they were confirmed in that car for that race.
-    if (leagueIds.length > 0) {
-      const confirmations = await db.leagueEventConfirmation.findMany({
-        where: { teamId: team.id, leagueId: { in: leagueIds } },
-        include: { drivers: true },
+    if (memberUserIds.length > 0 && leagueIds.length > 0) {
+      const allResults = await db.leagueResult.findMany({
+        where: { userId: { in: memberUserIds }, leagueId: { in: leagueIds } },
+        orderBy: { createdAt: 'desc' },
       })
 
-      if (confirmations.length > 0) {
-        const confirmedEventIds = Array.from(new Set(confirmations.map((c) => c.eventId)))
-        const carResults = await db.leagueResult.findMany({
-          where: { eventId: { in: confirmedEventIds }, sessionType: 'race' },
-        })
+      if (allResults.length > 0) {
+        const normalizedResults = allResults
+          .map((row) => ({
+            id: row.id, leagueId: row.leagueId, eventId: row.eventId, userId: row.userId,
+            position: row.position ?? 0, points: row.points, at: row.createdAt.toISOString(),
+            status: row.status,
+          }))
+          .filter((row) => row.position > 0 && teamRegRows.some((r) => r.leagueId === row.leagueId && r.userId === row.userId))
 
-        const resultByCarKey = new Map<string, (typeof carResults)[number]>()
-        for (const row of carResults) {
-          if (!row.position || row.position <= 0 || !row.classTag || !row.dorsal) continue
-          const key = `${row.eventId}::${row.classTag.trim().toUpperCase()}::${row.dorsal.trim()}`
-          resultByCarKey.set(key, row)
-        }
+        const resultLeagueIds = Array.from(new Set(normalizedResults.map((r) => r.leagueId)))
+        const resultEventIds = Array.from(new Set(normalizedResults.map((r) => r.eventId)))
 
-        const resultLeagueIds = Array.from(new Set(carResults.map((r) => r.leagueId)))
         const [resultLeagues, resultEvents] = await Promise.all([
           resultLeagueIds.length > 0 ? db.league.findMany({ where: { id: { in: resultLeagueIds } } }) : Promise.resolve([]),
-          db.leagueEvent.findMany({ where: { id: { in: confirmedEventIds } } }),
+          resultEventIds.length > 0 ? db.leagueEvent.findMany({ where: { id: { in: resultEventIds } } }) : Promise.resolve([]),
         ])
+
         const leagueNameById = new Map(resultLeagues.map((r) => [r.id, r.title]))
         const eventNameById = new Map(resultEvents.map((r) => [r.id, r.title || r.circuitName]))
 
-        type MatchedResult = { id: string; leagueId: string; eventId: string; position: number; points: number | null; status: string; at: string }
-        const matchedByUserId = new Map<string, MatchedResult[]>()
-
-        for (const confirmation of confirmations) {
-          const key = `${confirmation.eventId}::${confirmation.classTag.trim().toUpperCase()}::${String(confirmation.carNumber).trim()}`
-          const result = resultByCarKey.get(key)
-          if (!result) continue
-          const matched: MatchedResult = {
-            id: result.id, leagueId: result.leagueId, eventId: result.eventId,
-            position: result.position!, points: result.points, status: result.status,
-            at: result.createdAt.toISOString(),
-          }
-          for (const driver of confirmation.drivers) {
-            const list = matchedByUserId.get(driver.userId) || []
-            list.push(matched)
-            matchedByUserId.set(driver.userId, list)
-          }
-        }
-
-        // Per-pilot breakdown for the driver roster panel.
-        for (const [userId, rows] of matchedByUserId) {
-          const sorted = [...rows].sort((a, b) => b.at.localeCompare(a.at))
-          pilotStatsByUserId[userId] = {
-            wins: rows.filter((r) => r.position === 1).length,
-            podiums: rows.filter((r) => r.position <= 3).length,
-            racesRun: new Set(rows.map((r) => r.eventId)).size,
-            dnf: rows.filter((r) => r.status === 'dnf').length,
-            dsq: rows.filter((r) => r.status === 'dsq').length,
-            recentResults: sorted.slice(0, 5).map((row) => ({
-              id: row.id,
-              leagueTitle: leagueNameById.get(row.leagueId) || 'League',
-              eventTitle: eventNameById.get(row.eventId) || 'Event',
-              position: row.position, points: row.points, at: row.at,
-            })),
-          }
-        }
-
-        // Team-wide totals: dedupe by result id, since a multi-driver car shares one result row
-        // across everyone confirmed in it — summing the per-pilot lists would double-count it.
-        const uniqueResults = new Map<string, MatchedResult>()
-        for (const rows of matchedByUserId.values()) {
-          for (const r of rows) uniqueResults.set(r.id, r)
-        }
-        const uniqueResultsList = Array.from(uniqueResults.values()).sort((a, b) => b.at.localeCompare(a.at))
-
-        for (const row of uniqueResultsList.slice(0, 8)) {
+        for (const row of normalizedResults.slice(0, 8)) {
           recentResults.push({
             id: row.id,
             leagueTitle: leagueNameById.get(row.leagueId) || 'League',
@@ -238,11 +186,12 @@ export async function fetchTeamProfileData(
           })
         }
 
-        stats.wins = uniqueResultsList.filter((r) => r.position === 1).length
-        stats.podiums = uniqueResultsList.filter((r) => r.position <= 3).length
-        stats.dnf = uniqueResultsList.filter((r) => r.status === 'dnf').length
-        stats.dsq = uniqueResultsList.filter((r) => r.status === 'dsq').length
-        stats.racesRun = new Set(uniqueResultsList.map((r) => r.eventId)).size
+        const uniqueRaceIds = new Set(normalizedResults.map((r) => r.eventId))
+        stats.wins = normalizedResults.filter((r) => r.position === 1).length
+        stats.podiums = normalizedResults.filter((r) => r.position <= 3).length
+        stats.dnf = allResults.filter((r) => r.status === 'dnf').length
+        stats.dsq = allResults.filter((r) => r.status === 'dsq').length
+        stats.racesRun = uniqueRaceIds.size
       }
     }
 
@@ -264,7 +213,6 @@ export async function fetchTeamProfileData(
     teamPilots,
     pendingApplications,
     inviteCandidates,
-    pilotStatsByUserId,
     recentResults,
     leagueParticipation,
     stats,

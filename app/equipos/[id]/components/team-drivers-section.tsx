@@ -5,9 +5,8 @@ import { MessageSquare, Users, UserPlus } from 'lucide-react'
 import { updateTeamMemberRole, updateTeamMemberTags, removeTeamMember, invitePilot, leaveTeam } from '@/app/equipos/actions/team-membership'
 import { ConfirmForm } from '@/components/confirm-form'
 import { acceptDriverApplicationAction, declineDriverApplicationAction } from '@/app/equipos/actions/team-market'
-import { TEAM_ROLE_TAGS, type TeamPilot, type PendingApplication, type PilotStats } from '../team-utils'
+import { TEAM_ROLE_TAGS, type TeamPilot, type PendingApplication } from '../team-utils'
 import { InvitePilotPicker } from './invite-pilot-picker'
-import { PilotRoster } from './pilot-roster'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
@@ -18,7 +17,6 @@ type TeamDriversSectionProps = {
   teamPilots: TeamPilot[]
   pendingApplications: PendingApplication[]
   inviteCandidates: Array<{ userId: string; label: string }>
-  pilotStatsByUserId: Record<string, PilotStats>
   accentSoft: string
   accentHard: string
 }
@@ -30,7 +28,6 @@ export async function TeamDriversSection({
   teamPilots,
   pendingApplications,
   inviteCandidates,
-  pilotStatsByUserId,
   accentSoft,
   accentHard,
 }: TeamDriversSectionProps) {
@@ -371,42 +368,51 @@ export async function TeamDriversSection({
         </div>
       )}
 
-      {/* Drivers display + stats panel — click a pilot to see their stats in the side panel */}
-      {displayPilots.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-300">{t.noDriversRegistered}</p>
-      ) : (
-        <PilotRoster
-          pilots={displayPilots.map((pilot: any) => ({
-            userId: pilot.userId,
-            name: pilot.name,
-            role: pilot.role,
-            roleTags: pilot.roleTags || [],
-            avatarUrl: pilot.avatarUrl || null,
-          }))}
-          pilotStatsByUserId={pilotStatsByUserId}
-          tagLabels={tagLabels}
-          accentSoft={accentSoft}
-          accentHard={accentHard}
-          labels={{
-            ownerLeader: t.ownerLeader,
-            managerCoFounder: t.managerCoFounder,
-            driverBadge: t.driverBadge,
-            statsTitle: t.statsTitle,
-            selectPilotHint: t.selectPilotHint,
-            viewFullProfile: t.viewFullProfile,
-            pilotWins: t.pilotWins,
-            pilotPodiums: t.pilotPodiums,
-            pilotRaces: t.pilotRaces,
-            pilotDnf: t.pilotDnf,
-            pilotDsq: t.pilotDsq,
-            recentResultsTitle: t.recentResultsTitle,
-            noPilotResults: t.noPilotResults,
-            position: t.position,
-            points: t.points,
-            pts: t.pts,
-          }}
-        />
-      )}
+      {/* Drivers display list — poster cards that wrap onto new rows once the row is full */}
+      <div className="mt-3 flex flex-wrap gap-3">
+        {displayPilots.length === 0 ? (
+          <p className="text-sm text-slate-300">{t.noDriversRegistered}</p>
+        ) : (
+          displayPilots.map((pilot: any) => (
+            <Link
+              key={pilot.userId}
+              href={`/perfil/${pilot.userId}`}
+              title={pilot.name}
+              className="block w-[150px] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#111114] transition-all hover:-translate-y-0.5 hover:border-white/30 hover:shadow-[0_0_18px_rgba(78,161,255,0.25)]"
+            >
+              <div
+                className="flex h-20 items-center justify-center"
+                style={{ background: `linear-gradient(135deg, ${accentSoft}, rgba(10,10,12,0.9))` }}
+              >
+                {pilot.avatarUrl ? (
+                  <Image src={pilot.avatarUrl} alt={pilot.name} width={56} height={56} unoptimized className="h-14 w-14 rounded-lg border border-white/25 object-cover" />
+                ) : (
+                  <span className="font-display-league text-3xl text-white">{pilot.name.slice(0, 1).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="p-2.5">
+                <p className="truncate font-display-condensed text-sm font-bold text-white">{pilot.name}</p>
+                <p className="mt-0.5 font-mono-data text-[9px] uppercase tracking-wider text-slate-500">
+                  {pilot.role === 'owner'
+                    ? t.ownerLeader
+                    : pilot.role === 'manager'
+                    ? t.managerCoFounder
+                    : t.driverBadge}
+                </p>
+                {(pilot.roleTags || []).length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {(pilot.roleTags as string[]).map((tag) => (
+                      <span key={tag} className="rounded border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 font-mono-data text-[8px] font-bold uppercase tracking-wider text-cyan-300">
+                        {tagLabels[tag] || tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
 
       {currentUserId && team.members.some((m: any) => m.userId === currentUserId && m.role !== 'owner') && (
         <ConfirmForm action={leaveTeam} confirmMessage={t.leaveTeamConfirm} className="mt-4 flex justify-end">

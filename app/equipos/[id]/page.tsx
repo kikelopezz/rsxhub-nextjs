@@ -130,7 +130,6 @@ export default async function TeamProfilePage({
     teamPilots,
     pendingApplications,
     inviteCandidates,
-    pilotStatsByUserId,
     recentResults,
     leagueParticipation,
     stats,
@@ -236,7 +235,6 @@ export default async function TeamProfilePage({
         teamPilots={teamPilots}
         pendingApplications={pendingApplications}
         inviteCandidates={inviteCandidates}
-        pilotStatsByUserId={pilotStatsByUserId}
         accentSoft={accentSoft}
         accentHard={accentHard}
       />
