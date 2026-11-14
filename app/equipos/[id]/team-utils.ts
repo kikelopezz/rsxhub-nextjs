@@ -57,6 +57,15 @@ export type RecentResult = {
   at: string
 }
 
+export type PilotStats = {
+  wins: number
+  podiums: number
+  racesRun: number
+  dnf: number
+  dsq: number
+  recentResults: RecentResult[]
+}
+
 export type PendingApplication = {
   id: string
   userId: string

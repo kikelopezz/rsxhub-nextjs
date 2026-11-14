@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { getRegistrations, getLeagues, getLeagueEvents, getTeamPointsOverrides } from '@/lib/platform-data'
-import type { TeamStats, TeamPilot, LeagueParticipation, RecentResult, PendingApplication } from './team-utils'
+import type { TeamStats, TeamPilot, LeagueParticipation, RecentResult, PendingApplication, PilotStats } from './team-utils'
 
 export type TeamProfileData = {
   teamPilots: TeamPilot[]
@@ -9,6 +9,7 @@ export type TeamProfileData = {
   recentResults: RecentResult[]
   leagueParticipation: LeagueParticipation[]
   stats: TeamStats
+  pilotStatsByUserId: Record<string, PilotStats>
 }
 
 export async function fetchTeamProfileData(
@@ -20,6 +21,7 @@ export async function fetchTeamProfileData(
   const teamPilots: TeamPilot[] = []
   const recentResults: RecentResult[] = []
   const leagueParticipation: LeagueParticipation[] = []
+  const pilotStatsByUserId: Record<string, PilotStats> = {}
 
   let stats: TeamStats = {
     leagues: 0, activeLeagues: 0, approvedEntries: 0, pendingEntries: 0,
@@ -192,6 +194,33 @@ export async function fetchTeamProfileData(
         stats.dnf = allResults.filter((r) => r.status === 'dnf').length
         stats.dsq = allResults.filter((r) => r.status === 'dsq').length
         stats.racesRun = uniqueRaceIds.size
+
+        // Per-pilot breakdown for the driver roster panel — same rows, grouped by userId
+        // instead of collapsed into the team-wide totals above.
+        const resultsByUserId = new Map<string, typeof normalizedResults>()
+        for (const row of normalizedResults) {
+          if (!row.userId) continue
+          const list = resultsByUserId.get(row.userId) || []
+          list.push(row)
+          resultsByUserId.set(row.userId, list)
+        }
+        for (const [userId, rows] of resultsByUserId) {
+          const userRaceIds = new Set(rows.map((r) => r.eventId))
+          const userAllResults = allResults.filter((r) => r.userId === userId)
+          pilotStatsByUserId[userId] = {
+            wins: rows.filter((r) => r.position === 1).length,
+            podiums: rows.filter((r) => r.position <= 3).length,
+            racesRun: userRaceIds.size,
+            dnf: userAllResults.filter((r) => r.status === 'dnf').length,
+            dsq: userAllResults.filter((r) => r.status === 'dsq').length,
+            recentResults: rows.slice(0, 5).map((row) => ({
+              id: row.id,
+              leagueTitle: leagueNameById.get(row.leagueId) || 'League',
+              eventTitle: eventNameById.get(row.eventId) || 'Event',
+              position: row.position, points: row.points, at: row.at,
+            })),
+          }
+        }
       }
     }
 
@@ -213,6 +242,7 @@ export async function fetchTeamProfileData(
     teamPilots,
     pendingApplications,
     inviteCandidates,
+    pilotStatsByUserId,
     recentResults,
     leagueParticipation,
     stats,
