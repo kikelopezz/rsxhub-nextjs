@@ -15,6 +15,7 @@ const nav: typeof es = {
   signOut: 'Sign out',
   driver: 'Driver',
   profile: 'Profile',
+  myTeam: 'My team',
   openMenu: 'Open menu',
   closeMenu: 'Close menu',
 }

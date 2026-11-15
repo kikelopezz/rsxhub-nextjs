@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, ChevronDown } from 'lucide-react'
+import { Menu, X, ChevronDown, Shield } from 'lucide-react'
 import { SteamLoginButton } from './steam-login-button'
 import { NotificationsNav, type NotificationItem } from './notifications-nav'
 import { LanguageSwitcher } from './language-switcher'
@@ -19,6 +19,7 @@ interface TopNavProps {
   avatarUrl?: string
   notifications?: NotificationItem[]
   marketBadgeCount?: number
+  myTeamId?: string | null
 }
 
 function isActive(pathname: string, href: string) {
@@ -45,7 +46,7 @@ function SteamIcon() {
   )
 }
 
-export function TopNav({ signedIn, showAdmin, showSupport = false, showSanciones = false, displayName, avatarUrl, notifications, marketBadgeCount = 0 }: TopNavProps) {
+export function TopNav({ signedIn, showAdmin, showSupport = false, showSanciones = false, displayName, avatarUrl, notifications, marketBadgeCount = 0, myTeamId = null }: TopNavProps) {
   const pathname = usePathname()
   const dict = useDictionary()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -188,6 +189,18 @@ export function TopNav({ signedIn, showAdmin, showSupport = false, showSanciones
               {/* Notifications Center */}
               <NotificationsNav initialNotifications={notifications} />
 
+              {/* Team Button */}
+              {myTeamId && (
+                <Link
+                  href={`/equipos/${myTeamId}`}
+                  title={dict.nav.myTeam}
+                  aria-label={dict.nav.myTeam}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-slate-300 hover:bg-white/10 hover:-translate-y-1 hover:scale-105 hover:border-[#4ea1ff] hover:text-white hover:shadow-[0_0_18px_rgba(78,161,255,0.65)] active:scale-95 transition-all duration-200"
+                >
+                  <Shield className="h-4 w-4" />
+                </Link>
+              )}
+
               {/* User Profile Button */}
               <Link
                 href="/perfil"
@@ -265,6 +278,16 @@ export function TopNav({ signedIn, showAdmin, showSupport = false, showSanciones
 
         <div className="flex items-center gap-2">
           {signedIn && <NotificationsNav initialNotifications={notifications} />}
+          {signedIn && myTeamId && (
+            <Link
+              href={`/equipos/${myTeamId}`}
+              title={dict.nav.myTeam}
+              aria-label={dict.nav.myTeam}
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-slate-300 hover:bg-white/10 hover:border-[#4ea1ff] hover:text-white transition-all duration-200"
+            >
+              <Shield className="h-4 w-4" />
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => setIsMenuOpen((open) => !open)}

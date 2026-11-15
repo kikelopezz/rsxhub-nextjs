@@ -13,6 +13,7 @@ const nav = {
   signOut: 'Cerrar sesión',
   driver: 'Piloto',
   profile: 'Perfil',
+  myTeam: 'Mi equipo',
   openMenu: 'Abrir menú',
   closeMenu: 'Cerrar menú',
 }

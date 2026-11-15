@@ -19,9 +19,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       ? db.profile.findUnique({ where: { userId: user.userId } }).catch(() => null)
       : Promise.resolve(null),
     user ? getUserNotifications(user.userId) : Promise.resolve([]),
-    user ? db.teamMember.findFirst({ where: { userId: user.userId }, select: { id: true } }).catch(() => null) : Promise.resolve(null),
+    user ? db.teamMember.findFirst({ where: { userId: user.userId }, select: { id: true, teamId: true } }).catch(() => null) : Promise.resolve(null),
     user ? db.team.findFirst({ where: { ownerUserId: user.userId }, select: { id: true } }).catch(() => null) : Promise.resolve(null),
   ])
+
+  const myTeamId = ownedTeam?.id || teamMembership?.teamId || null
 
   const displayName = profile?.displayName || user?.steamDisplayName
   const avatarUrl = profile?.avatarUrl || user?.avatarUrl
@@ -58,6 +60,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               avatarUrl={avatarUrl}
               notifications={notifications}
               marketBadgeCount={marketBadgeCount}
+              myTeamId={myTeamId}
             />
           </div>
         </header>
