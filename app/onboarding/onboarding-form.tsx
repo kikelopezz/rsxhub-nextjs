@@ -13,6 +13,7 @@ interface DefaultOnboardingData {
   countryCode: string
   mainSim: string
   preferredCategories: string[]
+  discord: string
 }
 
 interface OnboardingFormProps {
@@ -80,6 +81,23 @@ export default function OnboardingForm({ defaultData, userId }: OnboardingFormPr
           className="w-full border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none rounded-lg focus:border-[#1274de] transition-colors"
         />
         <p className="text-[10px] text-slate-500 mt-1">{dict.onboarding.form.driverNameHint}</p>
+      </div>
+
+      {/* Discord Username (required) */}
+      <div>
+        <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1.5">
+          {dict.onboarding.form.discordUsername}
+        </label>
+        <input
+          type="text"
+          name="discord"
+          defaultValue={defaultData.discord}
+          required
+          pattern="^@?[A-Za-z0-9._#-]{2,40}$"
+          placeholder={dict.onboarding.form.discordUsernamePlaceholder}
+          className="w-full border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none rounded-lg focus:border-[#1274de] transition-colors"
+        />
+        <p className="text-[10px] text-slate-500 mt-1">{dict.onboarding.form.discordUsernameHint}</p>
       </div>
 
       {/* Country Selection Dropdown */}
