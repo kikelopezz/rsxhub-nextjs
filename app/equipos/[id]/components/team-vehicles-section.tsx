@@ -1,6 +1,7 @@
 import { CenterModal } from '@/components/center-modal'
 import { CarSteamIdControls, type CarSteamIdEntry } from '@/components/view-car-steam-ids'
 import { TeamCarsEditor, SaveTeamCarsButton, CarValidationProvider } from '@/components/team-cars-editor'
+import { getCustomVehicleModels } from '@/lib/data/vehicle-models'
 import { Download, ShieldAlert } from 'lucide-react'
 import { updateTeam } from '@/app/equipos/actions/team-crud'
 import type { LeagueOption } from '@/components/team-cars-editor'
@@ -132,6 +133,7 @@ export async function TeamVehiclesSection({
                     takenDorsals={takenDorsals}
                     leaguesOptions={leaguesOptions}
                     currentTeamId={team.id}
+                    customVehicles={await getCustomVehicleModels()}
                   />
                 </div>
                 <SaveTeamCarsButton />

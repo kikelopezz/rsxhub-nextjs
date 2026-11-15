@@ -1,9 +1,9 @@
 'use client'
 
 import { Trash, AlertTriangle, Users, Upload, FileArchive } from 'lucide-react'
-import { VehicleSelectorModal } from '@/components/vehicle-selector-modal'
+import { VehicleSelectorModal, DEFAULT_VEHICLE_MODELS } from '@/components/vehicle-selector-modal'
 import { getSkinFileName, MAX_DRIVERS_PER_CAR } from './types'
-import type { CarEntry, TeamMemberOption, LeagueOption } from './types'
+import type { CarEntry, TeamMemberOption, LeagueOption, VehicleModelOption } from './types'
 import { useDictionary } from '@/lib/i18n/locale-provider'
 
 export const categoryThemes: Record<string, { text: string; badge: string; headerText: string }> = {
@@ -30,6 +30,7 @@ type CarCardProps = {
   activeTab: string
   leaguesOptions: LeagueOption[]
   teamMembers: TeamMemberOption[]
+  customVehicles?: VehicleModelOption[]
   getAssignedDriverIdsForLeague: (leagueKey: string) => Set<string>
   uploadingCarId: string | null
   onRemove: (id: string) => void
@@ -47,6 +48,7 @@ export function CarCard({
   activeTab,
   leaguesOptions,
   teamMembers,
+  customVehicles = [],
   getAssignedDriverIdsForLeague,
   uploadingCarId,
   onRemove,
@@ -156,6 +158,7 @@ export function CarCard({
             selectedCategory={car.category}
             selectedModelName={car.modelName}
             selectedModelFolder={car.modelFolder}
+            customVehicles={[...DEFAULT_VEHICLE_MODELS, ...customVehicles]}
             onSelect={(v) => onUpdateModel(car.id, v.name, v.acFolder, v.category)}
             onClear={car.modelName ? () => onUpdateModel(car.id, '', '', car.category) : undefined}
           />

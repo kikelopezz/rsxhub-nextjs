@@ -34,6 +34,17 @@ export async function updateCategoryAction(formData: FormData) {
   refresh()
 }
 
+export async function updateCategoryMinHoursAction(formData: FormData) {
+  await guardPlatformAdmin()
+  const key = String(formData.get('key') || '').trim()
+  const minHoursRaw = String(formData.get('minHours') ?? '').trim()
+  if (!key) return
+  const minHours = Math.max(0, Number.parseInt(minHoursRaw, 10) || 0)
+
+  await db.carCategory.update({ where: { key }, data: { minHours } })
+  refresh()
+}
+
 export async function toggleCategoryActiveAction(formData: FormData) {
   await guardPlatformAdmin()
   const key = String(formData.get('key') || '').trim()

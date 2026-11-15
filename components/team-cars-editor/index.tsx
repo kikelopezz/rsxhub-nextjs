@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useFormStatus } from 'react-dom'
 import { Plus, AlertTriangle, Loader2, Save } from 'lucide-react'
-import type { CarEntry, TeamMemberOption, TakenDorsal, LeagueOption } from './types'
+import type { CarEntry, TeamMemberOption, TakenDorsal, LeagueOption, VehicleModelOption } from './types'
 import { useCarEditor } from './use-car-editor'
 import { CarLeagueTabs } from './car-league-tabs'
 import { CarCard, categoryThemes } from './car-card'
@@ -22,12 +22,14 @@ export function TeamCarsEditor({
   takenDorsals = [],
   leaguesOptions = [],
   currentTeamId = '',
+  customVehicles = [],
 }: {
   teamMembers: TeamMemberOption[]
   initialCars: CarEntry[]
   takenDorsals?: TakenDorsal[]
   leaguesOptions?: LeagueOption[]
   currentTeamId?: string
+  customVehicles?: VehicleModelOption[]
 }) {
   const {
     cars,
@@ -97,6 +99,7 @@ export function TeamCarsEditor({
                     activeTab={activeTab}
                     leaguesOptions={leaguesOptions}
                     teamMembers={teamMembers}
+                    customVehicles={customVehicles}
                     getAssignedDriverIdsForLeague={getAssignedDriverIdsForLeague}
                     uploadingCarId={uploadingCarId}
                     onRemove={removeCar}

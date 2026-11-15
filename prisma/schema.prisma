@@ -66,11 +66,28 @@ model SimulatorConfig {
 // desde el admin — `classTag` en League/LeagueRegistration/LeagueResult/etc. sigue siendo texto
 // libre (sin FK aquí) para no forzar una migración de datos existentes; esto solo reemplaza la
 // lista fija que había harcodeada en app/admin/ligas/[id]/page.tsx.
+// Modelos de coche añadidos por un admin, además de la lista fija de vehicle-selector-modal.tsx —
+// así un campeonato puede correr un mod que no está en esa lista sin tocar código.
+model CustomVehicleModel {
+  id           String   @id @default(cuid())
+  name         String
+  acFolder     String   @map("ac_folder")
+  category     String
+  manufacturer String?
+  imageUrl     String?  @map("image_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("custom_vehicle_models")
+}
+
 model CarCategory {
   key       String   @id
   name      String
   sortOrder Int      @default(0) @map("sort_order")
   active    Boolean  @default(true)
+  // Horas mínimas jugadas en Assetto Corsa (Steam) para poder inscribirse en esta categoría.
+  // 0 = sin mínimo. Se comprueba en el momento de inscribirse (ver lib/steam-hours.ts).
+  minHours  Int      @default(0) @map("min_hours")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("car_categories")

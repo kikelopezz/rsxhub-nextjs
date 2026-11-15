@@ -13,21 +13,34 @@ import {
   deleteSimulatorAction,
   createCategoryAction,
   updateCategoryAction,
+  updateCategoryMinHoursAction,
   toggleCategoryActiveAction,
   deleteCategoryAction,
+  createCustomVehicleModelAction,
+  deleteCustomVehicleModelAction,
 } from '../actions'
 import { getLocale } from '@/lib/i18n/get-locale'
 import { getDictionary } from '@/lib/i18n/get-dictionary'
 
+type CustomVehicleModelRow = {
+  id: string
+  name: string
+  acFolder: string
+  category: string
+  manufacturer: string | null
+  imageUrl: string | null
+}
+
 type AdminLeaguesTabProps = {
   simulators: Array<{ key: string; name: string; logoUrl: string | null }>
-  categories: Array<{ key: string; name: string; active: boolean }>
+  categories: Array<{ key: string; name: string; active: boolean; minHours: number }>
+  customVehicles: CustomVehicleModelRow[]
   visibleLeagues: any[]
   visibleRegistrations: any[]
   visibleEvents: any[]
 }
 
-export async function AdminLeaguesTab({ simulators, categories, visibleLeagues, visibleRegistrations, visibleEvents }: AdminLeaguesTabProps) {
+export async function AdminLeaguesTab({ simulators, categories, customVehicles, visibleLeagues, visibleRegistrations, visibleEvents }: AdminLeaguesTabProps) {
   const t = getDictionary(await getLocale()).admin.leaguesTab
   return (
     <div className="space-y-6">
@@ -214,6 +227,20 @@ export async function AdminLeaguesTab({ simulators, categories, visibleLeagues, 
                   {t.save}
                 </button>
               </form>
+              <form action={updateCategoryMinHoursAction} className="flex items-center gap-2">
+                <input type="hidden" name="key" value={cat.key} />
+                <label className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">Horas AC mín.</label>
+                <input
+                  type="number"
+                  name="minHours"
+                  min={0}
+                  defaultValue={cat.minHours}
+                  className="w-20 rounded-lg border border-shell-line bg-black/40 px-2 py-1.5 text-xs font-bold text-white outline-none"
+                />
+                <button type="submit" className="shrink-0 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-[#1274de] cursor-pointer">
+                  {t.save}
+                </button>
+              </form>
               <div className="flex items-center justify-between">
                 <form action={toggleCategoryActiveAction}>
                   <input type="hidden" name="key" value={cat.key} />
@@ -237,6 +264,79 @@ export async function AdminLeaguesTab({ simulators, categories, visibleLeagues, 
               name="name"
               required
               placeholder="Ej: GT2, Super Turismo…"
+              className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+            />
+            <button type="submit" className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer">
+              Añadir
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-[#0a0a0c] p-4 md:p-5 space-y-4">
+        <div className="border-b border-shell-line pb-3">
+          <h2 className="font-display-condensed text-sm font-bold uppercase tracking-wide text-white">Modelos de coche personalizados</h2>
+          <p className="text-xs text-slate-400">
+            Coches que se ofrecen en el selector de vehículos de los equipos, además de la lista fija del sitio.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {customVehicles.map((model) => (
+            <div key={model.id} className="space-y-2 rounded-xl border border-white/10 bg-black/30 p-3">
+              <p className="truncate text-sm font-bold text-white">{model.name}</p>
+              <p className="truncate font-mono-data text-[10px] text-slate-500">{model.acFolder}</p>
+              <div className="flex items-center justify-between">
+                <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                  {model.category}
+                </span>
+                <form action={deleteCustomVehicleModelAction}>
+                  <input type="hidden" name="id" value={model.id} />
+                  <button type="submit" className="text-[10px] font-bold uppercase tracking-wider text-rose-400 hover:text-rose-300 cursor-pointer">
+                    Eliminar
+                  </button>
+                </form>
+              </div>
+            </div>
+          ))}
+
+          <form action={createCustomVehicleModelAction} className="space-y-2 rounded-xl border border-dashed border-[#4ea1ff]/40 bg-[#4ea1ff]/5 p-3">
+            <p className="text-xs font-black uppercase tracking-wider text-[#4ea1ff]">Añadir modelo</p>
+            <input
+              name="name"
+              required
+              placeholder="Nombre (ej: Ferrari 296 GT3)"
+              className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+            />
+            <input
+              name="acFolder"
+              required
+              placeholder="Carpeta de Assetto Corsa"
+              className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+            />
+            <select
+              name="category"
+              required
+              defaultValue=""
+              className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm text-white outline-none"
+            >
+              <option value="" disabled>
+                Categoría
+              </option>
+              {categories.map((cat) => (
+                <option key={cat.key} value={cat.key}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <input
+              name="manufacturer"
+              placeholder="Fabricante (opcional)"
+              className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+            />
+            <input
+              name="imageUrl"
+              placeholder="URL de imagen (opcional)"
               className="w-full rounded-lg border border-shell-line bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
             />
             <button type="submit" className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-[#1f82ee] cursor-pointer">

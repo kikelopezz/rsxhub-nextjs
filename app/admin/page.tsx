@@ -427,6 +427,7 @@ export default async function AdminPage({
         <AdminLeaguesTab
           simulators={await getSimulators()}
           categories={await getCarCategories()}
+          customVehicles={await db.customVehicleModel.findMany({ orderBy: { createdAt: 'asc' } }).catch(() => [])}
           visibleLeagues={visibleLeagues}
           visibleRegistrations={visibleRegistrations}
           visibleEvents={visibleEvents}
