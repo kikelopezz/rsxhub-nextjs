@@ -78,7 +78,10 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
   },
   icons: {
-    icon: '/branding/rsx-logo.ico',
+    icon: [
+      { url: '/branding/rsx-logo.ico' },
+      { url: '/branding/rsx-logo-512.png', sizes: '512x512', type: 'image/png' },
+    ],
     shortcut: '/branding/rsx-logo.ico',
     apple: '/branding/rsx-logo.png',
   },
