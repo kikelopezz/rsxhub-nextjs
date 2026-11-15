@@ -21,6 +21,9 @@ interface LeagueRegistrationProps {
   initialRegistrations?: Array<{ teamId: string | null; userId: string }>
   onOpenRegisterModal: () => void
   onWithdrawTeam: (teamId: string, classTag: string) => void
+  myIndividualRegistrations?: Array<{ tag: string; status: string }>
+  onOpenIndividualRegisterModal?: () => void
+  onWithdrawIndividual?: (classTag: string) => void
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -54,11 +57,15 @@ export function LeagueRegistration({
   initialRegistrations = [],
   onOpenRegisterModal,
   onWithdrawTeam,
+  myIndividualRegistrations = [],
+  onOpenIndividualRegisterModal,
+  onWithdrawIndividual,
 }: LeagueRegistrationProps) {
   const dict = useDictionary()
   const t = dict.registration
   const isLeader = myManagedTeams.length > 0
   const sessClean = session ? String(session.userId || session.steamId || '').replace(/^steam_/, '') : ''
+  const isIndividualMode = league.registrationMode !== 'team'
 
   const myRegisteredGroups = groupedRegistrations.filter((group) => {
     const isManaged = myManagedTeams.some((t) => t.id === group.teamId)
@@ -142,7 +149,51 @@ export function LeagueRegistration({
         </button>
       )}
 
-      {!isLeader && session && myRegisteredGroups.length === 0 && (
+      {isIndividualMode && session && myIndividualRegistrations.length > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-[#4ea1ff]/40 bg-black/40 px-3.5 py-2.5 shadow-[0_0_20px_rgba(78,161,255,0.15)]">
+          <div className="space-y-1 text-left">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#4ea1ff]" />
+              <span className="text-xs font-bold uppercase tracking-wide text-white">{t.individualDriverLabel}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {myIndividualRegistrations.map(({ tag, status }) => (
+                <div key={tag} className="flex items-center gap-1 rounded-md border border-white/10 bg-black/60 px-1.5 py-0.5">
+                  <ClassBadge classTag={tag} />
+                  <StatusBadge status={status} />
+                  {onWithdrawIndividual && (
+                    <button
+                      onClick={() => onWithdrawIndividual(tag)}
+                      title={`${t.withdraw} ${tag}`}
+                      className="ml-0.5 rounded px-1 text-xs font-bold text-rose-400 transition-colors hover:bg-rose-500/20 hover:text-rose-300"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isIndividualMode &&
+        session &&
+        league.registrationOpen &&
+        league.status === 'open' &&
+        ((league.classTags || []).length === 0
+          ? myIndividualRegistrations.length === 0
+          : (league.classTags || []).some((tag) => !myIndividualRegistrations.some((r) => r.tag === tag))) && (
+          <button
+            onClick={onOpenIndividualRegisterModal}
+            className="flex shrink-0 items-center gap-2 rounded-lg border border-[#4ea1ff] bg-[#1274de] px-5 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-[0_0_18px_rgba(78,161,255,0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#1f82ee] hover:shadow-[0_0_24px_rgba(78,161,255,0.7)] md:text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            {t.registerIndividual}
+          </button>
+        )}
+
+      {!isIndividualMode && !isLeader && session && myRegisteredGroups.length === 0 && (
         <div className="flex items-center gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3.5 py-2.5">
           <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
           <div className="text-left">

@@ -8,6 +8,8 @@ const registration = {
   yourTeamRegistered: 'TU EQUIPO - INSCRITO',
   withdraw: 'Retirar',
   registerTeam: 'Inscribir equipo',
+  registerIndividual: 'Inscripción individual',
+  individualDriverLabel: 'PILOTO INDIVIDUAL',
   requirementTitle: 'REQUISITO DE INSCRIPCIÓN',
   requirementBody: 'Debes ser el jefe o fundador de un equipo para inscribir vehículos en este campeonato.',
   accessRequiredTitle: 'ACCESO REQUERIDO',

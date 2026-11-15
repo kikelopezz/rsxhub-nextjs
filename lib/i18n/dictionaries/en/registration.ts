@@ -10,6 +10,8 @@ const registration: typeof es = {
   yourTeamRegistered: 'YOUR TEAM - REGISTERED',
   withdraw: 'Withdraw',
   registerTeam: 'Register Team',
+  registerIndividual: 'Individual Registration',
+  individualDriverLabel: 'SOLO DRIVER',
   requirementTitle: 'REGISTRATION REQUIREMENT',
   requirementBody: 'You must be the leader or founder of a team to register vehicles in this league.',
   accessRequiredTitle: 'ACCESS REQUIRED',

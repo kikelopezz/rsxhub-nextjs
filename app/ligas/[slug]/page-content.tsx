@@ -20,7 +20,15 @@ import { LeagueStandings } from './components/league-standings'
 const FinishRoundModal = dynamic(() => import('./components/finish-round-modal').then((m) => m.FinishRoundModal), { ssr: false })
 const ViewResultsModal = dynamic(() => import('./components/view-results-modal').then((m) => m.ViewResultsModal), { ssr: false })
 const LeagueEditModal = dynamic(() => import('./components/league-edit-modal').then((m) => m.LeagueEditModal), { ssr: false })
-import { deleteLeagueAction, registerTeamAction, unregisterTeamAction, updateTeamPointsAction, updateCarPhotoAction } from '@/app/ligas/actions'
+import {
+  deleteLeagueAction,
+  registerTeamAction,
+  unregisterTeamAction,
+  registerIndividualAction,
+  unregisterIndividualAction,
+  updateTeamPointsAction,
+  updateCarPhotoAction,
+} from '@/app/ligas/actions'
 import { saveCalendarEvent, deleteCalendarEvent } from '@/app/calendario/actions'
 import { ClassBadge } from '@/components/class-badge'
 import { ImagePicker } from '@/components/image-picker'
@@ -171,16 +179,69 @@ export default function LeagueDetailPageContent({
   const [regErrorMessage, setRegErrorMessage] = useState('')
   const selectedTeam = myManagedTeams.find((t) => t.id === selectedTeamId)
 
+  // Individual Register Modal State (leagues with registrationMode = 'individual')
+  const [isIndividualRegisterOpen, setIsIndividualRegisterOpen] = useState(false)
+  const [selectedIndividualClassTag, setSelectedIndividualClassTag] = useState<string>(classTags[0] || 'GT3')
+  const [isIndividualRegSubmitting, setIsIndividualRegSubmitting] = useState(false)
+  const [individualRegErrorMessage, setIndividualRegErrorMessage] = useState('')
+
+  const sessionIdClean = session ? String(session.userId || session.steamId || '').replace(/^steam_/, '') : ''
+  const myIndividualRegistrations = useMemo(() => {
+    const mine = initialRegistrations.filter(
+      (r) => !r.teamId && String(r.userId || '').replace(/^steam_/, '') === sessionIdClean
+    )
+    const map = new Map<string, { tag: string; status: string }>()
+    mine.forEach((r) => {
+      const tag = r.classTag || 'GENERAL'
+      if (!map.has(tag)) map.set(tag, { tag, status: r.status || 'pending' })
+    })
+    return Array.from(map.values())
+  }, [initialRegistrations, sessionIdClean])
+
+  const handleRegisterIndividualSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsIndividualRegSubmitting(true)
+    setIndividualRegErrorMessage('')
+    try {
+      const formData = new FormData()
+      formData.set('slug', league.slug || '')
+      formData.set('leagueId', league.id)
+      formData.set('classTag', selectedIndividualClassTag || classTags[0] || 'GT3')
+      await registerIndividualAction(formData)
+      setIsIndividualRegisterOpen(false)
+      toast.success('Inscripción registrada')
+      router.refresh()
+    } catch (err: any) {
+      setIndividualRegErrorMessage(err.message || 'No se pudo completar la inscripción.')
+    } finally {
+      setIsIndividualRegSubmitting(false)
+    }
+  }
+
+  const handleWithdrawIndividual = async (classTag: string) => {
+    try {
+      const formData = new FormData()
+      formData.set('slug', league.slug || '')
+      formData.set('leagueId', league.id)
+      formData.set('classTag', classTag)
+      await unregisterIndividualAction(formData)
+      toast.success('Inscripción retirada')
+      router.refresh()
+    } catch (e: any) {
+      alert(e.message || 'No se pudo retirar la inscripción.')
+    }
+  }
+
   // Lock body scrolling when any modal is open to prevent double scrollbars
   useEffect(() => {
-    const isAnyModalOpen = isEditLeagueOpen || isEventModalOpen || isRegisterOpen || Boolean(finishingEventData) || Boolean(viewingResultsEvent)
+    const isAnyModalOpen = isEditLeagueOpen || isEventModalOpen || isRegisterOpen || isIndividualRegisterOpen || Boolean(finishingEventData) || Boolean(viewingResultsEvent)
     if (!isAnyModalOpen) return
     const original = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = original
     }
-  }, [isEditLeagueOpen, isEventModalOpen, isRegisterOpen, finishingEventData, viewingResultsEvent])
+  }, [isEditLeagueOpen, isEventModalOpen, isRegisterOpen, isIndividualRegisterOpen, finishingEventData, viewingResultsEvent])
 
   // Close the country dropdown when clicking outside of it
   const countryDropdownRef = useRef<HTMLDivElement>(null)
@@ -419,6 +480,9 @@ export default function LeagueDetailPageContent({
             initialRegistrations={initialRegistrations}
             onOpenRegisterModal={() => setIsRegisterOpen(true)}
             onWithdrawTeam={handleWithdrawTeam}
+            myIndividualRegistrations={myIndividualRegistrations}
+            onOpenIndividualRegisterModal={() => setIsIndividualRegisterOpen(true)}
+            onWithdrawIndividual={handleWithdrawIndividual}
           />
         }
       />
@@ -1010,6 +1074,59 @@ export default function LeagueDetailPageContent({
                   className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-5 py-2 text-xs font-bold uppercase text-white shadow-[0_0_15px_rgba(78,161,255,0.4)] transition-all hover:bg-[#1f82ee] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isRegSubmitting ? trReg.registering : trReg.confirmRegistration}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isIndividualRegisterOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/85 p-4 backdrop-blur-sm sm:items-center md:p-6">
+          <div className="relative my-auto w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0f18] p-5 text-white shadow-[0_0_60px_rgba(0,0,0,0.8)]">
+            <button
+              onClick={() => setIsIndividualRegisterOpen(false)}
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-[#4ea1ff] hover:text-[#4ea1ff]"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h2 className="font-display-league mb-4 text-2xl uppercase text-white">{tr.individualRegisterModal.title}</h2>
+            {individualRegErrorMessage && (
+              <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-300">
+                {individualRegErrorMessage}
+              </div>
+            )}
+            <form onSubmit={handleRegisterIndividualSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase text-slate-300">{trReg.selectCategory}</label>
+                <select
+                  value={selectedIndividualClassTag}
+                  onChange={(e) => setSelectedIndividualClassTag(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white outline-none focus:border-[#4ea1ff]"
+                >
+                  {classTags.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[11px] text-slate-400">{tr.individualRegisterModal.hint}</p>
+              <div className="flex justify-end gap-2 border-t border-white/10 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsIndividualRegisterOpen(false)}
+                  className="rounded-lg border border-white/10 px-4 py-2 text-xs font-bold uppercase transition-colors hover:bg-white/5"
+                >
+                  {trReg.cancel}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isIndividualRegSubmitting}
+                  className="rounded-lg border border-[#4ea1ff] bg-[#1274de] px-5 py-2 text-xs font-bold uppercase text-white shadow-[0_0_15px_rgba(78,161,255,0.4)] transition-all hover:bg-[#1f82ee] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isIndividualRegSubmitting ? trReg.registering : trReg.confirmRegistration}
                 </button>
               </div>
             </form>

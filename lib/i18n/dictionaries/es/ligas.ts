@@ -349,6 +349,10 @@ const ligas = {
       registering: 'Registrando...',
       confirmRegistration: 'Confirmar registro',
     },
+    individualRegisterModal: {
+      title: 'Inscripción individual',
+      hint: 'Te inscribes como piloto sin equipo. Si el campeonato es de pago, tu inscripción quedará pendiente hasta que un admin confirme el pago.',
+    },
   },
 }
 

@@ -351,6 +351,10 @@ const ligas: typeof es = {
       registering: 'Registering...',
       confirmRegistration: 'Confirm Registration',
     },
+    individualRegisterModal: {
+      title: 'Individual Registration',
+      hint: "You're registering as a solo driver without a team. If this championship requires payment, your registration will stay pending until an admin confirms the payment.",
+    },
   },
 }
 

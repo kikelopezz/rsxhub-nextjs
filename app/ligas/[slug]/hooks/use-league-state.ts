@@ -18,6 +18,7 @@ export type League = {
   startsAt: string
   endsAt: string
   registrationOpen: boolean
+  registrationMode?: 'individual' | 'team'
   fullDescription: string
   status: string
   bannerUrl: string | null

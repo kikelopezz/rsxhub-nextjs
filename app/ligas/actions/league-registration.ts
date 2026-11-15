@@ -6,6 +6,9 @@ import { db } from '@/lib/db'
 import { getRegistrations, getLeagueBySlug } from '@/lib/platform-data'
 import { invalidateCache } from '@/lib/ttl-cache'
 import { sameClassTag } from '@/lib/class-tag-match'
+import { parseConnections } from '@/lib/connections'
+import { getMinHoursForCategory } from '@/lib/data/categories'
+import { getAssettoCorsaHours } from '@/lib/steam-hours'
 
 function parseCarNumber(dorsal: any): number {
   if (dorsal == null) return 0
@@ -109,6 +112,48 @@ export async function registerTeamAction(formData: FormData) {
       carNumber: carNumberInput,
       driverUserIds: driverUserIds.length > 0 ? driverUserIds : templateDrivers.length > 0 ? templateDrivers : [session.userId],
     })
+  }
+
+  // Discord obligatorio: cada piloto inscrito en un coche debe tener su usuario de Discord en
+  // el perfil (ver onboarding) — es el canal que usan los organizadores para avisos de carrera.
+  const driverIdsToCheck = Array.from(new Set(carsToRegister.flatMap((c) => c.driverUserIds)))
+  if (driverIdsToCheck.length > 0) {
+    const profiles = await db.profile.findMany({ where: { userId: { in: driverIdsToCheck } } })
+    const missingDiscord = driverIdsToCheck.filter((userId) => {
+      const profile = profiles.find((p) => p.userId === userId)
+      return !parseConnections(profile?.connections).discord
+    })
+    if (missingDiscord.length > 0) {
+      throw new Error('Todos los pilotos del coche deben indicar su usuario de Discord en su perfil antes de inscribirse.')
+    }
+  }
+
+  // Horas mínimas de Assetto Corsa por categoría (admin > Categorías de coches). Solo bloquea
+  // cuando la categoría tiene un mínimo configurado — sin eso, el comportamiento no cambia.
+  if (driverIdsToCheck.length > 0) {
+    const minHoursByClass = new Map<string, number>()
+    for (const car of carsToRegister) {
+      if (!minHoursByClass.has(car.classTag)) {
+        minHoursByClass.set(car.classTag, await getMinHoursForCategory(car.classTag))
+      }
+    }
+    if (Array.from(minHoursByClass.values()).some((h) => h > 0)) {
+      const steamAccounts = await db.steamAccount.findMany({ where: { userId: { in: driverIdsToCheck } } })
+      const steamIdByUserId = new Map(steamAccounts.map((s) => [s.userId, s.steamId]))
+      for (const car of carsToRegister) {
+        const minHours = minHoursByClass.get(car.classTag) || 0
+        if (minHours <= 0) continue
+        for (const driverUserId of car.driverUserIds) {
+          const steamId = steamIdByUserId.get(driverUserId)
+          const hours = steamId ? await getAssettoCorsaHours(steamId) : null
+          if (hours == null || hours < minHours) {
+            throw new Error(
+              `Un piloto del coche de ${car.classTag} no cumple el mínimo de ${minHours}h en Assetto Corsa (o su perfil de Steam es privado).`
+            )
+          }
+        }
+      }
+    }
   }
 
   // Get current registrations to check for taken numbers
@@ -261,4 +306,115 @@ export async function unregisterTeamAction(formData: FormData) {
   revalidatePath('/ligas')
   if (slug) revalidatePath(`/ligas/${slug}`)
   revalidatePath('/equipos')
+}
+
+// Inscripción individual (sin equipo): solo para ligas con registrationMode = 'individual'.
+// A diferencia de registerTeamAction no hay TeamCar de por medio — es solo una fila en
+// LeagueRegistration con teamId null, que getRegistrations() ya deja pasar sin filtrar.
+export async function registerIndividualAction(formData: FormData) {
+  const session = await getCurrentUser()
+  if (!session) throw new Error('Unauthorized')
+
+  let slug = String(formData.get('slug') || '')
+  const leagueId = String(formData.get('leagueId') || '')
+  const inputClassTag = String(formData.get('classTag') || '').trim().toUpperCase()
+  const carNumberInput = parseCarNumber(formData.get('carNumber'))
+
+  if (!leagueId) throw new Error('League ID is required.')
+
+  const league = await db.league.findUnique({
+    where: { id: leagueId },
+    select: { slug: true, classTags: true, requiresPayment: true, registrationMode: true, registrationOpen: true, status: true },
+  })
+  if (!league) throw new Error('League not found.')
+  if (league.registrationMode !== 'individual') {
+    throw new Error('This championship only accepts team registrations.')
+  }
+  if (!league.registrationOpen || league.status !== 'open') {
+    throw new Error('Registration is closed for this championship.')
+  }
+  if (!slug) slug = league.slug || leagueId
+
+  const profile = await db.profile.findUnique({ where: { userId: session.userId } })
+  const discord = parseConnections(profile?.connections).discord
+  if (!discord) {
+    throw new Error('Tienes que indicar tu usuario de Discord en tu perfil antes de inscribirte.')
+  }
+
+  const leagueClassTags = league.classTags || []
+  let classTag = inputClassTag
+  if (!classTag || !leagueClassTags.map((t) => t.toUpperCase()).includes(classTag)) {
+    classTag = (leagueClassTags[0] || 'GT3').toUpperCase()
+  }
+
+  const steam = await db.steamAccount.findUnique({ where: { userId: session.userId } })
+  const displayName = profile?.displayName || steam?.steamDisplayName || `Pilot ${session.userId.slice(0, 4)}`
+  const initialStatus: 'approved' | 'pending' = league.requiresPayment ? 'pending' : 'approved'
+
+  const minHours = await getMinHoursForCategory(classTag)
+  if (minHours > 0) {
+    const hours = steam?.steamId ? await getAssettoCorsaHours(steam.steamId) : null
+    if (hours == null || hours < minHours) {
+      throw new Error(
+        `No cumples el mínimo de ${minHours}h en Assetto Corsa para ${classTag} (o tu perfil de Steam es privado).`
+      )
+    }
+  }
+
+  const registrations = await getRegistrations(leagueId)
+  const takenNumbers = new Set(
+    registrations
+      .filter((r) => r.userId !== session.userId && r.status !== 'rejected')
+      .map((r) => r.assignedNumber)
+  )
+  function resolveFreeNumber(preferred: number): number {
+    if (preferred > 0 && !takenNumbers.has(preferred)) return preferred
+    for (let num = 12; num <= 99; num++) {
+      if (!takenNumbers.has(num)) return num
+    }
+    return preferred > 0 ? preferred : 12
+  }
+  const assignedNumber = resolveFreeNumber(carNumberInput)
+
+  await db.$transaction([
+    db.leagueRegistration.deleteMany({ where: { leagueId, userId: session.userId, teamId: null, classTag } }),
+    db.leagueRegistration.create({
+      data: {
+        leagueId,
+        userId: session.userId,
+        teamId: null,
+        displayName,
+        steamId: steam?.steamId || '',
+        status: initialStatus,
+        classTag,
+        assignedNumber,
+      },
+    }),
+  ])
+
+  invalidateCache(['registrations_' + leagueId, 'registrations_all', 'platform_drivers'])
+  revalidatePath('/ligas')
+  if (slug) revalidatePath(`/ligas/${slug}`)
+}
+
+export async function unregisterIndividualAction(formData: FormData) {
+  const session = await getCurrentUser()
+  if (!session) throw new Error('Unauthorized')
+
+  let slug = String(formData.get('slug') || '')
+  const leagueId = String(formData.get('leagueId') || '')
+  const classTag = String(formData.get('classTag') || '').trim().toUpperCase()
+
+  if (!leagueId || !classTag) throw new Error('Missing data.')
+
+  if (!slug) {
+    const league = await db.league.findUnique({ where: { id: leagueId }, select: { slug: true } })
+    slug = league?.slug || ''
+  }
+
+  await db.leagueRegistration.deleteMany({ where: { leagueId, userId: session.userId, teamId: null, classTag } })
+
+  invalidateCache(['registrations_' + leagueId, 'registrations_all', 'platform_drivers'])
+  revalidatePath('/ligas')
+  if (slug) revalidatePath(`/ligas/${slug}`)
 }
