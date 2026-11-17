@@ -207,7 +207,11 @@ export default function LeagueDetailPageContent({
       formData.set('slug', league.slug || '')
       formData.set('leagueId', league.id)
       formData.set('classTag', selectedIndividualClassTag || classTags[0] || 'GT3')
-      await registerIndividualAction(formData)
+      const result = await registerIndividualAction(formData)
+      if (result?.error) {
+        setIndividualRegErrorMessage(result.error)
+        return
+      }
       setIsIndividualRegisterOpen(false)
       toast.success('Inscripción registrada')
       router.refresh()
@@ -224,7 +228,11 @@ export default function LeagueDetailPageContent({
       formData.set('slug', league.slug || '')
       formData.set('leagueId', league.id)
       formData.set('classTag', classTag)
-      await unregisterIndividualAction(formData)
+      const result = await unregisterIndividualAction(formData)
+      if (result?.error) {
+        alert(result.error)
+        return
+      }
       toast.success('Inscripción retirada')
       router.refresh()
     } catch (e: any) {
@@ -427,7 +435,11 @@ export default function LeagueDetailPageContent({
       formData.set('leagueId', league.id)
       formData.set('teamId', teamId)
       formData.set('classTag', classTag)
-      await unregisterTeamAction(formData)
+      const result = await unregisterTeamAction(formData)
+      if (result?.error) {
+        alert(result.error)
+        return
+      }
       toast.success('Withdrawn from championship')
       router.refresh()
     } catch (e: any) {
@@ -449,7 +461,11 @@ export default function LeagueDetailPageContent({
       formData.set('teamId', selectedTeamId)
       formData.set('classTag', selectedClassTag || classTags[0] || 'GT3')
 
-      await registerTeamAction(formData)
+      const result = await registerTeamAction(formData)
+      if (result?.error) {
+        setRegErrorMessage(result.error)
+        return
+      }
       setIsRegisterOpen(false)
       toast.success('Team registered')
       router.refresh()

@@ -17,7 +17,25 @@ function parseCarNumber(dorsal: any): number {
   return isNaN(num) ? 0 : num
 }
 
-export async function registerTeamAction(formData: FormData) {
+// Next.js redacts the message of anything *thrown* out of a Server Action in production
+// (same masking as a Server Component render error) — only the `digest` reaches the
+// client, not our carefully-written Spanish validation text. Returning `{ error }`
+// instead of throwing is the documented way around that: a returned value is ordinary
+// serializable data and isn't touched by that redaction. These wrappers keep every
+// existing validation `throw` below as-is (still useful for early-return control flow)
+// and just convert it at the boundary, so the real message always reaches the user.
+export type ActionResult = { error?: string } | void
+
+export async function registerTeamAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await registerTeamImpl(formData)
+  } catch (err) {
+    console.error('[registerTeamAction] failed:', err)
+    return { error: err instanceof Error ? err.message : 'No se pudo inscribir al equipo.' }
+  }
+}
+
+async function registerTeamImpl(formData: FormData) {
   const session = await getCurrentUser()
   if (!session) throw new Error('Unauthorized')
 
@@ -276,7 +294,16 @@ export async function registerTeamAction(formData: FormData) {
   revalidatePath('/equipos')
 }
 
-export async function unregisterTeamAction(formData: FormData) {
+export async function unregisterTeamAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await unregisterTeamImpl(formData)
+  } catch (err) {
+    console.error('[unregisterTeamAction] failed:', err)
+    return { error: err instanceof Error ? err.message : 'No se pudo retirar al equipo.' }
+  }
+}
+
+async function unregisterTeamImpl(formData: FormData) {
   const session = await getCurrentUser()
   if (!session) throw new Error('Unauthorized')
 
@@ -311,7 +338,16 @@ export async function unregisterTeamAction(formData: FormData) {
 // Inscripción individual (sin equipo): solo para ligas con registrationMode = 'individual'.
 // A diferencia de registerTeamAction no hay TeamCar de por medio — es solo una fila en
 // LeagueRegistration con teamId null, que getRegistrations() ya deja pasar sin filtrar.
-export async function registerIndividualAction(formData: FormData) {
+export async function registerIndividualAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await registerIndividualImpl(formData)
+  } catch (err) {
+    console.error('[registerIndividualAction] failed:', err)
+    return { error: err instanceof Error ? err.message : 'No se pudo completar la inscripción.' }
+  }
+}
+
+async function registerIndividualImpl(formData: FormData) {
   const session = await getCurrentUser()
   if (!session) throw new Error('Unauthorized')
 
@@ -397,7 +433,16 @@ export async function registerIndividualAction(formData: FormData) {
   if (slug) revalidatePath(`/ligas/${slug}`)
 }
 
-export async function unregisterIndividualAction(formData: FormData) {
+export async function unregisterIndividualAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await unregisterIndividualImpl(formData)
+  } catch (err) {
+    console.error('[unregisterIndividualAction] failed:', err)
+    return { error: err instanceof Error ? err.message : 'No se pudo retirar la inscripción.' }
+  }
+}
+
+async function unregisterIndividualImpl(formData: FormData) {
   const session = await getCurrentUser()
   if (!session) throw new Error('Unauthorized')
 
