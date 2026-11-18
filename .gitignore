@@ -55,3 +55,6 @@ ui-debug.log
 /.agents/
 /.claude/
 skills-lock.json
+
+# Impeccable design-hook session cache — local to this machine, keep only its config
+/.impeccable/hook.cache.json

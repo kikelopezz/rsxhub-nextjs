@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "app/perfil/perfil-content.tsx"
+        ],
+        "createdAt": "2026-11-16T21:21:50.967Z",
+        "reason": "Quoted bio/invite-message blockquote style (italic text in quotes + left accent border in the profile's accent color), used consistently in two places for quoting user text, not a decorative card border — reviewed, intentional"
+      }
+    ]
+  }
+}
