@@ -41,6 +41,60 @@ async function fetchUpstream(sourceUrl: string, server: string) {
   return res.json()
 }
 
+// El servidor de Assetto Corsa lleva TotalNumLaps en memoria del propio proceso: si se cae o se
+// reinicia a mitad de carrera (sin cambiar de sesión), ese contador vuelve a 0 para todo el mundo
+// aunque la carrera siga. Aquí se recuerda, por piloto, cuántas vueltas ya llevaba antes de ese
+// reinicio, para poder seguir sumando en vez de volver a empezar desde 0. Vive en memoria del
+// propio proceso de Next.js (igual que la caché de arriba) — sobrevive a reinicios del servidor de
+// carrera, que es el caso que falla; no hace falta base de datos para esto.
+type LapState = { lastRaw: number; offset: number }
+type SessionLapTracker = { drivers: Map<string, LapState>; lastSessionTime: number | null }
+const lapTrackers = new Map<string, SessionLapTracker>()
+
+function driverKey(d: any): string {
+  return d?.CarInfo?.DriverGUID || `${d?.CarInfo?.RaceNumber || ''}-${d?.CarInfo?.DriverName || ''}`
+}
+
+function reconcileLaps(key: string, data: any) {
+  if (!data || typeof data !== 'object') return
+  const drivers: any[] = [...(data.ConnectedDrivers || []), ...(data.DisconnectedDrivers || [])]
+  if (drivers.length === 0) return
+
+  let tracker = lapTrackers.get(key)
+  if (!tracker) {
+    tracker = { drivers: new Map(), lastSessionTime: null }
+    lapTrackers.set(key, tracker)
+  }
+
+  // `Time` (duración configurada de la sesión en minutos) solo cambia cuando el propio servidor
+  // pasa a otra sesión (de qualy a carrera, p. ej.) — a diferencia de un reinicio del proceso tras
+  // una caída, que retoma la MISMA sesión. Es la señal disponible para distinguir "sesión nueva,
+  // las vueltas deben volver a 0" de "mismo proceso caído y recuperado, hay que seguir sumando".
+  const currentSessionTime = typeof data.Time === 'number' ? data.Time : null
+  if (tracker.lastSessionTime !== null && currentSessionTime !== tracker.lastSessionTime) {
+    tracker.drivers.clear()
+  }
+  tracker.lastSessionTime = currentSessionTime
+
+  for (const d of drivers) {
+    const raw = Number(d.TotalNumLaps) || 0
+    const kDriver = driverKey(d)
+    let state = tracker.drivers.get(kDriver)
+    if (!state) {
+      state = { lastRaw: raw, offset: 0 }
+      tracker.drivers.set(kDriver, state)
+    } else if (raw < state.lastRaw) {
+      // El contador bajó dentro de la misma sesión: el servidor de carrera se reinició. Lo ya
+      // corrido antes de eso se guarda como offset para no perderlo.
+      state.offset += state.lastRaw
+      state.lastRaw = raw
+    } else {
+      state.lastRaw = raw
+    }
+    d.TotalNumLaps = state.offset + raw
+  }
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const server = searchParams.get('server') || '0'
@@ -71,6 +125,7 @@ export async function GET(req: Request) {
       cache.set(key, { at: now, pending })
       try {
         data = await pending
+        reconcileLaps(key, data)
         cache.set(key, { at: Date.now(), data })
       } catch (err) {
         // Never keep serving old positions when the game server is down: drop the entry.
