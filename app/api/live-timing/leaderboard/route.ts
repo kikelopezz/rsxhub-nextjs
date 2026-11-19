@@ -48,7 +48,7 @@ async function fetchUpstream(sourceUrl: string, server: string) {
 // propio proceso de Next.js (igual que la caché de arriba) — sobrevive a reinicios del servidor de
 // carrera, que es el caso que falla; no hace falta base de datos para esto.
 type LapState = { lastRaw: number; offset: number }
-type SessionLapTracker = { drivers: Map<string, LapState>; lastSessionTime: number | null }
+type SessionLapTracker = { drivers: Map<string, LapState>; lastTrack: string | null }
 const lapTrackers = new Map<string, SessionLapTracker>()
 
 function driverKey(d: any): string {
@@ -62,19 +62,19 @@ function reconcileLaps(key: string, data: any) {
 
   let tracker = lapTrackers.get(key)
   if (!tracker) {
-    tracker = { drivers: new Map(), lastSessionTime: null }
+    tracker = { drivers: new Map(), lastTrack: null }
     lapTrackers.set(key, tracker)
   }
 
-  // `Time` (duración configurada de la sesión en minutos) solo cambia cuando el propio servidor
-  // pasa a otra sesión (de qualy a carrera, p. ej.) — a diferencia de un reinicio del proceso tras
-  // una caída, que retoma la MISMA sesión. Es la señal disponible para distinguir "sesión nueva,
-  // las vueltas deben volver a 0" de "mismo proceso caído y recuperado, hay que seguir sumando".
-  const currentSessionTime = typeof data.Time === 'number' ? data.Time : null
-  if (tracker.lastSessionTime !== null && currentSessionTime !== tracker.lastSessionTime) {
+  // El circuito (Track + TrackConfig) solo cambia cuando ese servidor pasa a otra carrera/evento —
+  // a diferencia de un reinicio del proceso tras una caída, o de pasar de qualy a carrera en el
+  // mismo fin de semana, que mantienen el mismo circuito. Es la señal para distinguir "evento
+  // nuevo, las vueltas deben volver a 0" de "mismo circuito, hay que seguir sumando".
+  const currentTrack = `${data.Track || ''}|${data.TrackConfig || ''}`
+  if (tracker.lastTrack !== null && currentTrack !== tracker.lastTrack) {
     tracker.drivers.clear()
   }
-  tracker.lastSessionTime = currentSessionTime
+  tracker.lastTrack = currentTrack
 
   for (const d of drivers) {
     const raw = Number(d.TotalNumLaps) || 0
