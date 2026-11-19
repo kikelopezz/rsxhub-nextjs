@@ -41,7 +41,24 @@ export type ParsedRow = {
   linked?: boolean
 }
 
-const DEFAULT_POINTS_SYSTEM = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
+// Baremos de puntos por posición en categoría. Cuál se aplica depende de la duración de la carrera
+// (endsAt - startsAt del evento), no es un valor fijo: carreras más largas dan más puntos.
+const POINTS_SYSTEM_SHORT = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1] // hasta 6h
+const POINTS_SYSTEM_MEDIUM = [38, 27, 23, 18, 15, 12, 9, 6, 3, 2] // de 6h a 10h
+const POINTS_SYSTEM_LONG = [50, 36, 30, 24, 20, 16, 12, 8, 4, 2] // más de 10h (24h)
+
+function getPointsSystemForDuration(durationHours: number): number[] {
+  if (durationHours <= 6) return POINTS_SYSTEM_SHORT
+  if (durationHours <= 10) return POINTS_SYSTEM_MEDIUM
+  return POINTS_SYSTEM_LONG
+}
+
+function getEventDurationHours(event: LeagueEvent): number {
+  const start = new Date(event.startsAt).getTime()
+  const end = new Date(event.endsAt).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 6
+  return (end - start) / (1000 * 60 * 60)
+}
 
 export function FinishRoundModal({
   event,
@@ -156,6 +173,7 @@ export function FinishRoundModal({
 
       // Track positions per class tag
       const classCounters: Record<string, number> = {}
+      const pointsSystem = getPointsSystemForDuration(getEventDurationHours(event))
 
       const rows: ParsedRow[] = rawList.map((item, idx) => {
         const overallPos = item.position || item.pos || idx + 1
@@ -200,7 +218,7 @@ export function FinishRoundModal({
           ? 0
           : (typeof item.points === 'number'
               ? item.points
-              : DEFAULT_POINTS_SYSTEM[catPos - 1] || (catPos <= 15 ? 1 : 0))
+              : pointsSystem[catPos - 1] || (catPos <= 15 ? 1 : 0))
 
         const lapTime = item.bestLap || item.lapTime || item.BestLap || null
         const raceTime = item.totalTime || item.raceTime || item.TotalTime || null
@@ -298,10 +316,11 @@ export function FinishRoundModal({
 
   // Recalculate Points automatically based on Category Position
   const handleRecalculatePoints = () => {
+    const pointsSystem = getPointsSystemForDuration(getEventDurationHours(event))
     setParsedRows((prev) =>
       prev.map((row) => ({
         ...row,
-        points: DEFAULT_POINTS_SYSTEM[row.pos - 1] || (row.pos <= 15 ? 1 : 0),
+        points: pointsSystem[row.pos - 1] || (row.pos <= 15 ? 1 : 0),
       }))
     )
   }
