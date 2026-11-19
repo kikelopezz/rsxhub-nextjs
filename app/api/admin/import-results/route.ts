@@ -25,6 +25,7 @@ type ImportedResultRow = {
   /** Coche (folder de Assetto Corsa) que trae el archivo, si lo trae — de ahí se deduce la
    * categoría cuando el archivo no dice directamente la categoría de la fila. */
   carModel?: string
+  laps?: number | null
 }
 
 function cleanText(value: unknown) {
@@ -91,6 +92,8 @@ function toImportedRow(item: unknown, index: number): ImportedResultRow | null {
   // punto (mismo mapeo coche→categoría que el live timing) — así también cuenta para agrupar por
   // categoría más abajo (p. ej. al limitar cuántos coches se guardan por categoría).
   const classTag = cleanText(row.classTag ?? row.ClassTag)?.toUpperCase() ?? (carModel ? getClassTagFromModel(carModel).toUpperCase() : undefined)
+  const lapsRaw = row.laps ?? row.Laps ?? row.NumLaps ?? row.numLaps
+  const lapsNum = lapsRaw == null || lapsRaw === '' ? null : Number(lapsRaw)
   const extra = {
     classTag,
     driverName: cleanText(row.driverName ?? row.DriverName),
@@ -99,6 +102,7 @@ function toImportedRow(item: unknown, index: number): ImportedResultRow | null {
     lapTime: cleanText(row.lapTime ?? row.BestLap ?? row.bestLap),
     raceTime: cleanText(row.raceTime ?? row.TotalTime ?? row.totalTime),
     carModel,
+    laps: Number.isFinite(lapsNum as number) ? (lapsNum as number) : null,
   }
   return looksLikeUuid ? { userId: steamOrUser, position, points, ...extra } : { steamId: steamOrUser, position, points, ...extra }
 }
@@ -327,6 +331,7 @@ export async function POST(req: Request) {
           dorsal: row.dorsal ?? null,
           lapTime: row.lapTime ?? null,
           raceTime: row.raceTime ?? null,
+          laps: row.laps ?? null,
         })),
       })
     }

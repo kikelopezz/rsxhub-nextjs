@@ -20,6 +20,7 @@ export type EventResultRow = {
   points: number
   lapTime: string | null
   raceTime: string | null
+  laps: number | null
   /** Solo en la vista de revisión de admins */
   reviewKey?: string
   car?: Pick<CarDetection, 'teamName' | 'dorsal' | 'carModel' | 'source'>
@@ -70,6 +71,7 @@ async function buildResults(leagueId: string, eventId: string, sessionType: 'qua
       points: row.points ?? 0,
       lapTime: row.lapTime,
       raceTime: row.raceTime,
+      laps: row.laps,
     }
     if (forReview) {
       result.reviewKey = c.reviewKey

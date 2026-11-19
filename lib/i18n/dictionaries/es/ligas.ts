@@ -56,6 +56,7 @@ const ligas = {
     carNumber: 'Nº COCHE',
     bestLap: 'MEJOR VUELTA',
     timeGap: 'TIEMPO / DIFERENCIA',
+    laps: 'VUELTAS',
     points: 'PUNTOS',
     steam: 'Steam:',
     pts: 'pts',

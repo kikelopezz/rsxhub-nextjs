@@ -253,6 +253,7 @@ export function ViewResultsModal({
                             ) : (
                               <>
                                 <th className="w-28 p-2 text-right">{t.timeGap}</th>
+                                <th className="w-20 p-2 text-right">{t.laps}</th>
                                 <th className="w-24 p-2 text-right">{t.points}</th>
                               </>
                             )}
@@ -377,6 +378,9 @@ export function ViewResultsModal({
                                   <>
                                     <td className="font-mono-data p-2 text-right text-xs text-slate-300">
                                       {formatLapTime(row.raceTime)}
+                                    </td>
+                                    <td className="font-mono-data p-2 text-right text-xs text-slate-300">
+                                      {row.laps ?? '—'}
                                     </td>
                                     <td className="font-mono-data p-2 text-right text-sm font-extrabold text-emerald-400">
                                       {row.points} {t.pts}

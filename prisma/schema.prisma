@@ -638,6 +638,7 @@ model LeagueResult {
   dorsal      String?
   lapTime     String?      @map("lap_time")
   raceTime    String?      @map("race_time")
+  laps        Int?
   createdAt   DateTime     @default(now()) @map("created_at")
 
   league League      @relation(fields: [leagueId], references: [id], onDelete: Cascade)

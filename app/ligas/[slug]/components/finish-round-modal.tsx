@@ -35,6 +35,8 @@ export type ParsedRow = {
   points: number
   lapTime?: string
   raceTime?: string
+  /** Vueltas completadas, si el archivo las trae (p. ej. NumLaps del export del servidor de carrera). */
+  laps?: number
   /** Modelo de coche que traía el archivo (folder de Assetto Corsa), si lo trae. */
   carModel?: string
   /** true cuando el piloto se ha vinculado por Steam ID con su inscripción (equipo y dorsal reales) */
@@ -222,6 +224,8 @@ export function FinishRoundModal({
 
         const lapTime = item.bestLap || item.lapTime || item.BestLap || null
         const raceTime = item.totalTime || item.raceTime || item.TotalTime || null
+        const rawLaps = item.laps ?? item.Laps ?? item.NumLaps ?? item.numLaps
+        const laps = rawLaps != null && Number.isFinite(Number(rawLaps)) ? Number(rawLaps) : undefined
 
         return {
           id: `${steamId}_${idx}`,
@@ -236,6 +240,7 @@ export function FinishRoundModal({
           points,
           lapTime,
           raceTime,
+          laps,
           carModel,
         }
       })
@@ -351,6 +356,7 @@ export function FinishRoundModal({
           classTag: r.classTag,
           lapTime: r.lapTime,
           raceTime: r.raceTime,
+          laps: r.laps,
           carModel: r.carModel,
         })),
       }

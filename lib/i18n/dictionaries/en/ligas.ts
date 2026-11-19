@@ -58,6 +58,7 @@ const ligas: typeof es = {
     carNumber: 'CAR #',
     bestLap: 'BEST LAP',
     timeGap: 'TIME / GAP',
+    laps: 'LAPS',
     points: 'POINTS',
     steam: 'Steam:',
     pts: 'pts',
