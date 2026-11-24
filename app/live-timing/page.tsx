@@ -707,11 +707,14 @@ export default function LiveTimingPage() {
     })
   }, [connected, rowMeta])
 
-  // Mejor vuelta de cada categoría (y la absoluta) para pintar en morado y para la banda de vueltas rápidas
+  // Mejor vuelta de cada categoría (y la absoluta) para pintar en morado y para la banda de vueltas rápidas.
+  // Se mira tanto a conectados como a desconectados: la sesión sigue teniendo una mejor vuelta válida
+  // aunque en este instante no haya nadie conectado (p. ej. entre tandas), así que la banda y el corte
+  // del 105% no deben desaparecer solo porque `connected` esté vacío.
   const fastest = useMemo(() => {
     const byClass: Record<string, { time: number; driver: LiveDriver }> = {}
     let overall: { time: number; driver: LiveDriver; cls: string } | null = null
-    connected.forEach((d) => {
+    ;[...connected, ...disconnected].forEach((d) => {
       const best = getCarStats(d).BestLap
       if (!best || best <= 0 || best > 3_600_000_000_000) return
       const cls = getClassTagFromModel(d.CarInfo?.CarModel)
@@ -719,7 +722,7 @@ export default function LiveTimingPage() {
       if (!overall || best < overall.time) overall = { time: best, driver: d, cls }
     })
     return { byClass, overall: overall as { time: number; driver: LiveDriver; cls: string } | null }
-  }, [connected])
+  }, [connected, disconnected])
 
   const sortDrivers = useCallback(
     (drivers: LiveDriver[]) => {
