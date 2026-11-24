@@ -187,6 +187,41 @@ export async function notifyCarPaymentApproved({
   })
 }
 
+/**
+ * Avisa a los admins de la plataforma (los únicos que pueden entrar a /admin → Pagos) de que hay
+ * una inscripción nueva pendiente de pago. Sin esto, la única forma de enterarse era entrar al
+ * panel y mirar la pestaña a mano — nada empujaba el aviso, así que una inscripción podía quedarse
+ * sin revisar indefinidamente aunque el piloto/equipo ya la hubiera mandado.
+ */
+export async function notifyAdminsPaymentPending({
+  adminUserIds,
+  leagueTitle,
+  leagueSlug,
+  entityName,
+  classTag,
+  carNumber,
+}: {
+  adminUserIds: string[]
+  leagueTitle: string
+  leagueSlug?: string
+  entityName: string
+  classTag?: string | null
+  carNumber?: number | null
+}) {
+  if (adminUserIds.length === 0) return
+  const carLabel = classTag && carNumber != null ? ` (${classTag} #${carNumber})` : ''
+  await Promise.all(
+    adminUserIds.map((userId) =>
+      createNotification({
+        userId,
+        title: `Pago pendiente de revisar: ${leagueTitle}`,
+        message: `${entityName}${carLabel} se ha inscrito en ${leagueTitle} y está pendiente de confirmar el pago.`,
+        link: '/admin?tab=pagos',
+      })
+    )
+  )
+}
+
 export async function notifySkinReviewed({
   userId,
   teamName,

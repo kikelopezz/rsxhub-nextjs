@@ -9,6 +9,8 @@ import { sameClassTag } from '@/lib/class-tag-match'
 import { parseConnections } from '@/lib/connections'
 import { getMinHoursForCategory } from '@/lib/data/categories'
 import { getAssettoCorsaHours } from '@/lib/steam-hours'
+import { getAdminUserIds } from '@/lib/auth'
+import { notifyAdminsPaymentPending } from '@/lib/notifications-data'
 
 function parseCarNumber(dorsal: any): number {
   if (dorsal == null) return 0
@@ -51,7 +53,7 @@ async function registerTeamImpl(formData: FormData) {
     throw new Error('League ID and Team ID are required.')
   }
 
-  const league = await db.league.findUnique({ where: { id: leagueId }, select: { slug: true, classTags: true, requiresPayment: true } })
+  const league = await db.league.findUnique({ where: { id: leagueId }, select: { slug: true, title: true, classTags: true, requiresPayment: true } })
   const leagueClassTags = league?.classTags || []
   // Ligas de pago no se auto-aprueban: quedan "pending" hasta que un admin confirme
   // el pago (fuera de la plataforma) y las apruebe desde el panel de admin.
@@ -288,6 +290,16 @@ async function registerTeamImpl(formData: FormData) {
     db.leagueRegistration.createMany({ data: rowsToInsert }),
   ])
 
+  if (initialStatus === 'pending' && rowsToInsert.length > 0) {
+    const adminUserIds = await getAdminUserIds()
+    await notifyAdminsPaymentPending({
+      adminUserIds,
+      leagueTitle: league?.title || slug,
+      leagueSlug: slug,
+      entityName: team.name,
+    })
+  }
+
   invalidateCache(['teams_dashboard', 'platform_leagues', 'leagues', 'registrations_', 'event_confirmations_'])
   revalidatePath('/ligas')
   if (slug) revalidatePath(`/ligas/${slug}`)
@@ -360,7 +372,7 @@ async function registerIndividualImpl(formData: FormData) {
 
   const league = await db.league.findUnique({
     where: { id: leagueId },
-    select: { slug: true, classTags: true, requiresPayment: true, registrationMode: true, registrationOpen: true, status: true },
+    select: { slug: true, title: true, classTags: true, requiresPayment: true, registrationMode: true, registrationOpen: true, status: true },
   })
   if (!league) throw new Error('League not found.')
   if (league.registrationMode !== 'individual') {
@@ -427,6 +439,18 @@ async function registerIndividualImpl(formData: FormData) {
       },
     }),
   ])
+
+  if (initialStatus === 'pending') {
+    const adminUserIds = await getAdminUserIds()
+    await notifyAdminsPaymentPending({
+      adminUserIds,
+      leagueTitle: league.title,
+      leagueSlug: slug,
+      entityName: displayName,
+      classTag,
+      carNumber: assignedNumber,
+    })
+  }
 
   invalidateCache(['registrations_' + leagueId, 'registrations_all', 'platform_drivers'])
   revalidatePath('/ligas')
