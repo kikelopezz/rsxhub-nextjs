@@ -123,6 +123,15 @@ export function LeagueBanner({
               <span className="font-mono-data rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {league.format}
               </span>
+              {league.requiresPayment && (
+                <span
+                  className="font-mono-data flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                  style={{ color: '#fbbf24', borderColor: '#fbbf2455', backgroundColor: '#fbbf2414' }}
+                  title={t.paidLeagueHint}
+                >
+                  {t.paidLeague}
+                </span>
+              )}
               <span className="font-mono-data flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] text-slate-300">
                 <Calendar className="h-3 w-3 text-[#4ea1ff]" />
                 <FormattedDate date={league.startsAt} mode="date" /> — <FormattedDate date={league.endsAt} mode="date" />

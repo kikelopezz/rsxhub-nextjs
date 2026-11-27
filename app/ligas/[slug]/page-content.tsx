@@ -90,7 +90,8 @@ export default function LeagueDetailPageContent({
   cutoffSnapshot = null
 }: Props) {
   const router = useRouter()
-  const tr = useDictionary().ligas.detailPage
+  const ligasDict = useDictionary().ligas
+  const tr = ligasDict.detailPage
   const trEvent = tr.eventModal
   const trReg = tr.registerModal
 
@@ -1032,6 +1033,11 @@ export default function LeagueDetailPageContent({
               <X className="h-4 w-4" />
             </button>
             <h2 className="font-display-league mb-4 text-2xl uppercase text-white">{trReg.title}</h2>
+            {league.requiresPayment && (
+              <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-semibold text-amber-300">
+                {ligasDict.banner.paidLeagueHint}
+              </div>
+            )}
             {regErrorMessage && (
               <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-300">
                 {regErrorMessage}
@@ -1128,7 +1134,9 @@ export default function LeagueDetailPageContent({
                   ))}
                 </select>
               </div>
-              <p className="text-[11px] text-slate-400">{tr.individualRegisterModal.hint}</p>
+              {league.requiresPayment && (
+                <p className="text-[11px] text-slate-400">{tr.individualRegisterModal.hint}</p>
+              )}
               <div className="flex justify-end gap-2 border-t border-white/10 pt-4">
                 <button
                   type="button"

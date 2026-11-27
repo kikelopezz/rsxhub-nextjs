@@ -64,6 +64,7 @@ export async function createLeagueAction(formData: FormData) {
       driveUrl: driveUrl || null,
       isFeatured: false,
       registrationMode: (formData.get('registrationMode') === 'team' ? 'team' : 'individual') as any,
+      requiresPayment: formData.get('requiresPayment') === 'on',
     },
   })
 

@@ -109,6 +109,7 @@ export default async function LigaDetailPage({
     classLimits: league.classLimits || null,
     registrationOpen: !!league.registrationOpen,
     registrationMode: ((league as any).registrationMode === 'team' ? 'team' : 'individual') as 'team' | 'individual',
+    requiresPayment: !!(league as any).requiresPayment,
     fullDescription: league.fullDescription || '',
     status: league.status,
     bannerUrl: league.bannerUrl || null,

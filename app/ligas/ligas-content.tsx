@@ -320,6 +320,13 @@ export default function LigasPageContent({
                       </select>
                     </div>
                     <div>
+                      <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-slate-200">
+                        <input type="checkbox" name="requiresPayment" />
+                        {t.createModal.requiresPayment}
+                      </label>
+                      <p className="mt-1 text-[10px] text-slate-500">{t.createModal.requiresPaymentHint}</p>
+                    </div>
+                    <div>
                       <label className="mb-1 block text-xs font-semibold uppercase text-slate-300">Color de campeonato</label>
                       <div className="space-y-2 rounded-lg border border-white/10 bg-black/40 p-2.5">
                         <div className="flex flex-wrap items-center gap-2">

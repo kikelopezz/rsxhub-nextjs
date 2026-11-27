@@ -7,6 +7,8 @@ const ligas: typeof es = {
     delete: 'Delete',
     startDate: 'Start Date:',
     endDate: 'End Date:',
+    paidLeague: 'Paid League',
+    paidLeagueHint: 'This league requires payment to participate. Your registration will stay pending until an admin confirms your payment.',
   },
   standings: {
     title: 'Teams Standings',
@@ -262,6 +264,8 @@ const ligas: typeof es = {
     registrationMode: 'Registration Mode',
     registrationModeTeam: 'By Team / Constructor (Team Registration)',
     registrationModeIndividual: 'Individual Driver Entry',
+    requiresPayment: 'Paid Championship',
+    requiresPaymentHint: 'Registrations will stay pending until an admin confirms the payment.',
     lineupCutoffLabel: 'Lineup cutoff (minimum laps + % over the real best lap, computed live). Leave on "None" to disable it.',
     lineupCutoffSource: 'Live timing source',
     lineupCutoffNone: 'None',

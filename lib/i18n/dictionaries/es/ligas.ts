@@ -5,6 +5,8 @@ const ligas = {
     delete: 'Eliminar',
     startDate: 'Inicio:',
     endDate: 'Fin:',
+    paidLeague: 'Liga de pago',
+    paidLeagueHint: 'Esta liga requiere pago para participar. Tu inscripción quedará pendiente hasta que un admin confirme el pago.',
   },
   standings: {
     title: 'Clasificación de equipos',
@@ -260,6 +262,8 @@ const ligas = {
     registrationMode: 'Modo de inscripción',
     registrationModeTeam: 'Por equipo / escudería (inscripción de equipos)',
     registrationModeIndividual: 'Inscripción individual de piloto',
+    requiresPayment: 'Campeonato de pago',
+    requiresPaymentHint: 'Las inscripciones quedarán pendientes hasta que un admin confirme el pago.',
     lineupCutoffLabel: 'Corte de alineaciones (vueltas mínimas + % sobre la mejor vuelta real, calculado en vivo). Dejar en "Ninguno" para desactivarlo.',
     lineupCutoffSource: 'Fuente de live timing',
     lineupCutoffNone: 'Ninguno',
